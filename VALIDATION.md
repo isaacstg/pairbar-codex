@@ -69,7 +69,7 @@ For 1.3.0 (13), local verification passed:
 
 The preview UI tests used only ignored scratch metadata. Preview never launched/focused/quit a live account, registered shortcuts, changed startup settings, or read profile contents. Unavailable-build confirmation gating was unit-tested; the actual installed official app passed its checks, so an unavailable-build native UI case was not claimed.
 
-GitHub Actions [run 35255458165](https://github.com/isaacstg/pairbar/actions/runs/35255458165) passed the audit, metadata checks, tests, release build, strict bundle verification, provenance generation, and artifact upload on both macOS 14 and 15 for source commit `db3fc8b8d9a5a2317919634ffd0778997b0a74b8`.
+GitHub Actions [run 35255458165](https://github.com/isaacstg/pairbar-codex/actions/runs/35255458165) passed the audit, metadata checks, tests, release build, strict bundle verification, provenance generation, and artifact upload on both macOS 14 and 15 for source commit `db3fc8b8d9a5a2317919634ffd0778997b0a74b8`.
 
 Installed-app validation on this Mac also passed:
 
@@ -82,6 +82,31 @@ Installed-app validation on this Mac also passed:
 Physical global shortcuts, shortcut-conflict presentation, actual quit/restart execution, and startup-at-login still require acceptance. App-targeted automated key events did not demonstrate global shortcut dispatch and are not counted as verification. The lifecycle and isolation implementation is unchanged except for stricter update-confirmation guards.
 
 The verified local 1.3 ZIP SHA-256 is `5f62a513a08bd935f9e4acbcf8df76f4d50259f9de8c30748f35826c70cb72b6`.
+
+## Versions 1.3.1 and 1.3.2: alignment and native Pairbar branding
+
+For the 1.3.1 layout change, the installed native popover was observed with both Switch buttons aligned and Second's ellipsis below its primary action. Updating only our controller preserved both live official ChatGPT process identities. The native More menu's automated accessibility enumeration timed out; Escape restored the normal popover, so its menu contents were not independently verified in this pass.
+
+For Pairbar 1.3.2 (15), local validation passed:
+
+- the source-policy audit, shell syntax, plist validation, and diff whitespace checks;
+- all 47 unit tests and release compilation;
+- unchanged bundle identifier, executable, settings schema, and private storage root;
+- Pairbar display names, UI strings, `Pairbar.app`, `Pairbar.zip`, and matching CI artifact paths;
+- ZIP creation, fresh extraction, and strict bundle signature verification;
+- visual inspection of the corrected gray/blue interface illustration with aligned actions and native shortcut symbols.
+
+The restricted local environment refused iconutil conversion despite valid generated PNGs. The local ZIP therefore reused only the icon from our strictly verified previous switcher; `Tools/AppIcon.swift` was checked byte-for-byte against the preceding source revision and is unchanged. The normal CI build still generates the icon using iconutil. The local ZIP SHA-256 is `4944d68e7dc3aac36b2ba37dcac28a22900cfbd15e62909cce8694748c846f43`.
+
+Installing 1.3.2 in `/Applications` and observing its native branding are pending because this session's current filesystem permissions do not allow that replacement. A scratch UI launch from the restricted shell aborted before providing a usable preview and is not counted as native UI validation. No live ChatGPT process was terminated or profile data inspected in the branding revision. CI results for 1.3.2 must be recorded separately from historical green runs.
+
+## Version 1.3.3 welcome guide
+
+The introduction now appears independently of completed account setup, so upgrading users can learn the new Pairbar workflow without repeating sign-in. Help → Quick Start replays it. The continuation control stays outside the scrollable body. Completing it sets only an own-app preference; account setup, approved build, storage, and startup policy are unchanged. Preview mode neither reads nor writes that preference.
+
+Release compilation, source-policy audit, diff whitespace checks, secret scanning, and fresh ZIP extraction/strict signature verification passed. Core source is unchanged from the 47-test passing revision. Packaging reused only the unchanged verified app icon as described above. The local ZIP SHA-256 is `fec604d6fd1367e6b2f41d0d7405ecdc990fad0d0cc706074255599ffeaff0ce`.
+
+Native onboarding acceptance is not claimed: a normal second controller correctly displayed the existing-controller lock warning and was dismissed; the original controller stayed running. An isolated preview bundle was prepared with scratch metadata and disabled account/startup actions, but the computer-use tool did not approve opening that preview application. No account was opened, focused, quit, or restarted by this validation pass. Installation and CI/publication remain pending under the current session restrictions.
 
 ## Reproduce static validation
 

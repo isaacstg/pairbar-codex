@@ -27,7 +27,7 @@ jobs:
         run: scripts/build.sh
       - name: Write build provenance
         run: |
-          shasum -a 256 dist/Codex-Account-Switcher.zip > dist/SHA256SUMS.txt
+          shasum -a 256 dist/Pairbar.zip > dist/SHA256SUMS.txt
           {
             echo "commit=${GITHUB_SHA}"
             echo "runner=${RUNNER_OS}"
@@ -36,9 +36,9 @@ jobs:
       - name: Upload personal-build archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, Node 24
         with:
-          name: Codex-Account-Switcher-${{ matrix.runner }}-${{ github.sha }}
+          name: Pairbar-${{ matrix.runner }}-${{ github.sha }}
           path: |
-            dist/Codex-Account-Switcher.zip
+            dist/Pairbar.zip
             dist/SHA256SUMS.txt
             dist/BUILD_INFO.txt
           if-no-files-found: error

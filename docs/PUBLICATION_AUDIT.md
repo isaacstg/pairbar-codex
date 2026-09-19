@@ -24,6 +24,6 @@ Signed-in persistence, physical global shortcut dispatch, startup-at-login, and 
 
 The repository became public on September 18, 2026. Anonymous GitHub API access confirmed `private: false` / `visibility: public`; anonymous raw README access also passed.
 
-Official Node 24 actions passed all steps on both macOS runners for `c4fa88a` in [run 35336196581](https://github.com/isaacstg/pairbar/actions/runs/35336196581). Both downloaded artifacts matched their checksum and commit provenance, and the green run was anonymously accessible after publication.
+Official Node 24 actions passed all steps on both macOS runners for `c4fa88a` in [run 35336196581](https://github.com/isaacstg/pairbar-codex/actions/runs/35336196581). Both downloaded artifacts matched their checksum and commit provenance, and the green run was anonymously accessible after publication.
 
 Repository security settings were verified: private vulnerability reporting enabled, secret scanning enabled, and secret push protection enabled. See [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md) for ongoing release and maintenance work.

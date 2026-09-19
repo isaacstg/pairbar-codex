@@ -1,6 +1,24 @@
 # Implementation Status
 
-Last reconciled against `main` after the 1.3 installed-app upgrade and native UI validation.
+Last reconciled against the Pairbar 1.3.3 source revision.
+
+## 1.3.3 welcome guide
+
+Implemented: a welcome page shown once independently of completed account setup, an always-visible continuation button, contextual instructions for new versus already configured users, and Help → Quick Start replay. Completion stores only a boolean in the switcher's own preferences. It does not change approval, setup, profile data, or login-item state; preview mode bypasses both reading and writing that preference.
+
+Validated: release compilation, source-policy audit, diff checks, no secrets in the changes, and fresh ZIP extraction with strict signature verification. The 47 core tests were already passing; shared core code is unchanged in this UI revision. `dist/Pairbar-1.3.3.zip` is the version-specific local package; `dist/Pairbar.zip` contains the same build. Native visual acceptance remains pending: the existing controller correctly rejected a second controller on its locked data, and the computer-use tool did not approve opening the separate preview application. The user's running controller was preserved.
+
+Installation and GitHub publication remain pending under the previously recorded session restrictions. The local ad-hoc build is not a notarized release.
+
+## 1.3.2 Pairbar branding and stable actions
+
+Implemented: aligned Open/Switch columns, Second's More menu beside its shortcut, native Pairbar labels/metadata, `Pairbar.app` and `Pairbar.zip`, matching CI artifact names, updated repository links, and a corrected gray/blue interface illustration.
+
+Locally verified: source audit, 47 unit tests, release compilation, unchanged identity/storage invariants, fresh ZIP extraction and strict signature verification. The unchanged icon was reused from our verified preceding bundle after iconutil failed under the restricted shell. The 1.3.1 alignment was observed in the installed native UI before the branding change.
+
+Requires validation: 1.3.2 CI, installation/native branding on the Mac, and renamed-app startup-at-login acceptance. Installation is pending because current session permissions do not permit replacing `/Applications` bundles. Existing account data and the official ChatGPT bundle were not modified.
+
+Publication of this revision is also pending: the connected GitHub write tool required approval unavailable under the current session policy. The source changes remain local and uncommitted; no 1.3.2 CI result is claimed. `dist/Pairbar.zip` passed final fresh extraction and strict verification in an unsynchronized temporary directory. Build information and its checksum are available beside the local ZIP.
 
 ## 1.3 menu-bar revision
 

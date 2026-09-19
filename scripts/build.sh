@@ -15,7 +15,7 @@ mkdir -p dist
 staging_dir="$(/usr/bin/mktemp -d /private/tmp/codex-account-switcher-build.XXXXXX)"
 trap 'rm -rf -- "$staging_dir"' EXIT
 
-app="$staging_dir/Codex Account Switcher.app"
+app="$staging_dir/Pairbar.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 
 swiftc Tools/AppIcon.swift -o work/build-app-icon
@@ -31,7 +31,7 @@ cp Resources/Info.plist "$app/Contents/Info.plist"
 /usr/bin/codesign --force --sign "${SWITCHER_SIGNING_IDENTITY:--}" --options runtime "$app"
 /usr/bin/codesign --verify --strict "$app"
 
-archive="$PWD/dist/Codex-Account-Switcher.zip"
+archive="$PWD/dist/Pairbar.zip"
 rm -f "$archive"
 /usr/bin/ditto -c -k --keepParent --norsrc --noextattr "$app" "$archive"
 printf 'Built signed app archive: %s\n' "$archive"

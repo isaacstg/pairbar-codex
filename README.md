@@ -6,7 +6,7 @@
 
 **Keep your current account. Add a second. Switch from the menu bar.**
 
-[![macOS CI](https://github.com/isaacstg/pairbar/actions/workflows/ci.yml/badge.svg)](https://github.com/isaacstg/pairbar/actions/workflows/ci.yml) [![macOS 13+](https://img.shields.io/badge/macOS-13%2B-111827?logo=apple&logoColor=white)](#build-and-try-it) [![Swift 5.9+](https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift&logoColor=white)](Package.swift) [![MIT](https://img.shields.io/badge/license-MIT-69DCC8)](LICENSE)
+[![macOS CI](https://github.com/isaacstg/pairbar-codex/actions/workflows/ci.yml/badge.svg)](https://github.com/isaacstg/pairbar-codex/actions/workflows/ci.yml) [![macOS 13+](https://img.shields.io/badge/macOS-13%2B-111827?logo=apple&logoColor=white)](#build-and-try-it) [![Swift 5.9+](https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift&logoColor=white)](Package.swift) [![MIT](https://img.shields.io/badge/license-MIT-69DCC8)](LICENSE)
 
 Pairbar is a native, local-only utility that keeps **two official ChatGPT/Codex instances open simultaneously**. Your normal account keeps its existing login and storage. The second gets separate Electron storage and a private `CODEX_HOME`.
 
@@ -42,8 +42,8 @@ This is profile separation under one macOS user, **not an OS security sandbox**.
 You need **macOS 13+**, **Xcode Command Line Tools / Swift 5.9+**, and the official **Electron-based `ChatGPT.app` with bundle ID `com.openai.codex`**. Other OpenAI desktop apps are not interchangeable. CI runs on macOS 14 and 15.
 
 ```sh
-git clone https://github.com/isaacstg/pairbar.git
-cd pairbar
+git clone https://github.com/isaacstg/pairbar-codex.git
+cd pairbar-codex
 python3 scripts/audit.py
 swift test
 bash scripts/build.sh
@@ -51,7 +51,7 @@ bash scripts/build.sh
 
 Use a regular checkout location, such as your home directory. Filesystem tests intentionally reject macOS symlink aliases such as `/tmp` and `/var`.
 
-Extract `dist/Codex-Account-Switcher.zip` and put **Codex Account Switcher.app** in `/Applications` or `~/Applications`. Pairbar's 1.3 installed app name, identifiers, and private-root name are retained for upgrade compatibility. Local/CI archives are ad-hoc signed; do not disable Gatekeeper globally.
+Extract `dist/Pairbar.zip` and put **Pairbar.app** in `/Applications` or `~/Applications`. When upgrading from Codex Account Switcher, quit only the old switcher and replace its app bundle. Keep the private data folder; the bundle identifier and storage root are unchanged. If startup at login was enabled, disable it before replacing the old app and enable it again from Pairbar's Settings. Local/CI archives are ad-hoc signed; do not disable Gatekeeper globally.
 
 1. Open the switcher and click its two-person menu-bar icon.
 2. Click **Set Up Second Account** after the official app check passes.
@@ -91,7 +91,7 @@ For the design decisions, trade-offs, and portfolio overview, see the **[enginee
 
 ## Contribute or follow along
 
-Try it, [report a reproducible bug](https://github.com/isaacstg/pairbar/issues/new?template=bug_report.yml), or read [CONTRIBUTING.md](CONTRIBUTING.md) before changing security-sensitive behavior. Use [private vulnerability reporting](https://github.com/isaacstg/pairbar/security/advisories/new) for security issues; never share account data or credentials.
+Try it, [report a reproducible bug](https://github.com/isaacstg/pairbar-codex/issues/new?template=bug_report.yml), or read [CONTRIBUTING.md](CONTRIBUTING.md) before changing security-sensitive behavior. Use [private vulnerability reporting](https://github.com/isaacstg/pairbar-codex/security/advisories/new) for security issues; never share account data or credentials.
 
 If Pairbar solves a problem for you, a star helps others discover the project. Feedback about setup friction and shortcut conflicts is especially useful.
 

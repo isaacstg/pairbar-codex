@@ -3,7 +3,7 @@
   <desc id="desc">Native ChatGPT and Codex account switching for macOS. An illustration shows Personal and Work account cards, Switch buttons, and Open Both.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#111F31"/><stop offset="1" stop-color="#080D17"/></linearGradient>
-    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#263344"/><stop offset="1" stop-color="#1B2635"/></linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#2B3033"/><stop offset="1" stop-color="#111619"/></linearGradient>
     <radialGradient id="glow"><stop stop-color="#69DCC8" stop-opacity="0.13"/><stop offset="1" stop-color="#69DCC8" stop-opacity="0"/></radialGradient>
   </defs>
   <rect width="1280" height="640" rx="26" fill="url(#bg)"/>
@@ -30,35 +30,35 @@
     <g transform="translate(802 132)">
       <rect x="-8" y="12" width="414" height="398" rx="24" fill="#02050B" opacity="0.3"/>
       <rect width="398" height="390" rx="22" fill="url(#panel)" stroke="#496074" stroke-opacity="0.5"/>
-      <path d="M185 0 L199 -14 L213 0" fill="#263344"/>
-      <text x="20" y="34" fill="#E3ECF7" font-size="14" font-weight="700">Codex Account Switcher</text>
+      <path d="M185 0 L199 -14 L213 0" fill="#2B3033"/>
+      <text x="20" y="34" fill="#E3ECF7" font-size="14" font-weight="700">Pairbar</text>
       <text x="365" y="34" fill="#94A6BA" font-size="22">×</text>
       <path d="M0 53 H398" stroke="#3B4B5E"/>
       <g transform="translate(18 73)">
-        <rect width="362" height="77" rx="13" fill="#101A28"/>
-        <circle cx="29" cy="36" r="15" fill="none" stroke="#69DCC8" stroke-width="2"/>
-        <circle cx="29" cy="31" r="4" fill="#69DCC8"/><path d="M21 43 Q29 32 37 43" stroke="#69DCC8" stroke-width="2" fill="none"/>
+        <rect width="362" height="77" rx="13" fill="#1F1F1F"/>
+        <circle cx="29" cy="36" r="15" fill="none" stroke="#A8ABAC" stroke-width="2"/>
+        <circle cx="29" cy="31" r="4" fill="#A8ABAC"/><path d="M21 43 Q29 32 37 43" stroke="#A8ABAC" stroke-width="2" fill="none"/>
         <text x="57" y="31" fill="#F4F7FB" font-size="15" font-weight="700">Personal</text>
-        <circle cx="61" cy="52" r="3.5" fill="#69DCC8"/><text x="71" y="57" fill="#69DCC8" font-size="12">Running</text>
-        <rect x="270" y="15" width="74" height="27" rx="7" fill="#344255"/><text x="286" y="33" fill="#EDF3FB" font-size="12">Switch</text>
-        <text x="284" y="62" fill="#879BAF" font-size="10">Opt Cmd 1</text>
+        <circle cx="61" cy="52" r="3.5" fill="#30D158"/><text x="71" y="57" fill="#30D158" font-size="12">Running</text>
+        <rect x="270" y="15" width="74" height="27" rx="7" fill="#393B3C"/><text x="286" y="33" fill="#EDF3FB" font-size="12">Switch</text>
+        <text x="314" y="62" fill="#879BAF" font-size="12">⌥⌘1</text>
       </g>
       <g transform="translate(18 166)">
-        <rect width="362" height="77" rx="13" fill="#101A28"/>
-        <circle cx="29" cy="36" r="15" fill="none" stroke="#F6BC73" stroke-width="2"/>
-        <circle cx="29" cy="31" r="4" fill="#F6BC73"/><path d="M21 43 Q29 32 37 43" stroke="#F6BC73" stroke-width="2" fill="none"/>
+        <rect width="362" height="77" rx="13" fill="#1F1F1F"/>
+        <circle cx="29" cy="36" r="15" fill="none" stroke="#A8ABAC" stroke-width="2"/>
+        <circle cx="29" cy="31" r="4" fill="#A8ABAC"/><path d="M21 43 Q29 32 37 43" stroke="#A8ABAC" stroke-width="2" fill="none"/>
         <text x="57" y="31" fill="#F4F7FB" font-size="15" font-weight="700">Work</text>
-        <circle cx="61" cy="52" r="3.5" fill="#69DCC8"/><text x="71" y="57" fill="#69DCC8" font-size="12">Running</text>
-        <rect x="270" y="15" width="74" height="27" rx="7" fill="#344255"/><text x="286" y="33" fill="#EDF3FB" font-size="12">Switch</text>
-        <text x="252" y="62" fill="#879BAF" font-size="12">···</text><text x="284" y="62" fill="#879BAF" font-size="10">Opt Cmd 2</text>
+        <circle cx="61" cy="52" r="3.5" fill="#30D158"/><text x="71" y="57" fill="#30D158" font-size="12">Running</text>
+        <rect x="270" y="15" width="74" height="27" rx="7" fill="#393B3C"/><text x="286" y="33" fill="#EDF3FB" font-size="12">Switch</text>
+        <text x="290" y="62" fill="#879BAF" font-size="12">···</text><text x="314" y="62" fill="#879BAF" font-size="12">⌥⌘2</text>
       </g>
-      <rect x="18" y="262" width="362" height="34" rx="9" fill="#69DCC8"/><text x="34" y="284" fill="#0B1220" font-size="14" font-weight="700">Open Both</text>
+      <rect x="18" y="262" width="362" height="34" rx="17" fill="#007AFF"/><text x="34" y="284" fill="#F4F7FB" font-size="14" font-weight="700">Open Both</text>
       <text x="19" y="321" fill="#99ACBF" font-size="11">Switching keeps the other account running.</text>
       <path d="M0 342 H398" stroke="#3B4B5E"/>
       <text x="20" y="372" fill="#C0CBD7" font-size="12">Settings</text><text x="353" y="372" fill="#C0CBD7" font-size="12">Help</text>
     </g>
     <path d="M72 554 H1200" stroke="#253344"/>
     <text x="72" y="591" fill="#73879F" font-size="13">BUILT BY ISAAC · ISAACSTG</text>
-    <text x="980" y="591" fill="#73879F" font-size="12">Interface illustration · v1.3</text>
+    <text x="980" y="591" fill="#73879F" font-size="12">Interface illustration · v1.3.2</text>
   </g>
 </svg>

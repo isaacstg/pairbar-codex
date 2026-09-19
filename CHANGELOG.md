@@ -1,11 +1,31 @@
 # Changelog
 
+## 1.3.3 — A proper welcome
+
+- Show a brief native menu-bar introduction once, including for users upgrading with completed account setup.
+- Explain the menu-bar location, normal Current account, separate Second sign-in, shortcuts, and Open Both.
+- Keep Get Started / Go to Accounts visible below the scrollable content, and allow replay from Help → Quick Start.
+- Store only an introduction-completed preference in the switcher's own preferences; preserve setup approval, account data, and login-item state. Scratch previews never read or write the welcome preference.
+
+## 1.3.2 — Pairbar on the Mac
+
+- Use Pairbar in the native interface, menu-bar tooltip, accessibility labels, diagnostics, and application metadata.
+- Package `Pairbar.app` as `Pairbar.zip`; update CI artifact names and upgrade instructions.
+- Preserve the existing bundle identifier, executable, private storage root, settings, and account data.
+
+## 1.3.1 — Stable account actions
+
+- Align Current and Second Open/Switch actions in a fixed-width column.
+- Put Second's ownership-gated More menu below its primary button alongside the shortcut; hide the extra menu chevron.
+- Match the public interface illustration to the native dark/gray account cards and blue Open Both control.
+- Rename the public repository to `isaacstg/pairbar-codex` and update repository links and clone instructions.
+
 ## Public project presentation
 
 - Introduce Pairbar as the public project identity, with an original vector mark, banner, and social-preview asset.
 - Make the README focus on the workflow, setup, security boundaries, and accurate validation evidence; move the detailed manual to `docs/USER_GUIDE.md`.
 - Add an engineering case study documenting product decisions, implementation trade-offs, and AI-assisted development for portfolio readers.
-- Rename the public repository to `isaacstg/pairbar`; update badges, clone instructions, documentation links, and the project homepage. The old GitHub URL redirects.
+- Rename the public repository to `isaacstg/pairbar-codex`; update badges, clone instructions, documentation links, and the project homepage. The old GitHub URL redirects.
 - Retain compatibility-sensitive installed 1.3 names and identifiers.
 
 ## 1.3.0 — Menu-bar experience

@@ -18,14 +18,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try store.acquireLock()
             let controller = try Controller(store: store, previewOnly: preview)
             self.controller = controller
+            navigation.needsWelcome = preview || !UserDefaults.standard.bool(forKey: PopoverNavigation.welcomePreferenceKey)
+            navigation.page = navigation.needsWelcome ? .welcome : .accounts
 
             item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             if let button = item?.button {
-                button.image = NSImage(systemSymbolName: "person.2.fill", accessibilityDescription: "Codex Account Switcher")
-                button.toolTip = "Codex Account Switcher"
+                button.image = NSImage(systemSymbolName: "person.2.fill", accessibilityDescription: "Pairbar")
+                button.toolTip = "Pairbar"
                 button.target = self
                 button.action = #selector(togglePopover(_:))
-                button.setAccessibilityLabel("Codex Account Switcher")
+                button.setAccessibilityLabel("Pairbar")
                 button.setAccessibilityHelp("Open account switching, settings, and help.")
             }
 
@@ -44,7 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             controller.onChange = { [weak self, weak controller] in
                 guard let controller else { return }
                 self?.item?.button?.toolTip = controller.currentState.isAmbiguous || controller.secondaryState.needsRecovery
-                    ? "Codex Account Switcher · An account needs attention"
+                    ? "Pairbar · An account needs attention"
                     : "Switch between \(controller.settings.nameA) and \(controller.settings.nameB)"
                 if let self { self.resizePopover(page: self.navigation.page, controller: controller) }
             }
@@ -57,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Task { await controller.open(number == 1 ? .a : .b) }
             }
             for error in keys?.errors ?? [] { controller.log(error) }
-            if preview || !controller.settings.setupComplete { showPopover(returnToAccounts: true) }
+            if preview || navigation.needsWelcome || !controller.settings.setupComplete { showPopover(returnToAccounts: true) }
         } catch {
             // Startup failures have no controller/popover yet. Keep a native error fallback.
             let alert = NSAlert()
@@ -81,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showPopover(returnToAccounts: Bool = false) {
         guard let button = item?.button, let controller else { return }
-        if returnToAccounts { navigation.page = .accounts }
+        if returnToAccounts { navigation.page = navigation.needsWelcome ? .welcome : .accounts }
         controller.refresh()
         controller.refreshLogin()
         NSApp.activate(ignoringOtherApps: true)
@@ -97,7 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func configureMainMenu() {
         let bar = NSMenu()
         let appItem = NSMenuItem()
-        let application = NSMenu(title: "Codex Account Switcher")
+        let application = NSMenu(title: "Pairbar")
         application.addItem(withTitle: "Quit Switcher", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q").target = NSApp
         appItem.submenu = application
         bar.addItem(appItem)

@@ -1,6 +1,8 @@
 # Pairbar user guide
 
-Pairbar is the public project name. Version 1.3 installs as `Codex Account Switcher.app`; the bundle identifier, private storage root, and archive filename are retained for compatibility.
+Pairbar installs as `Pairbar.app` from `Pairbar.zip`. The bundle identifier and private storage root remain unchanged, preserving existing labels, setup approval, and Second Account data. When upgrading from Codex Account Switcher, quit only the old switcher and replace its app bundle. If startup at login was enabled, disable it before replacement and enable it again in Pairbar's Settings.
+
+Version 1.3.3 introduces a welcome guide that opens once, even if account setup was completed in an older version. Choose Get Started (or Go to Accounts for existing setup) to continue. Reopen it any time from Help → Quick Start. Completing the welcome never approves a ChatGPT build or changes your saved accounts; any required app confirmation is shown on the Accounts page afterward.
 
 An independent, unofficial native menu-bar utility for keeping **your normal ChatGPT/Codex account** and **one additional isolated account** open at the same time in the official OpenAI macOS app. It is not affiliated with or endorsed by OpenAI.
 
@@ -17,11 +19,11 @@ It does not clone your primary profile or move authentication data around.
 - The official Electron-based OpenAI app named `ChatGPT.app`, with bundle identifier `com.openai.codex`. Other OpenAI desktop apps are not interchangeable with this build.
 - Xcode Command Line Tools with Swift 5.9 or later to build from source. There are no third-party package dependencies.
 
-This is a public-source project under the MIT license. There is currently no notarized binary release. Build locally, or use the ad-hoc personal-build artifacts from [GitHub Actions](https://github.com/isaacstg/pairbar/actions). Review the security model before using the utility with sensitive work.
+This is a public-source project under the MIT license. There is currently no notarized binary release. Build locally, or use the ad-hoc personal-build artifacts from [GitHub Actions](https://github.com/isaacstg/pairbar-codex/actions). Review the security model before using the utility with sensitive work.
 
 ```sh
-git clone https://github.com/isaacstg/pairbar.git
-cd pairbar
+git clone https://github.com/isaacstg/pairbar-codex.git
+cd pairbar-codex
 python3 scripts/audit.py
 swift test
 bash scripts/build.sh
@@ -64,7 +66,7 @@ Repeated shortcut/menu requests are guarded by per-account in-flight state so an
 
 ## First run
 
-1. Put `Codex Account Switcher.app` in `/Applications` or `~/Applications`.
+1. Put `Pairbar.app` in `/Applications` or `~/Applications`.
 2. Open it. It appears in the menu bar and has no Dock icon.
 3. The switcher automatically checks the official ChatGPT app, normally `/Applications/ChatGPT.app`. It can also recover the standard `~/Applications/ChatGPT.app` location after verifying OpenAI's signature.
 4. Click **Set Up Second Account**. This confirms the checked app version and opens a separate ChatGPT window.
@@ -226,7 +228,7 @@ The option lives in Settings as **Start switcher at login**.
 1. Finish work in Second and quit it from its More menu.
 2. Disable Start switcher at login in Settings.
 3. Quit the switcher from Help.
-4. Move `Codex Account Switcher.app` to Trash.
+4. Move `Pairbar.app` to Trash.
 
 Current ChatGPT is unaffected. Second-account data is preserved by default at:
 
@@ -271,7 +273,7 @@ The live smoke test is separate and opt-in because it launches a real isolated o
 The release script produces:
 
 ```text
-dist/Codex-Account-Switcher.zip
+dist/Pairbar.zip
 ```
 
 Personal builds and CI artifacts are ad-hoc signed. Public distribution should use an authorized Apple Developer ID and notarization. Do not globally disable Gatekeeper to install this utility.

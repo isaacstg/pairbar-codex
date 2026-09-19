@@ -226,6 +226,6 @@ Users should verify the displayed ChatGPT account before sensitive work, especia
 
 ## Reporting
 
-Use [GitHub private vulnerability reporting](https://github.com/isaacstg/pairbar/security/advisories/new) for a suspected security vulnerability. Include the switcher version, official app version, reproduction steps, and expected versus observed behavior. If the private reporting form is unavailable, do not publish sensitive details in an issue; wait until a private channel is available.
+Use [GitHub private vulnerability reporting](https://github.com/isaacstg/pairbar-codex/security/advisories/new) for a suspected security vulnerability. Include the switcher version, official app version, reproduction steps, and expected versus observed behavior. If the private reporting form is unavailable, do not publish sensitive details in an issue; wait until a private channel is available.
 
 Do not include real authentication tokens, cookies, account exports or other secrets in bug reports. Prefer the switcher's generated diagnostics and a description of the observed behavior.

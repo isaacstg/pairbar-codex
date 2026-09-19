@@ -3,7 +3,7 @@ import SwiftUI
 import SwitcherCore
 
 enum PopoverPage {
-    case accounts, settings, help
+    case welcome, accounts, settings, help
     static let width: CGFloat = 380
     @MainActor func height(for controller: Controller) -> CGFloat {
         guard self == .accounts else { return 540 }
@@ -16,7 +16,8 @@ enum PopoverPage {
     }
     var title: String {
         switch self {
-        case .accounts: return "Codex Account Switcher"
+        case .welcome: return "Welcome to Pairbar"
+        case .accounts: return "Pairbar"
         case .settings: return "Settings"
         case .help: return "Help"
         }
@@ -25,6 +26,8 @@ enum PopoverPage {
 
 @MainActor
 final class PopoverNavigation: ObservableObject {
+    static let welcomePreferenceKey = "pairbarWelcomeCompleted"
+    @Published var needsWelcome = true
     @Published var page: PopoverPage = .accounts {
         didSet { onPageChange?(page) }
     }
@@ -71,7 +74,7 @@ struct SwitcherPopoverView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                if navigation.page != .accounts {
+                if navigation.page != .accounts && navigation.page != .welcome {
                     Button { navigation.page = .accounts } label: {
                         Image(systemName: "chevron.left")
                     }
@@ -96,12 +99,14 @@ struct SwitcherPopoverView: View {
                         messageBanner(error)
                     }
                     switch navigation.page {
+                    case .welcome:
+                        welcome
                     case .accounts:
                         accounts
                     case .settings:
                         PopoverSettingsView(controller: controller)
                     case .help:
-                        PopoverHelpView(controller: controller, confirm: { confirmation = $0 })
+                        PopoverHelpView(controller: controller, quickStart: { navigation.page = .welcome }, confirm: { confirmation = $0 })
                     }
                 }
                 .padding(16)
@@ -110,20 +115,27 @@ struct SwitcherPopoverView: View {
 
             Divider()
             HStack {
-                Button {
-                    controller.refreshLogin()
-                    navigation.page = .settings
-                } label: {
-                    Label("Settings", systemImage: "gearshape")
+                if navigation.page == .welcome {
+                    Text("Open this guide again in Help.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    welcomeContinueButton
+                } else {
+                    Button {
+                        controller.refreshLogin()
+                        navigation.page = .settings
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(navigation.page == .settings)
+                    Spacer()
+                    Button { navigation.page = .help } label: {
+                        Label("Help", systemImage: "questionmark.circle")
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(navigation.page == .help)
                 }
-                .buttonStyle(.plain)
-                .disabled(navigation.page == .settings)
-                Spacer()
-                Button { navigation.page = .help } label: {
-                    Label("Help", systemImage: "questionmark.circle")
-                }
-                .buttonStyle(.plain)
-                .disabled(navigation.page == .help)
             }
             .font(.callout)
             .padding(16)
@@ -145,6 +157,55 @@ struct SwitcherPopoverView: View {
             Button("Cancel", role: .cancel) { confirmation = nil }
         } message: { action in
             Text(action.explanation)
+        }
+    }
+
+    private var welcome: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Image(systemName: "person.2.fill")
+                .font(.system(size: 32)).foregroundStyle(.tint)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Two accounts. One click apart.").font(.title3.bold())
+                Text("Pairbar lives in your Mac's menu bar. Click its two-person icon to open this panel; it doesn't add a Dock window.")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            welcomeStep("1", title: "Keep your current login", detail: "Current Account opens your normal ChatGPT. You don't need to sign in again if you're already signed in.")
+            welcomeStep("2", title: "Add your other account", detail: controller.settings.setupComplete
+                        ? "Open Second Account. Sign into your other account there if needed; its saved login is kept between launches."
+                        : "Choose Set Up Second Account, then sign into your other account in its separate ChatGPT window.")
+            welcomeStep("3", title: "Switch without closing either", detail: "Use ⌥⌘1 for Current and ⌥⌘2 for Second, or choose Open Both. Change the account names in Settings.")
+            if controller.settings.setupComplete {
+                Label("Your saved setup is preserved. Any required app checks appear next.", systemImage: "checkmark.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var welcomeContinueButton: some View {
+        Button(controller.settings.setupComplete ? "Go to Accounts" : "Get Started") {
+            // This preference records only completion of our introduction. It never
+            // grants isolation approval, changes login items, or touches account data.
+            if !controller.previewOnly {
+                UserDefaults.standard.set(true, forKey: PopoverNavigation.welcomePreferenceKey)
+            }
+            navigation.needsWelcome = false
+            navigation.page = .accounts
+        }
+        .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.defaultAction)
+    }
+
+    private func welcomeStep(_ number: String, title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(number).font(.caption.bold())
+                .frame(width: 24, height: 24)
+                .background(Color.accentColor.opacity(0.12), in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.callout.bold())
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -272,28 +333,37 @@ struct SwitcherPopoverView: View {
             }
             Spacer(minLength: 4)
             VStack(alignment: .trailing, spacing: 5) {
-                Button(running ? "Switch" : "Open") { Task { await controller.open(id) } }
+                Button { Task { await controller.open(id) } } label: {
+                    Text(running ? "Switch" : "Open").frame(minWidth: 52)
+                }
                     .disabled(controller.previewOnly || !canOpen)
                     .accessibilityLabel("\(running ? "Switch to" : "Open") \(controller.settings.name(id))")
                     .help(isCurrent ? "Option-Command-1" : "Option-Command-2")
-                Text(isCurrent ? "⌥⌘1" : "⌥⌘2")
-                    .font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
-                    .accessibilityLabel(isCurrent ? "Option Command 1" : "Option Command 2")
-            }
-            if !isCurrent && controller.secondaryState.hasVerifiedRunningProcess {
-                Menu {
-                    Button("Restart Second Account…") { confirmation = .restart }
-                        .disabled(controller.previewOnly || !controller.capabilities.canRestartSecond)
-                    Button("Quit Second Account…") { confirmation = .quit }
-                        .disabled(controller.previewOnly || !controller.capabilities.canQuitSecond)
-                } label: {
-                    Image(systemName: "ellipsis")
+                HStack(spacing: 6) {
+                    if !isCurrent && controller.secondaryState.hasVerifiedRunningProcess {
+                        Menu {
+                            Button("Restart Second Account…") { confirmation = .restart }
+                                .disabled(controller.previewOnly || !controller.capabilities.canRestartSecond)
+                            Button("Quit Second Account…") { confirmation = .quit }
+                                .disabled(controller.previewOnly || !controller.capabilities.canQuitSecond)
+                        } label: {
+                            Image(systemName: "ellipsis")
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .frame(width: 18)
+                        .accessibilityLabel("More actions for Second Account")
+                        .help("Restart or quit Second Account")
+                    }
+                    Text(isCurrent ? "⌥⌘1" : "⌥⌘2")
+                        .font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary)
+                        .accessibilityLabel(isCurrent ? "Option Command 1" : "Option Command 2")
                 }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .accessibilityLabel("More actions for Second Account")
-                .help("Restart or quit Second Account")
+                .frame(height: 16)
             }
+            // Lifecycle controls share the shortcut row, so verified ownership cannot
+            // insert a column or move the primary action as Second starts/stops.
+            .frame(width: 78, alignment: .trailing)
         }
         .padding(14)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
@@ -454,11 +524,13 @@ struct PopoverSettingsView: View {
 
 private struct PopoverHelpView: View {
     @ObservedObject var controller: Controller
+    let quickStart: () -> Void
     let confirm: (SecondAction) -> Void
     @State private var copied = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
+            Button("Quick Start", action: quickStart)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Everyday shortcuts").font(.headline)
                 shortcut("⌥⌘1", name: controller.settings.nameA)
@@ -519,7 +591,7 @@ private struct PopoverHelpView: View {
 
             DisclosureGroup("Remove the switcher") {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("1. Save your work and quit Second Account from its More menu.\n2. Disable startup at login.\n3. Quit the switcher below.\n4. Move Codex Account Switcher.app to Trash.")
+                    Text("1. Save your work and quit Second Account from its More menu.\n2. Disable startup at login.\n3. Quit the switcher below.\n4. Move Pairbar.app to Trash.")
                         .font(.caption).foregroundStyle(.secondary)
                     Text("Your normal ChatGPT account and saved Second Account data remain intact.")
                         .font(.caption).foregroundStyle(.secondary)
@@ -529,7 +601,7 @@ private struct PopoverHelpView: View {
             }
 
             Divider()
-            Text("Codex Account Switcher \(version) · Local-only")
+            Text("Pairbar \(version) · Local-only")
                 .font(.caption).foregroundStyle(.secondary)
             Text("Independent utility. Not affiliated with OpenAI.")
                 .font(.caption).foregroundStyle(.secondary)

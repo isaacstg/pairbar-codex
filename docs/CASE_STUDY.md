@@ -53,4 +53,4 @@ The next useful work is acceptance coverage, shortcut customization, localizatio
 - [Native popover](../Sources/DualAccountSwitcher/Views.swift)
 - [Security model](../SECURITY.md)
 
-Public branding uses Pairbar. Version 1.3 still installs as Codex Account Switcher.app; compatibility-sensitive identifiers and storage paths remain stable.
+Pairbar 1.3.2 uses the same name in its native interface and app bundle. Compatibility-sensitive identifiers and storage paths remain stable across the rename.

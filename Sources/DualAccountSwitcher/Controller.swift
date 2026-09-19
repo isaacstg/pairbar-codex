@@ -38,7 +38,7 @@ final class Controller: NSObject, ObservableObject {
 
         var loadedSettings = try store.load(Settings.self, name: "settings.json") ?? Settings()
         if loadedSettings.isFromFutureVersion {
-            throw SwitcherError.message("These settings were written by a newer Codex Account Switcher version. Install that version (or newer) instead of downgrading, so unknown settings are not discarded.")
+            throw SwitcherError.message("These settings were written by a newer Pairbar version. Install that version (or newer) instead of downgrading, so unknown settings are not discarded.")
         }
         if loadedSettings.needsSchemaRewrite {
             loadedSettings.schemaVersion = Settings.currentSchemaVersion
@@ -642,7 +642,7 @@ final class Controller: NSObject, ObservableObject {
         let version = (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "development"
         let build = (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? "dev"
         return """
-        Codex Account Switcher \(version) (\(build))
+        Pairbar \(version) (\(build))
         Settings schema: \(settings.schemaVersion)
         macOS: \(ProcessInfo.processInfo.operatingSystemVersionString)
         Official app path: \(settings.appPath)
