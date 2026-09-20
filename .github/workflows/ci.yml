@@ -25,21 +25,27 @@ jobs:
         run: swift test
       - name: Build and verify our app bundle
         run: scripts/build.sh
-      - name: Write build provenance
+      - name: Verify development artifact and write build provenance
         run: |
-          shasum -a 256 dist/Codex-Account-Switcher.zip > dist/SHA256SUMS.txt
+          (cd dist && shasum -a 256 -c Pairbar.zip.sha256)
+          scratch="$(mktemp -d)"
+          trap 'rm -rf -- "$scratch"' EXIT
+          ditto -x -k dist/Pairbar.zip "$scratch"
+          codesign --verify --strict --all-architectures "$scratch/Pairbar.app"
           {
             echo "commit=${GITHUB_SHA}"
             echo "runner=${RUNNER_OS}"
+            echo "signature=ad-hoc-development"
+            echo "notarized=false"
             sw_vers
           } > dist/BUILD_INFO.txt
-      - name: Upload personal-build archive
+      - name: Upload development archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, Node 24
         with:
-          name: Codex-Account-Switcher-${{ matrix.runner }}-${{ github.sha }}
+          name: Pairbar-${{ matrix.runner }}-${{ github.sha }}
           path: |
-            dist/Codex-Account-Switcher.zip
-            dist/SHA256SUMS.txt
+            dist/Pairbar.zip
+            dist/Pairbar.zip.sha256
             dist/BUILD_INFO.txt
           if-no-files-found: error
           retention-days: 14

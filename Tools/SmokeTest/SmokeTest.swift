@@ -2,20 +2,20 @@ import AppKit
 import Darwin
 import SwitcherCore
 
-// Explicit opt-in integration tool. Never included inside the shipped controller app.
-// The test requires exactly one normal ChatGPT instance to already be running. It never terminates it.
+// Explicit opt-in acceptance helper. Run only from a disposable macOS user or
+// dedicated machine. It never controls the one pre-existing Current process.
 @main
 struct SmokeTest {
     @MainActor static func main() async {
-        guard CommandLine.arguments.count == 3 else {
-            fputs("Usage: swift run SwitcherSmokeTest /path/to/ChatGPT.app /absolute/NEW/scratch/root\nBefore running, open exactly one normal ChatGPT instance. The test launches one isolated Second instance, verifies separate storage, and gracefully quits only that verified new process.\n", stderr)
+        guard CommandLine.arguments.count == 4,
+              CommandLine.arguments[3] == "--disposable-macos-user" else {
+            fputs("Usage: swift run SwitcherSmokeTest /path/to/ChatGPT.app /absolute/NEW/scratch/root --disposable-macos-user\nRun only in a disposable macOS user or dedicated machine with exactly one normal Current instance. The helper never reads provider storage or credentials.\n", stderr)
             exit(2)
         }
-
         let candidate = URL(fileURLWithPath: CommandLine.arguments[1])
         let root = URL(fileURLWithPath: CommandLine.arguments[2])
         guard root.path.hasPrefix("/"), !FileManager.default.fileExists(atPath: root.path) else {
-            fputs("Use a new, absolute scratch root; no existing profile data will be used.\n", stderr)
+            fputs("Use a new absolute scratch root. Existing data is never accepted.\n", stderr)
             exit(2)
         }
 
@@ -23,130 +23,117 @@ struct SmokeTest {
         let before = NSRunningApplication.runningApplications(withBundleIdentifier: Compatibility.bundleIdentifier)
             .filter { !$0.isTerminated }
         guard before.count == 1, let currentStamp = ProcessStamp.read(pid: before[0].processIdentifier) else {
-            fputs("Open exactly one normal ChatGPT instance before the smoke test. The test refuses to guess among zero/multiple Current candidates.\n", stderr)
+            fputs("Refusing: exactly one normal Current instance must already be running.\n", stderr)
             exit(2)
         }
 
-        var launched: (NSRunningApplication, LaunchReceipt)?
+        var managedApp: NSRunningApplication?
+        var managedReceipt: LaunchReceipt2?
+        var managedProfile: ProfileRecord2?
+        var managedPaths: Paths2?
+        var identity: OfficialAppIdentity?
         var failure: Error?
-
         do {
-            let identity = try Compatibility.inspectOfficialIdentity(candidate)
-            guard currentStamp.uid == getuid(), currentStamp.executable == identity.executable.path else {
-                throw SwitcherError.message("The pre-existing Current process is not the same verified official app selected for this test.")
+            let report = try Compatibility.inspect(candidate)
+            identity = OfficialAppIdentity(app: report.app, executable: report.executable, version: report.version)
+            guard let identity,
+                  currentStamp.uid == getuid(), currentStamp.executable == identity.executable.path,
+                  before[0].bundleURL?.resolvingSymlinksInPath() == identity.app,
+                  LiveCodeIdentity.matches(currentStamp, provider: .codex, identity: identity) else {
+                throw SwitcherError.message("The pre-existing Current process does not match the selected official build.")
             }
 
-            let report = try Compatibility.inspect(identity.app)
-            print("OFFICIAL IDENTITY PASS: \(identity.version)")
-            print("ISOLATION COMPATIBILITY PASS: \(report.fingerprint)")
-            print("CURRENT PRESENCE PASS: PID \(currentStamp.pid) (will not be controlled)")
-
-            let store = try PrivateStore(root: root)
+            let store = try DynamicStore(root: root)
             try store.acquireLock()
-            let paths = try store.prepareSecondary()
-            let plan = LaunchPlan(paths: paths,
-                                  userHome: FileManager.default.homeDirectoryForCurrentUser,
-                                  username: NSUserName(),
-                                  temporaryDirectory: NSTemporaryDirectory())
+            try store.migrateIfNeeded()
+            var settings = try store.loadProvider(.codex)
+            settings.appPath = identity.app.path
+            settings.approvedFingerprint = report.fingerprint
+            settings.setupComplete = true
+            try store.saveProvider(settings)
+            var profile = try store.createProfile(provider: .codex, name: "Disposable acceptance")
+            let paths = try store.prepareStorage(for: profile)
+            managedPaths = paths
+            let intent = PendingLaunch2(fingerprint: report.fingerprint)
+            profile.pending = intent
+            try store.saveProfile(profile)
 
-            let config = NSWorkspace.OpenConfiguration()
-            config.createsNewApplicationInstance = true
-            config.activates = false
-            config.arguments = plan.arguments
-            config.environment = plan.environment
-
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = false
+            configuration.createsNewApplicationInstance = true
+            configuration.allowsRunningApplicationSubstitution = false
+            configuration.arguments = ["--user-data-dir=" + paths.electron.path]
+            configuration.environment = [
+                "HOME": FileManager.default.homeDirectoryForCurrentUser.path,
+                "USER": NSUserName(), "LOGNAME": NSUserName(),
+                "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "TMPDIR": NSTemporaryDirectory(),
+                "CODEX_HOME": paths.codexHome.path,
+                "CODEX_ELECTRON_USER_DATA_PATH": paths.electron.path
+            ]
             let existing = Set(before.map(\.processIdentifier))
-            let time = Date().timeIntervalSince1970
             let app: NSRunningApplication = try await withCheckedThrowingContinuation { continuation in
                 let gate = CompletionGate<NSRunningApplication> { continuation.resume(with: $0) }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
-                    gate.complete(.failure(SwitcherError.message("Second-account smoke launch timed out. A late process, if any, is left alone; inspect Activity Monitor.")))
+                    gate.complete(.failure(SwitcherError.message("Disposable launch timed out; an unverified late process is left alone.")))
                 }
-                NSWorkspace.shared.openApplication(at: report.app, configuration: config) { app, error in
-                    if let error { gate.complete(.failure(error)) }
+                NSWorkspace.shared.openApplication(at: identity.app, configuration: configuration) { app, error in
+                    if error != nil { gate.complete(.failure(SwitcherError.message("Disposable launch failed."))) }
                     else if let app { gate.complete(.success(app)) }
-                    else { gate.complete(.failure(SwitcherError.message("Smoke launch returned no process."))) }
+                    else { gate.complete(.failure(SwitcherError.message("Disposable launch returned no process."))) }
                 }
             }
-
             guard let stamp = ProcessStamp.read(pid: app.processIdentifier),
-                  LaunchReceipt.canAdopt(stamp, launchedAfter: time,
-                                         executable: report.executable.path,
-                                         uid: getuid(), existingPIDs: existing) else {
-                throw SwitcherError.message("Unverifiable Second smoke process; no quit will be attempted for that process.")
+                  LaunchReceipt.canAdopt(stamp, launchedAfter: intent.startedAt.timeIntervalSince1970,
+                                         executable: identity.executable.path, uid: getuid(), existingPIDs: existing),
+                  app.bundleURL?.resolvingSymlinksInPath() == identity.app,
+                  LiveCodeIdentity.matches(stamp, provider: .codex, identity: identity) else {
+                throw SwitcherError.message("The returned process did not prove live ownership and was left alone.")
             }
+            let receipt = LaunchReceipt2(provider: .codex, profileID: profile.id,
+                storageGeneration: profile.storageGeneration, launchID: intent.launchID,
+                stamp: stamp, paths: paths, fingerprint: report.fingerprint)
+            profile.receipt = receipt
+            try store.saveProfile(profile)
+            let after = try Compatibility.inspect(identity.app)
+            guard after.fingerprint == report.fingerprint,
+                  ProcessStamp.read(pid: stamp.pid) == stamp,
+                  LiveCodeIdentity.matches(stamp, provider: .codex, identity: identity) else {
+                throw SwitcherError.message("The build or process changed after launch; recovery metadata was retained.")
+            }
+            profile.pending = nil
+            try store.saveProfile(profile)
+            managedApp = app; managedReceipt = receipt; managedProfile = profile
 
-            let receipt = LaunchReceipt(profile: .b, stamp: stamp, paths: paths)
-            guard receipt.owns(stamp, paths: paths, uid: getuid()) else {
-                throw SwitcherError.message("Second smoke receipt did not prove ownership immediately after launch.")
-            }
-            launched = (app, receipt)
-            print("SECOND LAUNCH PASS: PID \(stamp.pid)")
-
-            try await Task.sleep(nanoseconds: 5_000_000_000)
-            guard !app.isTerminated,
-                  receipt.owns(ProcessStamp.read(pid: app.processIdentifier), paths: paths, uid: getuid()) else {
-                throw SwitcherError.message("Second Account did not remain alive with verified ownership.")
-            }
-
-            // Metadata-only existence checks. Profile/auth file contents are never read.
-            guard FileManager.default.fileExists(atPath: paths.electron.appendingPathComponent("Local State").path) else {
-                throw SwitcherError.message("The official app did not initialize requested Second Electron storage.")
-            }
-            guard !(try FileManager.default.contentsOfDirectory(atPath: paths.home.path)).isEmpty else {
-                throw SwitcherError.message("The official app did not initialize requested Second Codex home.")
-            }
-            print("SECOND INDEPENDENT STORAGE PASS")
-
-            let running = NSRunningApplication.runningApplications(withBundleIdentifier: Compatibility.bundleIdentifier)
-                .filter { !$0.isTerminated }
-            guard running.contains(where: { $0.processIdentifier == currentStamp.pid }),
-                  running.contains(where: { $0.processIdentifier == stamp.pid }),
-                  currentStamp.pid != stamp.pid else {
-                throw SwitcherError.message("Current and Second were not simultaneously present as distinct processes.")
+            guard secureDirectory(paths.base), secureDirectory(paths.electron), secureDirectory(paths.codexHome) else {
+                throw SwitcherError.message("Private directories were not created with safe ownership and permissions.")
             }
             guard ProcessStamp.read(pid: currentStamp.pid) == currentStamp else {
-                throw SwitcherError.message("The pre-existing Current process changed during the test.")
+                throw SwitcherError.message("Current changed during the disposable launch.")
             }
+            print("AUTOMATED PASS: Current preserved; disposable PID, live signature, receipt and opaque directories verified.")
+            print("Visually verify that Current and Disposable show the intended separate test accounts. Type PASS to request a graceful close of Disposable only:")
+            guard readLine() == "PASS" else { throw SwitcherError.message("Visual account-separation acceptance was not confirmed.") }
+        } catch { failure = error }
 
-            let after = try Compatibility.inspect(candidate)
-            guard after.fingerprint == report.fingerprint else {
-                throw SwitcherError.message("Official app changed during smoke test.")
-            }
-            print("SIMULTANEOUS CURRENT + SECOND PASS")
-        } catch {
-            failure = error
+        if let app = managedApp, let receipt = managedReceipt, let profile = managedProfile,
+           let paths = managedPaths, let identity,
+           let stamp = ProcessStamp.read(pid: app.processIdentifier),
+           receipt.owns(stamp, profile: profile, paths: paths, uid: getuid()),
+           LiveCodeIdentity.matches(stamp, provider: .codex, identity: identity) {
+            if !app.terminate() { failure = SwitcherError.message("Disposable declined graceful close; close it manually.") }
+            for _ in 0..<100 where !app.isTerminated { try? await Task.sleep(nanoseconds: 200_000_000) }
+            if !app.isTerminated { failure = SwitcherError.message("Disposable remains open; it was not force-closed.") }
         }
-
-        if let (app, receipt) = launched {
-            let paths = ProfilePaths(root: root, id: .b)
-            if receipt.owns(ProcessStamp.read(pid: app.processIdentifier), paths: paths, uid: getuid()) {
-                if !app.terminate() {
-                    failure = SwitcherError.message("Second smoke process declined graceful termination; quit it manually.")
-                }
-            } else if !app.isTerminated {
-                failure = SwitcherError.message("Second smoke ownership changed; process left alone.")
-            }
-
-            for _ in 0..<100 {
-                if app.isTerminated { break }
-                try? await Task.sleep(nanoseconds: 200_000_000)
-            }
-            if !app.isTerminated {
-                failure = SwitcherError.message("Second smoke process is still running. It was not force-killed; quit it manually.")
-            }
+        guard ProcessStamp.read(pid: currentStamp.pid) == currentStamp else {
+            fputs("FAIL: Current was not preserved.\n", stderr); exit(1)
         }
+        if let failure { fputs("FAIL: \(failure.localizedDescription)\n", stderr); exit(1) }
+        print("ACCEPTANCE PASS: Current was preserved and only the verified disposable profile was closed. Scratch data remains at the supplied location for review.")
+    }
 
-        if ProcessStamp.read(pid: currentStamp.pid) != currentStamp {
-            failure = SwitcherError.message("Current process was not preserved.")
-        } else {
-            print("CURRENT PRESERVED PASS")
-        }
-
-        if let failure {
-            fputs("FAIL: " + failure.localizedDescription + "\n", stderr)
-            exit(1)
-        }
-        print("SMOKE TEST PASS: existing Current was preserved while one isolated Second initialized, ran simultaneously, and quit gracefully. Scratch Second data was retained.")
+    private static func secureDirectory(_ url: URL) -> Bool {
+        var info = stat()
+        return lstat(url.path, &info) == 0 && info.st_uid == getuid() &&
+            info.st_mode & S_IFMT == S_IFDIR && info.st_mode & 0o077 == 0
     }
 }

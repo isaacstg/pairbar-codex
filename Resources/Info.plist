@@ -2,13 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>io.isaacstg.codex-dual-account-switcher</string>
-<key>CFBundleName</key><string>Codex Account Switcher</string>
-<key>CFBundleDisplayName</key><string>Codex Account Switcher</string>
+<key>CFBundleName</key><string>Pairbar</string>
+<key>CFBundleDisplayName</key><string>Pairbar</string>
 <key>CFBundleExecutable</key><string>DualAccountSwitcher</string>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>1.3.0</string>
-<key>CFBundleVersion</key><string>13</string>
+<key>CFBundleShortVersionString</key><string>2.0.0</string>
+<key>CFBundleVersion</key><string>17</string>
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>

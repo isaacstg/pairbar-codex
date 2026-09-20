@@ -6,6 +6,9 @@ public struct OfficialAppIdentity: Equatable {
     public let app: URL
     public let executable: URL
     public let version: String
+    public init(app: URL, executable: URL, version: String) {
+        self.app = app; self.executable = executable; self.version = version
+    }
 }
 
 public struct CompatibilityReport {
