@@ -94,9 +94,9 @@ Read the [security model](SECURITY.md) and [Claude acceptance protocol](docs/CLA
 | Runtime controller | LaunchServices, process observations, ownership checks, memory pressure, and lifecycle orchestration |
 | Tests and audit | Pure state/storage/compatibility tests, fake-runtime integration checks, source-policy guard, and packaging checks |
 
-The integrated Pairbar 2 tree passed 128 Swift tests, the source-policy audit, diff/plist/shell checks, release compilation, fresh extraction, and strict all-architectures signature verification. The resulting Pairbar 2.0.0 (17) archive has SHA-256 `cf91c1bc72446d8c1afc59f2fb25a07c48131bfe69b44f1e7e9aaa8d8a4e5eb0`; it is ad-hoc signed with hardened runtime, not Developer ID signed or notarized.
+The audited Pairbar 2 tree passed 131 Swift tests, the source-policy audit, diff/plist/shell checks, release compilation, fresh extraction, and strict all-architectures signature verification. The resulting local arm64 Pairbar 2.0.0 (17) archive has SHA-256 `3fb1070595328e5ae6d296da77c75222fff50ce4e65d4aefce681ab6bd893c12`; it is ad-hoc signed with hardened runtime, not Developer ID signed or notarized.
 
-A read-only static check passed for installed ChatGPT `26.915.31945 (9922)` with reported fingerprint `d87b…eacc1a`. Static inspection does not prove signed-in isolation. The installed-Claude check, smoke/live account work, login-item checks, and native visual acceptance were not run, preserving the task-hosting Second Account. Those gates remain prepared for Current or disposable profiles on a safe account, user, or machine.
+The inert native preview was opened and inspected without constructing a controller, registering shortcuts, changing login items, or touching provider apps; its popover, Settings page, and accessibility labels were present. Read-only checks of the currently installed ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` both failed strict signature validation, so Pairbar correctly blocks them. An earlier ChatGPT check on the same reported version had passed, making this a local installation-integrity failure rather than current compatibility evidence. Smoke/live account work, login-item behavior, keyboard/VoiceOver acceptance, and signed-in isolation remain untested.
 
 ## Contributing
 

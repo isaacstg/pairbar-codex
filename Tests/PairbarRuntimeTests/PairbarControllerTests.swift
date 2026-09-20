@@ -66,6 +66,38 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertTrue(runtime.terminationAttempts.isEmpty)
     }
 
+    func testManagedLaunchRechecksProviderOwnershipAfterSuspendedInspection() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        try fixture.approveCodex(fingerprint: fingerprint)
+        let target = try fixture.addProfile(provider: .codex, name: "Target")
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        let existingStamp = inspector.stamp(provider: .codex, pid: 400, seconds: 100)
+        _ = try fixture.addOwnedProfile(name: "Existing", stamp: existingStamp, fingerprint: fingerprint)
+        let runtime = FakeRuntime()
+        runtime.install(existingStamp, provider: .codex, app: inspector.identity(for: .codex).app)
+        inspector.suspendNextInspection = true
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+
+        let opening = Task { await controller.open(.managed(target.id)) }
+        for _ in 0..<1_000 {
+            if inspector.inspectionPauseCount > 0 { break }
+            await Task.yield()
+        }
+        XCTAssertEqual(inspector.inspectionPauseCount, 1)
+        runtime.processObservations[existingStamp.pid] = .unavailable
+        inspector.releaseInspection()
+
+        let opened = await opening.value
+        XCTAssertFalse(opened)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        let durable = try XCTUnwrap(try fixture.store.listProfiles(provider: .codex).first { $0.id == target.id })
+        XCTAssertNil(durable.pending)
+        XCTAssertNil(durable.receipt)
+        XCTAssertEqual(controller.states[.codex]?.profiles[target.id], .stopped)
+        XCTAssertTrue(controller.states[.codex]?.needsRecovery == true)
+    }
+
     func testFailureAfterLaunchPreservesPendingAndReceiptForRecovery() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -284,7 +316,7 @@ final class PairbarControllerTests: XCTestCase {
             defer { fixture.remove() }
             let selected = try fixture.addProfile(provider: .codex, name: "Selected", launchAtLogin: true, order: 1)
             _ = try fixture.addProfile(provider: .codex, name: "Not selected", launchAtLogin: false, order: 0)
-            _ = try fixture.addProfile(provider: .claude, name: "Claude selected", launchAtLogin: true, order: 2)
+            _ = try fixture.addProfile(provider: .claude, name: "Claude selected", launchAtLogin: true, order: 0)
             try fixture.approveCodex(fingerprint: fingerprint)
             var preferences = try fixture.store.loadPreferences()
             preferences.launchSelectedAtLogin = true
@@ -326,6 +358,52 @@ final class PairbarControllerTests: XCTestCase {
 
             XCTAssertTrue(runtime.openRequests.isEmpty)
         }
+    }
+
+    func testLoginBatchContinuesAfterOptionalProviderIdentityFailure() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let selected = try fixture.addProfile(provider: .codex, name: "Codex selected", launchAtLogin: true)
+        try fixture.approveCodex(fingerprint: fingerprint)
+        var claude = try fixture.store.loadProvider(.claude)
+        claude.currentLaunchAtLogin = true
+        try fixture.store.saveProvider(claude)
+        var preferences = try fixture.store.loadPreferences()
+        preferences.launchSelectedAtLogin = true
+        try fixture.store.savePreferences(preferences)
+        let runtime = FakeRuntime()
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        inspector.identityFailures.insert(.claude)
+        let stamp = inspector.stamp(provider: .codex, pid: 603, seconds: 101)
+        runtime.openHandler = { request in
+            runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+            XCTAssertEqual(request.environment["CODEX_HOME"], fixture.store.paths(for: selected).codexHome.path)
+            return stamp.pid
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+
+        await controller.launchAtLogin(isLoginEvent: true)
+
+        XCTAssertEqual(runtime.openRequests.count, 1)
+        XCTAssertEqual(runtime.activated, [stamp])
+    }
+
+    func testCriticalMemoryStillAllowsBatchToFocusRunningProfile() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        let stamp = inspector.stamp(provider: .codex, pid: 602, seconds: 100)
+        let profile = try fixture.addOwnedProfile(name: "Already running", stamp: stamp, fingerprint: fingerprint)
+        let runtime = FakeRuntime()
+        runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        controller.model.memoryPressure = .critical
+
+        await controller.openBatch([.managed(profile.id)], automatic: true)
+
+        XCTAssertEqual(runtime.activated, [stamp])
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertNil(controller.model.errorMessage)
     }
 }
 
@@ -454,6 +532,10 @@ private final class FakeRuntime: ApplicationRuntime {
 @MainActor
 private final class FakeInspector: ProviderInspecting {
     var inspectionResponses: [ProviderID2: [ProviderInspection]] = [:]
+    var identityFailures = Set<ProviderID2>()
+    var suspendNextInspection = false
+    private(set) var inspectionPauseCount = 0
+    private var inspectionContinuation: CheckedContinuation<Void, Never>?
     private let codexFingerprint: String
 
     init(codexFingerprint: String = "test-codex-fingerprint") {
@@ -461,10 +543,16 @@ private final class FakeInspector: ProviderInspecting {
     }
 
     func identity(provider: ProviderID2, at url: URL) async throws -> OfficialAppIdentity {
-        identity(for: provider)
+        if identityFailures.contains(provider) { throw FakeError.identityUnavailable }
+        return identity(for: provider)
     }
 
     func inspect(provider: ProviderID2, at url: URL) async throws -> ProviderInspection {
+        if suspendNextInspection {
+            suspendNextInspection = false
+            inspectionPauseCount += 1
+            await withCheckedContinuation { continuation in inspectionContinuation = continuation }
+        }
         if var queued = inspectionResponses[provider], !queued.isEmpty {
             let response = queued.removeFirst()
             inspectionResponses[provider] = queued
@@ -472,6 +560,11 @@ private final class FakeInspector: ProviderInspecting {
         }
         return report(provider: provider, fingerprint: provider == .codex ? codexFingerprint : "claude-static-only",
                       managedLaunchAllowed: provider == .codex)
+    }
+
+    func releaseInspection() {
+        inspectionContinuation?.resume()
+        inspectionContinuation = nil
     }
 
     func identity(for provider: ProviderID2) -> OfficialAppIdentity {
@@ -494,5 +587,5 @@ private final class FakeInspector: ProviderInspecting {
 }
 
 private enum FakeError: Error {
-    case unexpectedOpen
+    case unexpectedOpen, identityUnavailable
 }

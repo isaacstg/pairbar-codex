@@ -10,8 +10,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Switcher version and build
-      placeholder: "1.3.0 (13)"
+      label: Pairbar version and build
+      placeholder: "2.0.0 (17)"
     validations:
       required: true
   - type: input
@@ -24,8 +24,8 @@ body:
   - type: textarea
     id: app
     attributes:
-      label: Official ChatGPT app version
-      description: Include the app version/build, not account information.
+      label: Official provider app and version
+      description: Include ChatGPT or Claude and its version/build, without account information.
     validations:
       required: true
   - type: dropdown
@@ -33,12 +33,15 @@ body:
     attributes:
       label: Affected area
       options:
-        - Current Account discovery or focus
-        - Second Account launch or focus
-        - Second Account graceful quit or restart
+        - Current discovery or focus
+        - Managed profile launch or focus
+        - Managed profile graceful close or restart
+        - Multiple profiles, filtering, or selection
         - Compatibility or update gate
-        - Safe recovery or reset
-        - Setup, menu, diagnostics, or startup at login
+        - Migration, safe recovery, archive, or reset
+        - Onboarding, menu, diagnostics, shortcuts, or startup
+        - Accessibility or language
+        - Claude Current or compatibility research
         - Build or test tooling
     validations:
       required: true

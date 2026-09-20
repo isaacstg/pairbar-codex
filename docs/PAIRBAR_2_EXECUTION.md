@@ -2,7 +2,7 @@
 
 ## Recovery point
 
-The approved 1.3.3 working tree was consolidated at `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, on `codex/pairbar-2`. Remote `main` was read-only verified as `4399fd2090d5e5aa152ec5f0aa0188f5f3e5c5cf` on 2026-09-19 and rechecked unchanged on 2026-09-20. No push was performed.
+The approved 1.3.3 working tree was consolidated at `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, on `codex/pairbar-2`. Remote `main` was read-only verified as `4399fd2090d5e5aa152ec5f0aa0188f5f3e5c5cf` on 2026-09-19 and rechecked unchanged on 2026-09-21. The Pairbar 2 branch had not been pushed when this audit began.
 
 Before delegation: source audit, whitespace, shell/plist validation, 47 unit tests and release packaging passed. Module caches were redirected into ignored `work/`; iconutil required building outside the restricted sandbox. Only Pairbar's staging bundle was signed.
 
@@ -46,20 +46,20 @@ The implementation keeps these decision-complete boundaries:
 
 ## Integrated validation result
 
-The integrator completed the shared non-live validation on the joined source:
+The integrator completed the shared non-live validation and follow-up audit on the joined source:
 
-- all 128 Swift tests passed with repository-local module caches, including the final adversarial Claude lifecycle/archive denial cases;
+- all 131 Swift tests passed with repository-local module caches, including the final adversarial Claude lifecycle/archive denial cases, suspended-inspection ownership revalidation, independent batch failures, and critical-memory focus behavior;
 - `scripts/audit.py`, `git diff --check`, `plutil`, and `bash -n` passed;
 - the release build completed as Pairbar 2.0.0 (17);
 - `dist/Pairbar.zip` was freshly extracted and passed ZIP integrity and `codesign --verify --strict --all-architectures`;
-- the archive SHA-256 is `cf91c1bc72446d8c1afc59f2fb25a07c48131bfe69b44f1e7e9aaa8d8a4e5eb0`;
+- the archive SHA-256 is `3fb1070595328e5ae6d296da77c75222fff50ce4e65d4aefce681ab6bd893c12`;
 - Pairbar is ad-hoc signed with hardened runtime. It has no Developer ID signature or notarization.
 
-The read-only `--check-app /Applications/ChatGPT.app` command passed for version `26.915.31945 (9922)` and reported fingerprint `d87b…eacc1a`. That result is build-specific static evidence only. It does not prove a signed-in profile boundary.
+The historical read-only `--check-app /Applications/ChatGPT.app` command passed for version `26.915.31945 (9922)` and reported fingerprint `d87b…eacc1a`. On 2026-09-21, a strict recheck of that installed ChatGPT version failed signature validation; a first read-only Claude check of `1.34493.1` failed at the same gate. Both official bundles were left untouched. The current local installations therefore provide no compatibility evidence.
 
-`--check-claude` was not executed because permission auto-review exhausted the approval quota. No installed-Claude result is recorded or implied. Synthetic Claude tests passed while managed Claude remained hard disabled.
+`--check-claude` was executed read-only and refused the locally installed bundle at strict signature validation, before ASAR findings could be produced. Synthetic Claude tests passed while managed Claude remained hard disabled.
 
-No live smoke, account lifecycle, login-item, signed-in isolation, or native visual test ran. This kept the task-hosting Second Account untouched. The in-memory preview no-op test passed; a native preview execution remains pending.
+No live smoke, account lifecycle, login-item, signed-in isolation, keyboard, or VoiceOver test ran. This kept the task-hosting Second Account untouched. The inert native preview opened successfully; its Profiles and Settings surfaces and accessibility labels were inspected while all account/startup actions remained disabled.
 
 ## Remaining acceptance gates
 

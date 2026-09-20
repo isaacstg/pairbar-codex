@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for considering a contribution. Codex Account Switcher is intentionally small because its job touches real account sessions. Changes should preserve the Current/Second ownership boundary before adding convenience features.
+Thanks for considering a contribution. Pairbar is intentionally conservative because its job touches real account sessions. Changes must preserve the boundary between each provider's unmanaged Current entry and receipt-owned managed profiles.
 
 ## Before opening a pull request
 
@@ -19,10 +19,10 @@ Use a checkout with no symbolic-link ancestors, such as a folder in your home di
 For an opt-in integration check, start exactly one normal ChatGPT process and choose a **new path whose ancestors are not symbolic links** as scratch storage:
 
 ```sh
-swift run SwitcherSmokeTest /Applications/ChatGPT.app "$HOME/Desktop/cas-smoke-$(date +%s)"
+swift run SwitcherSmokeTest /Applications/ChatGPT.app "$HOME/Desktop/pairbar-smoke-$(date +%s)" --disposable-macos-user
 ```
 
-The smoke test starts one disposable isolated Second process and gracefully quits only that verified process. It never signs in or reads profile data. Do not use `/tmp` or `/var` as its root: macOS exposes those through symbolic links and the private-store safety guard rejects them by design.
+Run that command only in a disposable macOS user or dedicated machine with exactly one normal Current process. It starts one disposable managed Codex process and gracefully quits only that verified process. It never signs in or reads profile data. Do not use `/tmp` or `/var` as its root: macOS exposes those through symbolic links and the private-store safety guard rejects them by design.
 
 ## Non-negotiable boundaries
 
@@ -31,7 +31,7 @@ Contributions must not:
 - modify, copy, patch, inject into, or re-sign the official ChatGPT app;
 - read, move, parse, log, or upload tokens, cookies, browser data, Keychain data, account identity, process arguments, or process environments;
 - introduce networking, subprocess/shell control of ChatGPT, forced termination, Dock rewriting, or a private Current profile;
-- terminate or restart Current, or control Second without a verified receipt;
+- terminate or restart Current, or control a managed process without a verified profile receipt;
 - make ambiguous process ownership succeed by guessing.
 
 Read [SECURITY.md](SECURITY.md) and [docs/STATE_MACHINE.md](docs/STATE_MACHINE.md) before changing process, storage, compatibility, or recovery logic.

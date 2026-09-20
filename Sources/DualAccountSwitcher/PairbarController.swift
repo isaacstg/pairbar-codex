@@ -263,6 +263,14 @@ final class PairbarController {
                 guard report.managedLaunchAllowed, settings.setupComplete, let fingerprint = report.fingerprint,
                       fingerprint == settings.approvedFingerprint else { fail("compatibility"); return false }
                 reports[provider] = report
+                // Inspection suspends this MainActor method. Re-resolve live ownership before
+                // creating storage or durable launch intent so an unreadable/reused process that
+                // appeared during inspection cannot be crossed by a new managed launch.
+                refresh()
+                guard let refreshed = records.first(where: { $0.id == id && !$0.archived }),
+                      refreshed == record, states[provider]?.profiles[id] == .stopped,
+                      states[provider]?.needsRecovery == false else { fail("ownership"); return false }
+                record = refreshed
                 let paths = try store.prepareStorage(for: record)
                 let existing = Set(runtime.running(provider: provider).map(\.pid))
                 let intent = PendingLaunch2(startedAt: runtime.now, fingerprint: fingerprint)
@@ -459,15 +467,21 @@ final class PairbarController {
         guard isLoginEvent, !loginHandled else { return }; loginHandled = true
         guard preferences.launchSelectedAtLogin else { return }
         var targets = providers.values.filter(\.currentLaunchAtLogin).sorted { $0.provider.rawValue < $1.provider.rawValue }.map { AccountTarget2.current($0.provider) }
-        targets += records.filter { !$0.archived && $0.launchAtLogin }.sorted { $0.order < $1.order }.map { .managed($0.id) }
+        targets += records.filter { !$0.archived && $0.launchAtLogin && $0.provider.managedProfilesEnabled }
+            .sorted { $0.order < $1.order }.map { .managed($0.id) }
         await openBatch(targets, automatic: true)
     }
     func openBatch(_ targets: [AccountTarget2], automatic: Bool = false, allowCriticalMemory: Bool = false) async {
         guard !batchRunning else { return }; batchRunning = true; defer { batchRunning = false }
         var seen = Set<AccountTarget2>()
         for target in targets where seen.insert(target).inserted {
-            if model.memoryPressure == .critical && (automatic || !allowCriticalMemory) { fail("memory"); break }
-            if !(await open(target, allowCriticalMemory: allowCriticalMemory)) { break }
+            if model.memoryPressure == .critical && needsNewInstance(target) && (automatic || !allowCriticalMemory) {
+                fail("memory"); break
+            }
+            // Targets are independent. A missing/invalid optional provider or one stale
+            // selection must not prevent later safe targets from opening. Critical memory
+            // remains the only batch-wide stop because it applies to every new instance.
+            _ = await open(target, allowCriticalMemory: allowCriticalMemory)
         }
     }
     private func handle(_ action: PairbarPanelAction) {

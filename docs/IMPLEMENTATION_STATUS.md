@@ -1,6 +1,6 @@
 # Pairbar 2 implementation status
 
-Last reconciled with the Pairbar 2 integration worktree on 2026-09-20. This document distinguishes implemented source, completed evidence, and acceptance still required.
+Last reconciled with the Pairbar 2 audit worktree on 2026-09-21. This document distinguishes implemented source, completed evidence, and acceptance still required.
 
 ## Product invariant
 
@@ -70,16 +70,16 @@ Historical live evidence also showed one disposable legacy Second process initia
 
 The integrated tree completed its non-live validation pass:
 
-- all 128 Swift tests passed, covering the dynamic store/migration, state resolver, synthetic Claude inspection, panel model, controller fake runtime, and Claude lifecycle/archive denial;
+- all 131 Swift tests passed, covering the dynamic store/migration, state resolver, synthetic Claude inspection, panel model, controller fake runtime, suspended-inspection ownership revalidation, independent batch failures, memory-pressure focus behavior, and Claude lifecycle/archive denial;
 - `scripts/audit.py`, `git diff --check`, plist validation, and shell syntax validation passed;
 - the release build produced Pairbar 2.0.0 (17);
 - fresh extraction, ZIP integrity, and `codesign --verify --strict --all-architectures` passed;
-- `dist/Pairbar.zip` has SHA-256 `cf91c1bc72446d8c1afc59f2fb25a07c48131bfe69b44f1e7e9aaa8d8a4e5eb0`;
+- `dist/Pairbar.zip` has SHA-256 `3fb1070595328e5ae6d296da77c75222fff50ce4e65d4aefce681ab6bd893c12`;
 - the bundle is ad-hoc signed with hardened runtime, not Developer ID signed or notarized.
 
-The read-only installed-app check passed for ChatGPT `26.915.31945 (9922)` with reported fingerprint `d87b…eacc1a`. That is static identity/compatibility evidence for the inspected build, not proof of session isolation.
+An earlier read-only installed-app check passed for ChatGPT `26.915.31945 (9922)` with reported fingerprint `d87b…eacc1a`. On 2026-09-21, strict rechecks of the installed ChatGPT build and Claude `1.34493.1` both failed because macOS reported their signed bundles as modified. Pairbar refused both as designed. The provider bundles were not changed or repaired during this audit, and neither result is compatibility or isolation evidence.
 
-No installed-Claude check, smoke test, signed-in test, lifecycle test, login-item test, or native visual pass was performed. The installed-Claude command was not authorized before the approval quota was exhausted; no result is inferred from that. The in-memory preview action-no-op test passed, while a native preview launch remains pending. Exact evidence is recorded in [VALIDATION.md](../VALIDATION.md).
+The installed-Claude check was attempted read-only and failed at strict signature validation before packaged-code inspection. No smoke, signed-in, lifecycle, login-item, keyboard, or VoiceOver pass was performed. The inert native preview opened successfully and exposed the expected popover, Settings controls, disabled live actions, and accessibility labels. Exact evidence is recorded in [VALIDATION.md](../VALIDATION.md).
 
 ## Real acceptance still required
 
