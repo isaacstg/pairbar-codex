@@ -66,7 +66,7 @@ The audited worktree completed the following non-live validation on 2026-09-21:
 - `git diff --check`, `plutil`, and `bash -n` passed;
 - all **131 Swift tests** passed using workspace-local module caches;
 - the release build completed as Pairbar **2.0.0 (17)**;
-- the local arm64 build produced `dist/Pairbar.zip` with SHA-256 `3fb1070595328e5ae6d296da77c75222fff50ce4e65d4aefce681ab6bd893c12`;
+- the local arm64 build produced `dist/Pairbar.zip` with SHA-256 `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`;
 - a fresh extraction, ZIP integrity check, and `codesign --verify --strict --all-architectures` passed;
 - the extracted Pairbar bundle is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
 

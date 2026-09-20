@@ -10,6 +10,7 @@
 - Add read-only Claude compatibility research. Claude Current remains available after identity verification; managed Claude profiles remain disabled pending real Chat, Code, and Cowork acceptance.
 - Recheck provider ownership after asynchronous compatibility inspection, skip unsupported residual profiles during login launch, and let one optional provider failure leave later safe targets available.
 - Keep focus of already-running verified profiles available under critical memory pressure while pausing new automatic launches.
+- Use selector-based refresh scheduling for compatibility with the macOS 14 Swift concurrency checker.
 - Expand the automated suite to 131 tests and the source-policy audit to the Pairbar 2 invariants.
 
 This candidate is not a public binary release. Developer ID signing, notarization, clean-machine verification, and the real signed-in acceptance matrix remain open.

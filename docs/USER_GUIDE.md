@@ -208,7 +208,7 @@ swift test
 bash scripts/build.sh
 ```
 
-The verified local arm64 development build created Pairbar 2.0.0 (17) at `dist/Pairbar.zip`, SHA-256 `3fb1070595328e5ae6d296da77c75222fff50ce4e65d4aefce681ab6bd893c12`. Its fresh extraction passed strict all-architectures signature verification. The bundle is ad-hoc signed with hardened runtime; public distribution still requires deliberate architecture support, an authorized Developer ID signature, notarization, stapling, and clean-machine acceptance.
+The verified local arm64 development build created Pairbar 2.0.0 (17) at `dist/Pairbar.zip`, SHA-256 `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`. Its fresh extraction passed strict all-architectures signature verification. The bundle is ad-hoc signed with hardened runtime; public distribution still requires deliberate architecture support, an authorized Developer ID signature, notarization, stapling, and clean-machine acceptance.
 
 The audited source passed 131 Swift tests and the source/diff/plist/shell checks. The inert native preview rendered its Profiles and Settings surfaces with accessibility labels, but no live account, login-item, keyboard, or VoiceOver acceptance was run. Current read-only checks of installed ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` failed strict signature validation and Pairbar blocked both; the official bundles were left untouched.
 

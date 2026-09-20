@@ -104,9 +104,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startRuntimeUpdates(model: PairbarPanelModel, controller: PairbarController) {
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak controller] _ in
-            Task { @MainActor in controller?.refresh() }
-        }
+        // Selector scheduling avoids the strict-concurrency capture diagnostic emitted by
+        // the Swift toolchain on the macOS 14 GitHub Actions runner.
+        refreshTimer = Timer.scheduledTimer(timeInterval: 2, target: self,
+            selector: #selector(refreshTimerFired(_:)), userInfo: nil, repeats: true)
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.normal, .warning, .critical], queue: .main)
         source.setEventHandler { [weak model] in
             guard let model else { return }
@@ -117,6 +118,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         memorySource = source
         source.resume()
+    }
+
+    @objc private func refreshTimerFired(_ timer: Timer) {
+        controller?.refresh()
     }
 
     @objc private func togglePopover(_ sender: Any?) {
