@@ -69,6 +69,7 @@ The audited worktree completed the following non-live validation on 2026-09-21:
 - the local arm64 build produced `dist/Pairbar.zip` with SHA-256 `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`;
 - a fresh extraction, ZIP integrity check, and `codesign --verify --strict --all-architectures` passed;
 - the extracted Pairbar bundle is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
+- GitHub Actions push run `35541461280` and pull-request run `35541463532` both passed the macOS 14 and macOS 15 matrix for code-bearing commit `3bec9feedfa59593c5a04d4bd8f38c7b72f7fb10`.
 
 The earlier implementation pass recorded a successful read-only `--check-app /Applications/ChatGPT.app` result for ChatGPT `26.915.31945 (9922)` with fingerprint `d87b…eacc1a`. On 2026-09-21, Pairbar rechecked that reported version and macOS returned `invalid signature (code or signature have been modified)`. Pairbar stopped before compatibility approval. The official bundle was not modified or repaired during this audit. The current local installation is therefore a failed identity gate, not compatibility evidence.
 

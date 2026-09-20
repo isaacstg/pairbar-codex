@@ -76,6 +76,7 @@ The integrated tree completed its non-live validation pass:
 - fresh extraction, ZIP integrity, and `codesign --verify --strict --all-architectures` passed;
 - `dist/Pairbar.zip` has SHA-256 `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`;
 - the bundle is ad-hoc signed with hardened runtime, not Developer ID signed or notarized.
+- GitHub Actions push run `35541461280` and PR run `35541463532` passed on macOS 14 and macOS 15 for code-bearing commit `3bec9feedfa59593c5a04d4bd8f38c7b72f7fb10`.
 
 An earlier read-only installed-app check passed for ChatGPT `26.915.31945 (9922)` with reported fingerprint `d87b…eacc1a`. On 2026-09-21, strict rechecks of the installed ChatGPT build and Claude `1.34493.1` both failed because macOS reported their signed bundles as modified. Pairbar refused both as designed. The provider bundles were not changed or repaired during this audit, and neither result is compatibility or isolation evidence.
 

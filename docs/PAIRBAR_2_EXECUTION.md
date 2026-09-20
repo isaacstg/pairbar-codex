@@ -54,6 +54,7 @@ The integrator completed the shared non-live validation and follow-up audit on t
 - `dist/Pairbar.zip` was freshly extracted and passed ZIP integrity and `codesign --verify --strict --all-architectures`;
 - the archive SHA-256 is `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`;
 - Pairbar is ad-hoc signed with hardened runtime. It has no Developer ID signature or notarization.
+- after CI exposed and the audit fixed a macOS 14 strict-concurrency compile failure, push run `35541461280` and PR run `35541463532` passed the macOS 14/15 matrix for `3bec9feedfa59593c5a04d4bd8f38c7b72f7fb10`.
 
 The historical read-only `--check-app /Applications/ChatGPT.app` command passed for version `26.915.31945 (9922)` and reported fingerprint `d87b…eacc1a`. On 2026-09-21, a strict recheck of that installed ChatGPT version failed signature validation; a first read-only Claude check of `1.34493.1` failed at the same gate. Both official bundles were left untouched. The current local installations therefore provide no compatibility evidence.
 
