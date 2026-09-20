@@ -9,6 +9,7 @@ let package = Package(
         .target(name: "SwitcherCore", dependencies: ["ProcessIdentity"]),
         .executableTarget(name: "DualAccountSwitcher", dependencies: ["SwitcherCore"]),
         .executableTarget(name: "SwitcherSmokeTest", dependencies: ["SwitcherCore"], path: "Tools/SmokeTest"),
-        .testTarget(name: "SwitcherCoreTests", dependencies: ["SwitcherCore", "ProcessIdentity"])
+        .testTarget(name: "SwitcherCoreTests", dependencies: ["SwitcherCore", "ProcessIdentity"]),
+        .testTarget(name: "PairbarRuntimeTests", dependencies: ["DualAccountSwitcher", "SwitcherCore"])
     ]
 )

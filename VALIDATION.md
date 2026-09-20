@@ -1,133 +1,185 @@
-# Validation and release status
+# Pairbar validation and release status
 
-## Current architecture
+Last reconciled on 2026-09-20. This record separates the frozen 1.3.3 baseline, Pairbar 2 static/integration validation, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
 
-The v1 model is asymmetric:
+## Claims and required evidence
 
-- **Current Account** is the user's ordinary official ChatGPT/Codex process and existing storage. The switcher may discover, focus, or normally open it. It never owns, quits, restarts, or migrates Current.
-- **Second Account** alone receives private Electron storage and a private `CODEX_HOME`. It may be gracefully quit or restarted only when a verified receipt proves ownership.
+| Claim | Minimum evidence |
+|---|---|
+| Selected bundle is the official provider app | Expected bundle ID, Team ID, executable, and strict signature verification |
+| Pairbar owns a managed process | Exact profile receipt plus stable live UID, start time, executable, provider identity, storage generation, launch ID, paths, and policy checks |
+| Managed storage was initialized separately | Filesystem metadata observed only inside a new disposable profile after launch |
+| Accounts are isolated | Distinct signed-in accounts exercised across Chat and Code, focus, restart, Pairbar restart, and app update with no crossover |
+| Claude managed profiles are supported | Full Claude Chat + Code acceptance protocol passes for the exact official version |
+| Cowork is isolated | Separate Cowork cloud/local-VM/configuration/permission/transition matrix passes |
+| Artifact is a public release | Developer ID signature, notarization, stapling, clean-machine verification, and completed acceptance record |
 
-The older symmetric A+B smoke result is historical only. It does **not** validate this architecture.
+A PID, signature, static marker, successful build, or isolated directory alone cannot establish account isolation.
 
-## Evidence at `c4425023c6bfa531970146d0183de8b0af249d65` plus local validation
+## Frozen 1.3.3 baseline
 
-GitHub Actions run #42 passed on both macOS 14 and macOS 15:
+Before Pairbar 2 implementation, the deliberate local worktree was consolidated at:
 
-- source-policy audit;
-- shell and plist validation;
-- unit tests;
-- release build;
-- strict bundle signature verification.
+```text
+commit 4efdd57718e9a652bcb49d01d6c9b077d7e410f5
+tag    recovery/pairbar-1.3.3-20260919
+branch codex/pairbar-2
+```
 
-GitHub Actions run #43 repeated those checks on both macOS versions and successfully retained a personal-build ZIP, SHA-256 checksum, and build-provenance artifact for each runner.
+Remote `main` was read-only verified at `4399fd2090d5e5aa152ec5f0aa0188f5f3e5c5cf` on 2026-09-19 and rechecked unchanged on 2026-09-20. No pull, reset, checkout, clean, or push was performed.
 
-The audit rejects networking, credential and browser-store APIs, process argv/environment inspection, subprocess control, force-kill behavior, Dock mutation, and private Current/A storage or ownership patterns.
-
-The build stages the app in `/private/tmp`, ad-hoc signs only the switcher bundle, verifies it, then packages it without resource-fork or extended-attribute metadata. This is suitable for a personal local build. It is not Developer ID notarization.
-
-On this Mac, the Current + Second source revision also passed:
+The baseline passed:
 
 - `python3 scripts/audit.py`;
-- all 41 unit tests;
-- read-only inspection of `/Applications/ChatGPT.app` (OpenAI identity, Electron override markers, and fingerprint `d327e421c63f1bf5ee9648ec99c84c292d01da08cd3d1bfd6adb65c435c9ea73`);
-- release build, fresh ZIP extraction, and strict verification of the extracted app bundle.
+- whitespace, shell syntax, and plist validation;
+- all 47 baseline tests using repository-local Swift/Clang module caches;
+- release compilation and local packaging;
+- strict verification of the staged ad-hoc Pairbar bundle.
 
-The opt-in live smoke test also passed on this Mac with exactly one pre-existing normal Current process:
+Historical CI and local testing also exercised the fixed Current + Second implementation, including an unsigned disposable profile that initialized separate Electron and Codex directories beside a preserved Current process. Installed 1.3 testing later observed two signed-in entries and repeated Open Both without an extra process.
 
-- Current remained the same verified process (PID `38754`) throughout;
-- the tool launched a different verified official Second process (PID `61410`);
-- the Second process initialized its separate Electron and Codex directories;
-- both processes ran simultaneously;
-- only the verified disposable Second process received a graceful termination request; and
-- the normal Current process remained intact after the test.
+Those are useful regression references only. They do not validate:
 
-The scratch Second data was retained at `work/live-smoke-20260917` for local inspection. It contains no test login because the smoke test never signs in or reads profile contents.
+- the schema-3 dynamic store or metadata migration;
+- more than one managed Codex profile;
+- configurable shortcuts or selected-at-login behavior;
+- dynamic archive/recovery across several profiles;
+- Claude Chat, Code, or Cowork isolation.
 
-The historical 1.2 archive checksum was `57172428fbb03e87e63a533e4abb5e7b9f44a0716136a292534554c1632726af`.
+Specific historical PIDs are intentionally omitted. They were observations from completed runs, not reusable ownership evidence.
 
-## Current-architecture validation still required
+## Pairbar 2 integrated validation
 
-The following have not yet been claimed as complete for the Current + Second revision:
+The integration source includes:
 
-1. Signed-in two-account acceptance: persistence, focus, repeated shortcuts/Open Both, graceful Second quit/restart, and switcher restart.
-2. Launch-at-login, update/fingerprint, interrupted-launch recovery, reset/archive, uninstall/reinstall, and legacy-data upgrade acceptance.
+- provider-aware Current entries and dynamic managed Codex profile records;
+- schema-3 metadata, opaque legacy Second migration, pending/receipt state, orphan detection, and journaled archive/reset;
+- a pure provider state resolver with explicit absent, unreadable, and verified observations;
+- LaunchServices runtime orchestration with an allowlisted environment and strong ownership checks;
+- scalable popover UI with favorites, search, provider filters, explicit selection, configurable shortcuts, English/Spanish text, and separate login options;
+- read-only Claude bundle/ASAR inspection with all managed Claude capabilities marked unvalidated;
+- an inert preview model and redacted diagnostics/configuration export.
 
-CI cannot prove OAuth behavior, session persistence, or account isolation at runtime.
+The integrated worktree completed the following non-live validation on 2026-09-20:
 
-## Version 1.3 menu-bar revision
+- `scripts/audit.py` passed;
+- `git diff --check`, `plutil`, and `bash -n` passed;
+- all **128 Swift tests** passed using workspace-local module caches;
+- the release build completed as Pairbar **2.0.0 (17)**;
+- the build produced `dist/Pairbar.zip` with SHA-256 `cf91c1bc72446d8c1afc59f2fb25a07c48131bfe69b44f1e7e9aaa8d8a4e5eb0`;
+- a fresh extraction, ZIP integrity check, and `codesign --verify --strict --all-architectures` passed;
+- the extracted Pairbar bundle is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
 
-The user reported the installed 1.2 workflow works perfectly. This is user acceptance feedback, not an independently observed completion of every release case.
+The read-only command `--check-app /Applications/ChatGPT.app` passed for ChatGPT version `26.915.31945 (9922)` and reported fingerprint `d87b…eacc1a`. This proves only that the exact installed bundle passed Pairbar's offline identity/compatibility inspection. It does not prove signed-in Chat or Code isolation.
 
-For 1.3.0 (13), local verification passed:
+`--check-claude` was **not run**. The permission auto-review exhausted the available approval quota, so no installed-Claude inspection result is claimed. The synthetic Claude tests below still passed and the production managed-Claude gate remains closed.
 
-- the unchanged network/credential/process-control source-policy audit;
-- all 47 unit tests, including label saves preserving approval/setup and update confirmation refusing recovery/in-flight lifecycle states;
-- release compilation and strict verification of a freshly extracted ZIP;
-- native popover first-run and ready layouts, Settings, saving names without setup approval, inline invalid-name errors, and Help disclosures;
-- native Shift-Command-B back navigation, Escape dismissal, and app reopening;
-- long labels, simulated pending recovery with disabled account controls, and explicit changed-fingerprint confirmation.
+### Automated/static checklist
 
-The preview UI tests used only ignored scratch metadata. Preview never launched/focused/quit a live account, registered shortcuts, changed startup settings, or read profile contents. Unavailable-build confirmation gating was unit-tested; the actual installed official app passed its checks, so an unavailable-build native UI case was not claimed.
+- [x] Source-policy audit passes on the integrated tree.
+- [x] Diff whitespace, shell syntax, and plist checks pass.
+- [x] Dynamic store and migration tests pass for the implemented future-schema, opaque legacy `Profiles/b`, duplicate, link, mode, size, orphan, interrupted archive, and transition-recovery cases.
+- [x] Dynamic state tests pass for PID reuse, unreadable observations, duplicate ownership, pending launches, provider-wide uncertainty, and Current ambiguity.
+- [x] Controller fake-runtime tests pass for Current protection, pending-before-open, returned-process classification, failure recovery, concurrency serialization, close timeout, restart exclusion, unreadable/reused PID, and login selection.
+- [x] Synthetic Claude tests pass for ASAR parsing bounds, traversal/link rejection, unstable replacement, packaged-code findings, and the permanently false managed-launch preflight.
+- [x] UI/model tests pass for search, filters, favorites, selection/revalidation, stale action rejection, shortcut validation/display, and preview action no-ops.
+- [x] Full 128-test Swift suite passes using workspace-local module caches.
+- [x] Release compilation succeeds for 2.0.0 (17).
+- [x] Fresh ZIP extraction, integrity check, and strict all-architectures app-bundle signature verification succeed.
+- [x] Packaged version, build number, executable archive, ad-hoc hardened-runtime signature, and SHA-256 are inspected.
+- [ ] Preview execution is proven not to open a production store, inspect official apps, register login items, or launch/control an account.
 
-GitHub Actions [run 35255458165](https://github.com/isaacstg/pairbar-codex/actions/runs/35255458165) passed the audit, metadata checks, tests, release build, strict bundle verification, provenance generation, and artifact upload on both macOS 14 and 15 for source commit `db3fc8b8d9a5a2317919634ffd0778997b0a74b8`.
+The 128-test result includes an in-memory preview action-no-op test and explicit Claude fail-closed lifecycle/archive tests. A native visual/launch observation was deliberately not run in this session, so the broader preview-execution item remains open.
 
-Installed-app validation on this Mac also passed:
+### Reference commands
 
-- The existing switcher bundle was backed up, then upgraded to 1.3 from the checksum-verified ZIP with fresh extraction and strict installed-bundle verification. Existing labels and completed setup were preserved. Account storage was untouched.
-- The original Current process remained PID `38754` throughout the upgrade and UI tests.
-- Opening the actual Second Account launched verified PID `65248`, coexisting with Current. Both cards displayed Running.
-- Three Open Both activations retained exactly those two official processes, without extra instances.
-- The native Restart Second Account confirmation displayed the save-work warning and Current-preservation message. Cancelling retained both process identities; no account was quit or restarted.
-
-Physical global shortcuts, shortcut-conflict presentation, actual quit/restart execution, and startup-at-login still require acceptance. App-targeted automated key events did not demonstrate global shortcut dispatch and are not counted as verification. The lifecycle and isolation implementation is unchanged except for stricter update-confirmation guards.
-
-The verified local 1.3 ZIP SHA-256 is `5f62a513a08bd935f9e4acbcf8df76f4d50259f9de8c30748f35826c70cb72b6`.
-
-## Versions 1.3.1 and 1.3.2: alignment and native Pairbar branding
-
-For the 1.3.1 layout change, the installed native popover was observed with both Switch buttons aligned and Second's ellipsis below its primary action. Updating only our controller preserved both live official ChatGPT process identities. The native More menu's automated accessibility enumeration timed out; Escape restored the normal popover, so its menu contents were not independently verified in this pass.
-
-For Pairbar 1.3.2 (15), local validation passed:
-
-- the source-policy audit, shell syntax, plist validation, and diff whitespace checks;
-- all 47 unit tests and release compilation;
-- unchanged bundle identifier, executable, settings schema, and private storage root;
-- Pairbar display names, UI strings, `Pairbar.app`, `Pairbar.zip`, and matching CI artifact paths;
-- ZIP creation, fresh extraction, and strict bundle signature verification;
-- visual inspection of the corrected gray/blue interface illustration with aligned actions and native shortcut symbols.
-
-The restricted local environment refused iconutil conversion despite valid generated PNGs. The local ZIP therefore reused only the icon from our strictly verified previous switcher; `Tools/AppIcon.swift` was checked byte-for-byte against the preceding source revision and is unchanged. The normal CI build still generates the icon using iconutil. The local ZIP SHA-256 is `4944d68e7dc3aac36b2ba37dcac28a22900cfbd15e62909cce8694748c846f43`.
-
-Installing 1.3.2 in `/Applications` and observing its native branding are pending because this session's current filesystem permissions do not allow that replacement. A scratch UI launch from the restricted shell aborted before providing a usable preview and is not counted as native UI validation. No live ChatGPT process was terminated or profile data inspected in the branding revision. CI results for 1.3.2 must be recorded separately from historical green runs.
-
-## Version 1.3.3 welcome guide
-
-The introduction now appears independently of completed account setup, so upgrading users can learn the new Pairbar workflow without repeating sign-in. Help → Quick Start replays it. The continuation control stays outside the scrollable body. Completing it sets only an own-app preference; account setup, approved build, storage, and startup policy are unchanged. Preview mode neither reads nor writes that preference.
-
-Release compilation, source-policy audit, diff whitespace checks, secret scanning, and fresh ZIP extraction/strict signature verification passed. Core source is unchanged from the 47-test passing revision. Packaging reused only the unchanged verified app icon as described above. The local ZIP SHA-256 is `fec604d6fd1367e6b2f41d0d7405ecdc990fad0d0cc706074255599ffeaff0ce`.
-
-Native onboarding acceptance is not claimed: a normal second controller correctly displayed the existing-controller lock warning and was dismissed; the original controller stayed running. An isolated preview bundle was prepared with scratch metadata and disabled account/startup actions, but the computer-use tool did not approve opening that preview application. No account was opened, focused, quit, or restarted by this validation pass. Installation and CI/publication remain pending under the current session restrictions.
-
-## Reproduce static validation
+Run from the repository root. In a restricted workspace, keep module caches inside ignored `work/`:
 
 ```sh
 python3 scripts/audit.py
-swift test
-scripts/build.sh
+CLANG_MODULE_CACHE_PATH="$PWD/work/clang-cache" \
+SWIFTPM_MODULECACHE_OVERRIDE="$PWD/work/swift-cache" \
+swift test --disable-sandbox --cache-path work/swift-cache
+SWITCHER_SWIFTPM_DISABLE_SANDBOX=1 bash scripts/build.sh
 ```
 
-In a restricted execution sandbox, use `SWITCHER_SWIFTPM_DISABLE_SANDBOX=1 scripts/build.sh` only when SwiftPM's nested sandbox is the blocker. This changes build isolation, not the switcher's runtime privileges.
+Disabling SwiftPM's nested sandbox addresses the build environment only; it does not change Pairbar's runtime privileges or relax its policy.
 
-## Opt-in live smoke test
+## Safe real-acceptance environment
 
-Open exactly one normal official ChatGPT instance first. Then run with a new scratch root:
+The Second Account managed by Pairbar currently hosts the development task. Do not close, restart, reset, archive, recover, or replace that account during validation.
 
-```sh
-swift run SwitcherSmokeTest /Applications/ChatGPT.app /absolute/new/scratch-root
-```
+Run lifecycle and signed-in cases from one of these environments:
 
-The smoke test refuses zero or multiple Current candidates. It launches one fresh isolated Second, verifies only storage metadata, confirms Current and Second coexist, gracefully terminates only the verified Second process, and preserves Current. It never signs in or reads profile, authentication, cookie, Keychain, argv, or environment data. Scratch Second data is retained for inspection. Use a new path with no symbolic links in its ancestry; macOS exposes `/tmp` and `/var` through symbolic links, which the private-store guard rejects.
+1. a separate macOS user or test Mac;
+2. the normal Current context with only newly created disposable managed profiles;
+3. a clean copy of metadata and opaque profile directories that cannot affect the hosting instance.
+
+Before each destructive-looking test, resolve the exact disposable profile and prove its receipt. Do not inspect profile contents, tokens, cookies, Keychain, provider logs, another process's arguments, or another process's environment. Do not modify an official app bundle.
+
+No smoke, signed-in, lifecycle, login-item, or native visual test was run in the final integration pass. This preserved the task-hosting Second Account. Every real-acceptance item below therefore remains pending for Current or a disposable environment.
+
+## Codex signed-in acceptance matrix
+
+- [ ] Create two new managed profiles without a saved-profile count cap and confirm neither opens merely because it was saved.
+- [ ] Sign each into a different test account and confirm Chat and Code state remain distinct.
+- [ ] Keep normal Current on ordinary storage and prove Pairbar never presents managed lifecycle controls for it.
+- [ ] Open each profile alone, open a specifically selected set, and verify no unselected profile opens.
+- [ ] Exercise favorites, search, Codex/Claude filters, reordering, English/Spanish UI, long names, keyboard navigation, and accessibility labels.
+- [ ] Register distinct configurable shortcuts; verify conflicts and registration failures retain the previous working set.
+- [ ] Exercise rapid/overlapping open requests and prove no duplicate process or shared receipt is created.
+- [ ] Gracefully close and restart only a newly created receipt-owned profile; verify Current and the task-hosting Second are unchanged.
+- [ ] Restart Pairbar with multiple disposable managed profiles alive and prove each remains associated only with its exact receipt.
+- [ ] Simulate an interrupted launch, stale/reused PID, unreadable identity, moved app, changed fingerprint, and update during launch; confirm every ambiguous action fails closed.
+- [ ] Enable Start Pairbar at Login separately from Open Selected Profiles; opt in a subset and prove no other saved profile opens.
+- [ ] Trigger warning and critical memory states; confirm new automatic openings pause while existing processes remain running.
+- [ ] Migrate a copy of Current + Second metadata and prove the old Second remains usable without reading or moving its contents.
+- [ ] Archive and reset a disposable profile only after fresh provider-wide quiescence; prove the old directory is retained in the archive and a reset gets a new generation.
+- [ ] Exercise configuration export and diagnostics; verify no ID, path, PID, receipt, fingerprint, journal, account identity, or credential appears.
+- [ ] Upgrade/uninstall Pairbar and prove provider Current data remains untouched and archived/managed data remains recoverable.
+
+Record provider app version, Pairbar commit, macOS version, test profile identifiers as non-sensitive aliases, expected result, observed result, and retained artifacts. Never record real account identifiers.
+
+## Claude acceptance gate
+
+Managed Claude profiles stay disabled throughout ordinary validation. Static inspection may be repeated read-only, but its result cannot open a managed profile.
+
+The exact test protocol is [docs/CLAUDE_ACCEPTANCE.md](docs/CLAUDE_ACCEPTANCE.md). At minimum, it must demonstrate:
+
+- two different signed-in Chat accounts without cookie, OAuth, deep-link, notification, or restart crossover;
+- separate Code configuration, project state, shell integration, MCP state, and secure storage;
+- concurrent Chat + Code use in both profiles across Pairbar restart and Claude update;
+- normal Claude Current remaining on ordinary storage;
+- reliable receipt ownership without credential, argv, or environment inspection;
+- failure/recovery behavior that never controls an unproven process.
+
+Cowork remains unvalidated even if Chat and Code pass. It needs independent tests for cloud execution, local VM state, permissions, configuration, links, artifacts, and transitions between Cowork and Chat.
+
+Until the applicable gate passes, release text must use “Current only,” “under investigation,” or “unavailable” for managed Claude. It must not say Claude profiles are isolated or supported.
+
+## Preview acceptance
+
+Preview uses fixed, in-memory example rows. A successful visual pass should cover welcome, profiles, search/no-results, provider filters, favorites, selection, settings, editor validation, Help, memory warning, recovery state, long Spanish/English labels, keyboard navigation, and accessibility inspection.
+
+The pass is valid only if instrumentation or code-path evidence also confirms that preview:
+
+- does not acquire the production store/controller lock;
+- does not read or write production Pairbar metadata or preferences;
+- does not inspect `ChatGPT.app` or `Claude.app`;
+- does not enumerate, focus, launch, close, or restart provider processes;
+- does not register global shortcuts or login items;
+- does not write diagnostics/export output.
 
 ## Release boundary
 
-The CI artifact is an ad-hoc personal-build archive with checksum and build information. Do not represent it as a notarized public release. A public distribution requires an authorized Developer ID signature, notarization, and fresh acceptance evidence.
+A local or CI `Pairbar.zip` is an ad-hoc development artifact unless it has separately completed Developer ID signing and notarization. Do not describe the current Pairbar 2 worktree as published, notarized, or generally available.
+
+A public release requires:
+
+- every automated/static check recorded with exact results;
+- the safe Codex signed-in matrix completed on the release candidate;
+- Claude kept disabled or its exact provider/version acceptance gate completed;
+- Cowork language matching its actual evidence;
+- authorized Developer ID signing, notarization, stapling, and clean-machine verification;
+- release notes that distinguish Current support from managed-profile support;
+- no regression of network, credential, official-app integrity, Current protection, recovery, archive, or redaction invariants.
