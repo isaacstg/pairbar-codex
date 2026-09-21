@@ -4,6 +4,8 @@
 
 The approved 1.3.3 working tree was consolidated at `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, on `codex/pairbar-2`. PR #1 merged the verified update commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` into `main` as `520f85db55fe403e910331a5e1f1760f0efd48eb`. PR #2 merged release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de` as `0bf3fbcb083e4a6454db2227e78e28522c566d89`; post-merge macOS 14/15 run `35585485542` passed.
 
+Installed acceptance follow-up code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` refreshes localized errors and login-item status immediately after a language change. Its PR/CI integration state is recorded separately from the earlier merged baseline.
+
 Before delegation: source audit, whitespace, shell/plist validation, 47 unit tests and release packaging passed. Module caches were redirected into ignored `work/`; iconutil required building outside the restricted sandbox. Only Pairbar's staging bundle was signed.
 
 ## Exclusive ownership during parallel implementation
@@ -48,11 +50,11 @@ The implementation keeps these decision-complete boundaries:
 
 The integrator completed the shared non-live validation and follow-up audit on the joined source:
 
-- all 132 Swift tests passed with repository-local module caches, including injected archive durability failures, Claude lifecycle/archive denial, suspended-inspection ownership revalidation, independent batch failures, and critical-memory focus behavior;
+- all 133 Swift tests passed with repository-local module caches, including injected archive durability failures, Claude lifecycle/archive denial, suspended-inspection ownership revalidation, independent batch failures, critical-memory focus behavior, and language-change refresh behavior;
 - `scripts/audit.py`, `git diff --check`, `plutil`, and `bash -n` passed;
 - the release build completed as universal Pairbar 2.0.0 (17) for `x86_64 arm64`;
 - `dist/Pairbar.zip` was freshly extracted and passed ZIP integrity and `codesign --verify --strict --all-architectures`;
-- the archive SHA-256 is `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2`;
+- the archive SHA-256 is `fbd9891b696fac98b4b28e2ed4f9502db9705956632dd998fa7f3a6514ff8058`;
 - Pairbar is ad-hoc signed with hardened runtime. It has no Developer ID signature or notarization.
 - implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273`, release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de`, and final recorded merge commit `0bf3fbcb083e4a6454db2227e78e28522c566d89` passed the macOS 14/15 matrix; the final post-merge run is `35585485542`.
 
@@ -60,11 +62,11 @@ Read-only checks outside the task sandbox verified ChatGPT `26.915.31945 (9922)`
 
 `--check-claude` completed its read-only installed-bundle inspection. Synthetic Claude tests passed while managed Claude remained hard disabled pending the real Chat, Code, and Cowork matrix.
 
-No live account lifecycle, login-item, signed-in isolation, full keyboard, or VoiceOver test ran. This kept the task-hosting account untouched. The inert native preview opened in English and Spanish; Profiles, Settings, Help, search, screenshots, and accessibility labels were inspected while all account/startup actions remained disabled.
+The installed-app pass completed opaque legacy migration, creation of two non-auto-opening disposable records, one receipt-verified managed launch, Pairbar restart/reinstall persistence, login-item registration/unregistration, English/Spanish refresh, Full Keyboard Access traversal, VoiceOver accessibility-tree inspection, and light/dark/contrast/transparency checks. All temporary system settings were restored. A second managed launch visibly opened but retained pending intent without a receipt; Pairbar correctly entered recovery-required state and controlled no uncertain process. Because the task-hosting `Work` profile could not be stopped, signed-in identity separation, owned lifecycle, completed recovery, archive/reset, an actual login event, and human VoiceOver speech/rotor acceptance did not run.
 
 ## Remaining acceptance gates
 
-1. Execute real migration, lifecycle, login-item, signed-in Codex isolation, full accessibility, and clean-machine checks in a separate disposable environment.
+1. Complete signed-in Codex isolation, owned lifecycle, recovery/archive/reset, actual-login-event, human VoiceOver, and clean-user checks in a separate disposable environment.
 2. Keep managed Claude blocked until its full real Chat and Code matrix passes; validate Cowork separately.
 3. Perform authorized Developer ID signing, notarization, stapling, and final clean-machine artifact verification before public distribution.
 
