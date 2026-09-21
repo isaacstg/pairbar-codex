@@ -515,7 +515,9 @@ final class PairbarController {
         case .setOpenProfilesAtLogin(let enabled):
             var next = preferences; next.launchSelectedAtLogin = enabled; savePreferences(next)
         case .setLanguage(let language):
+            model.errorMessage = nil
             var next = preferences; next.language = language.rawValue; savePreferences(next)
+            refreshLogin()
         case .completeWelcome:
             var next = preferences; next.welcomeDismissed = true; savePreferences(next)
             if preferences.welcomeDismissed { UserDefaults.standard.set(true, forKey: "pairbarWelcomeCompleted") }
