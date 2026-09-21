@@ -1,8 +1,8 @@
-# Pairbar 2 execution record
+# Pairbar update execution record
 
 ## Recovery point
 
-The approved 1.3.3 working tree was consolidated at `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, on `codex/pairbar-2`. Remote `main` was read-only verified as `4399fd2090d5e5aa152ec5f0aa0188f5f3e5c5cf` on 2026-09-19 and rechecked unchanged on 2026-09-21. The Pairbar 2 branch had not been pushed when this audit began.
+The approved 1.3.3 working tree was consolidated at `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, on `codex/pairbar-2`. PR #1 merged the verified update commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` into `main` as `520f85db55fe403e910331a5e1f1760f0efd48eb`; post-merge macOS 14/15 CI passed.
 
 Before delegation: source audit, whitespace, shell/plist validation, 47 unit tests and release packaging passed. Module caches were redirected into ignored `work/`; iconutil required building outside the restricted sandbox. Only Pairbar's staging bundle was signed.
 
@@ -48,26 +48,25 @@ The implementation keeps these decision-complete boundaries:
 
 The integrator completed the shared non-live validation and follow-up audit on the joined source:
 
-- all 131 Swift tests passed with repository-local module caches, including the final adversarial Claude lifecycle/archive denial cases, suspended-inspection ownership revalidation, independent batch failures, and critical-memory focus behavior;
+- all 132 Swift tests passed with repository-local module caches, including injected archive durability failures, Claude lifecycle/archive denial, suspended-inspection ownership revalidation, independent batch failures, and critical-memory focus behavior;
 - `scripts/audit.py`, `git diff --check`, `plutil`, and `bash -n` passed;
-- the release build completed as Pairbar 2.0.0 (17);
+- the release build completed as universal Pairbar 2.0.0 (17) for `x86_64 arm64`;
 - `dist/Pairbar.zip` was freshly extracted and passed ZIP integrity and `codesign --verify --strict --all-architectures`;
-- the archive SHA-256 is `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`;
+- the archive SHA-256 is `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2`;
 - Pairbar is ad-hoc signed with hardened runtime. It has no Developer ID signature or notarization.
-- after CI exposed and the audit fixed a macOS 14 strict-concurrency compile failure, push run `35541461280` and PR run `35541463532` passed the macOS 14/15 matrix for `3bec9feedfa59593c5a04d4bd8f38c7b72f7fb10`.
+- implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` and post-merge commit `520f85db55fe403e910331a5e1f1760f0efd48eb` passed the macOS 14/15 matrix; the post-merge run is `35541961329`.
 
-The historical read-only `--check-app /Applications/ChatGPT.app` command passed for version `26.915.31945 (9922)` and reported fingerprint `d87b…eacc1a`. On 2026-09-21, a strict recheck of that installed ChatGPT version failed signature validation; a first read-only Claude check of `1.34493.1` failed at the same gate. Both official bundles were left untouched. The current local installations therefore provide no compatibility evidence.
+Read-only checks outside the task sandbox verified ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` with strict signing and Gatekeeper. Pairbar's checks reported fingerprints `d87b…eacc1a` and `cd6e…ab1f`. Earlier failures were reproduced as sandbox trust-store false negatives, not bundle modification. Both official bundles were left untouched.
 
-`--check-claude` was executed read-only and refused the locally installed bundle at strict signature validation, before ASAR findings could be produced. Synthetic Claude tests passed while managed Claude remained hard disabled.
+`--check-claude` completed its read-only installed-bundle inspection. Synthetic Claude tests passed while managed Claude remained hard disabled pending the real Chat, Code, and Cowork matrix.
 
-No live smoke, account lifecycle, login-item, signed-in isolation, keyboard, or VoiceOver test ran. This kept the task-hosting Second Account untouched. The inert native preview opened successfully; its Profiles and Settings surfaces and accessibility labels were inspected while all account/startup actions remained disabled.
+No live account lifecycle, login-item, signed-in isolation, full keyboard, or VoiceOver test ran. This kept the task-hosting account untouched. The inert native preview opened in English and Spanish; Profiles, Settings, Help, search, screenshots, and accessibility labels were inspected while all account/startup actions remained disabled.
 
 ## Remaining acceptance gates
 
-1. Execute real migration, lifecycle, login-item, signed-in Codex isolation, native visual, accessibility, and clean-machine checks from Current or a disposable environment.
-2. Run the installed-Claude check only when safe authorization is available, without treating it as managed-isolation approval.
-3. Keep managed Claude blocked until its full real Chat and Code matrix passes; validate Cowork separately.
-4. Perform authorized Developer ID signing, notarization, stapling, and final clean-machine artifact verification before public distribution.
+1. Execute real migration, lifecycle, login-item, signed-in Codex isolation, full accessibility, and clean-machine checks in a separate disposable environment.
+2. Keep managed Claude blocked until its full real Chat and Code matrix passes; validate Cowork separately.
+3. Perform authorized Developer ID signing, notarization, stapling, and final clean-machine artifact verification before public distribution.
 
 ## Release boundary
 

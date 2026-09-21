@@ -21,6 +21,18 @@ final class DynamicStoreTests: XCTestCase {
         if migrate { try store.migrateIfNeeded() }
         return store
     }
+    private func openStore(root: URL, failingOnceAt point: ArchiveDurabilityPoint) throws -> DynamicStore {
+        var failed = false
+        let store = try DynamicStore(root: root) { observed in
+            if observed == point, !failed {
+                failed = true
+                throw DynamicStoreError.writeFailed
+            }
+        }
+        try store.acquireLock()
+        try store.migrateIfNeeded()
+        return store
+    }
     private func fixture<T: Encodable>(_ value: T, at path: String) throws {
         try rawFixture(JSONEncoder().encode(value), at: path)
     }
@@ -474,6 +486,33 @@ final class DynamicStoreTests: XCTestCase {
         XCTAssertEqual(try store.listProfiles(), [journal.after])
         XCTAssertTrue(FileManager.default.fileExists(atPath: archive.path))
         XCTAssertFalse(try store.hasPendingOperations(provider: .codex))
+    }
+
+    func testInjectedArchiveDurabilityFailuresRemainRecoverable() throws {
+        for point in ArchiveDurabilityPoint.allCases {
+            let caseRoot = scratch.appendingPathComponent(String(describing: point), isDirectory: true)
+            try PrivateStore.prepareDirectory(caseRoot)
+
+            let store = try openStore(root: caseRoot, failingOnceAt: point)
+            let profile = try store.createProfile(provider: .codex, name: "Durability fixture")
+            let paths = try store.prepareStorage(for: profile)
+            let marker = paths.codexHome.appendingPathComponent("opaque-marker")
+            try Data("preserve".utf8).write(to: marker)
+            XCTAssertThrowsError(try store.archive(profileID: profile.id, reset: true, evidence: quiescence()), "\(point)")
+            XCTAssertTrue(try store.hasPendingOperations(provider: .codex), "\(point)")
+
+            try store.recoverArchives(evidence: quiescence())
+            let recovered = try XCTUnwrap(store.listProfiles().first)
+            XCTAssertEqual(recovered.id, profile.id, "\(point)")
+            XCTAssertNotEqual(recovered.storage, profile.storage, "\(point)")
+            XCTAssertFalse(try store.hasPendingOperations(provider: .codex), "\(point)")
+            let archives = try FileManager.default.contentsOfDirectory(
+                at: caseRoot.appendingPathComponent("Profiles/Archived"),
+                includingPropertiesForKeys: nil
+            )
+            XCTAssertEqual(archives.count, 1, "\(point)")
+            XCTAssertEqual(try String(contentsOf: archives[0].appendingPathComponent("codex/opaque-marker"), encoding: .utf8), "preserve", "\(point)")
+        }
     }
 
     func testArchiveRecoveryDoesNotOverwriteDivergentProfileMetadata() throws {

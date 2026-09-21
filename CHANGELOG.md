@@ -11,7 +11,8 @@
 - Recheck provider ownership after asynchronous compatibility inspection, skip unsupported residual profiles during login launch, and let one optional provider failure leave later safe targets available.
 - Keep focus of already-running verified profiles available under critical memory pressure while pausing new automatic launches.
 - Use selector-based refresh scheduling for compatibility with the macOS 14 Swift concurrency checker.
-- Expand the automated suite to 131 tests and the source-policy audit to the Pairbar 2 invariants.
+- Expand the automated suite to 132 tests, including injected archive-durability failures, and extend the source-policy audit to the updated Pairbar invariants.
+- Build one universal `x86_64` + `arm64` development archive by default.
 
 This candidate is not a public binary release. Developer ID signing, notarization, clean-machine verification, and the real signed-in acceptance matrix remain open.
 
