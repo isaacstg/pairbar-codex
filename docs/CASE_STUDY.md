@@ -8,7 +8,7 @@
 
 People who work across several ChatGPT/Codex accounts lose context when they repeatedly sign out. Copying authentication material would create a worse trust model, and controlling an already-running official app by guesswork could close the wrong work.
 
-The original Pairbar solved one narrow case: one ordinary Current account plus one isolated Second account. Pairbar 2 generalizes that design without weakening its asymmetric safety boundary. Each provider keeps one untouched Current account, while additional Codex profiles receive independent storage and can be controlled only when Pairbar proves ownership.
+The original Pairbar solved one narrow case: one ordinary Current account plus one isolated Second account. The current update generalizes that design without weakening its asymmetric safety boundary. Each provider keeps one untouched Current account, while additional Codex profiles receive independent storage and can be controlled only when Pairbar proves ownership.
 
 The product does not impose a limit on how many profiles can be saved. That is a data-model capability, not a promise that arbitrary numbers of Electron processes can stay open. Users choose the profiles to launch, and memory pressure affects new openings without disturbing existing sessions.
 
@@ -22,7 +22,7 @@ This property makes uninstall and provider updates easier to reason about. It al
 
 ### Profiles are dynamic metadata, not fixed slots
 
-Pairbar 2 replaces the A/B product model with provider records and per-profile records. A managed record carries a generated identifier, display metadata, an immutable storage locator and generation, and optional pending/receipt state. Names, favorites, ordering, shortcuts, and login choices remain metadata; none are used as paths or proof of ownership.
+Pairbar replaces the A/B product model with provider records and per-profile records. A managed record carries a generated identifier, display metadata, an immutable storage locator and generation, and optional pending/receipt state. Names, favorites, ordering, shortcuts, and login choices remain metadata; none are used as paths or proof of ownership.
 
 Each record is bounded in size, while the store has no artificial count ceiling. Metadata is written atomically through descriptor-relative filesystem operations with owner, mode, type, link-count, and path checks.
 
@@ -72,11 +72,11 @@ Diagnostics use bounded event codes and aggregate state. Configuration export in
 
 ## Evidence and honest limits
 
-Before Pairbar 2 work began, the consolidated 1.3.3 baseline passed 47 tests, the source-policy audit, release compilation, and local ad-hoc bundle verification. Earlier disposable Current + Second smoke tests established that the legacy mechanism could initialize separate storage and preserve Current. Those results remain historical rather than evidence for the dynamic architecture.
+Before this update began, the consolidated 1.3.3 baseline passed 47 tests, the source-policy audit, release compilation, and local ad-hoc bundle verification. Earlier disposable Current + Second smoke tests established that the legacy mechanism could initialize separate storage and preserve Current. Those results remain historical rather than evidence for the dynamic architecture.
 
-The audited Pairbar 2 source passed 131 Swift tests, including dynamic storage/state, fake-runtime controller, suspended-inspection ownership, memory-pressure behavior, independent batch failures, synthetic Claude, explicit Claude lifecycle/archive denial, and panel-model suites. The source audit, diff/plist/shell checks, release build, ZIP integrity, fresh extraction, and strict all-architectures signature verification also passed. The 2.0.0 (17) development archive has SHA-256 `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c` and an ad-hoc hardened-runtime signature.
+The audited Pairbar source passed 132 Swift tests, including dynamic storage/state, injected archive durability failures, fake-runtime controller, suspended-inspection ownership, memory-pressure behavior, independent batch failures, synthetic Claude, explicit Claude lifecycle/archive denial, and panel-model suites. The source audit, diff/plist/shell checks, universal release build, ZIP integrity, fresh extraction, and strict all-architectures signature verification also passed. The `x86_64 arm64` 2.0.0 (17) development archive has SHA-256 `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2` and an ad-hoc hardened-runtime signature.
 
-The earlier implementation pass recorded a successful static inspection of ChatGPT `26.915.31945 (9922)`. During the audit, strict read-only checks of that installed ChatGPT version and Claude `1.34493.1` both failed because macOS reported modified signatures; Pairbar blocked both and left the bundles untouched. The inert native preview rendered and exposed its accessibility labels. No smoke, live lifecycle, signed-in isolation, login-item, keyboard, or VoiceOver test was performed, which preserved the Second Account hosting development. Those cases remain prepared for Current or new disposable profiles on a safe user or machine.
+Read-only checks outside the task sandbox verified ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` with strict signing, Gatekeeper, and Pairbar's compatibility paths. Earlier “modified” results were sandbox trust-store false negatives; no official bundle was changed. The inert native preview rendered in English and Spanish, exposed accessibility labels, supported Command-F search, and produced isolated synthetic screenshots. Full keyboard, VoiceOver, contrast, live lifecycle, signed-in isolation, and login-item testing remain pending in a separate disposable user or machine.
 
 The ad-hoc archive is not represented as Developer ID signed, notarized, or published. The ChatGPT static result and synthetic Claude fixtures are not represented as runtime session isolation.
 

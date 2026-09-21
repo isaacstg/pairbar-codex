@@ -194,7 +194,7 @@ extension PairbarPanelModel {
             PairbarProfileRow(id: "current:claude", providerID: "claude", name: "Current Account", isCurrent: true,
                 status: model.text("Closed", "Cerrado"), order: 3, canOpen: true)
         ]
-        model.diagnosticText = "Pairbar 2 · preview\nprovider codex: ready\nprovider claude: managed-unavailable\nprofiles: 2"
+        model.diagnosticText = "Pairbar · preview\nprovider codex: ready\nprovider claude: managed-unavailable\nprofiles: 2"
         return model
     }
 }

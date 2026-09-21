@@ -24,7 +24,7 @@ jobs:
       - name: Unit tests
         run: swift test
       - name: Build and verify our app bundle
-        run: scripts/build.sh
+        run: SWITCHER_BUILD_ARCHS=universal scripts/build.sh
       - name: Verify development artifact and write build provenance
         run: |
           (cd dist && shasum -a 256 -c Pairbar.zip.sha256)
@@ -32,9 +32,11 @@ jobs:
           trap 'rm -rf -- "$scratch"' EXIT
           ditto -x -k dist/Pairbar.zip "$scratch"
           codesign --verify --strict --all-architectures "$scratch/Pairbar.app"
+          test "$(lipo -archs "$scratch/Pairbar.app/Contents/MacOS/DualAccountSwitcher")" = "x86_64 arm64"
           {
             echo "commit=${GITHUB_SHA}"
             echo "runner=${RUNNER_OS}"
+            echo "architectures=$(lipo -archs "$scratch/Pairbar.app/Contents/MacOS/DualAccountSwitcher")"
             echo "signature=ad-hoc-development"
             echo "notarized=false"
             sw_vers

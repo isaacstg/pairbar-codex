@@ -1,6 +1,6 @@
-# Pairbar 2 implementation status
+# Pairbar implementation status
 
-Last reconciled with the Pairbar 2 audit worktree on 2026-09-21. This document distinguishes implemented source, completed evidence, and acceptance still required.
+Last reconciled with the Pairbar audit worktree on 2026-09-21. This document distinguishes implemented source, completed evidence, and acceptance still required.
 
 ## Product invariant
 
@@ -8,7 +8,7 @@ Each provider has one normal **Current** account. Current uses the official app'
 
 Additional managed profiles are separate records. Managed Codex profiles have distinct Electron storage and `CODEX_HOME`, durable pending state, and a process receipt. Lifecycle actions require exact ownership proof. The data model imposes no profile-count limit; only explicitly chosen profiles are opened.
 
-## Implemented in the Pairbar 2 source
+## Implemented in the current Pairbar source
 
 ### Dynamic model and storage
 
@@ -53,7 +53,7 @@ A PID, bundle identifier, or signature by itself is never ownership evidence. Th
 
 The installed bundle and static markers do not establish account isolation. Managed Claude support remains blocked until [CLAUDE_ACCEPTANCE.md](CLAUDE_ACCEPTANCE.md) passes with signed-in Chat and Code sessions and no crossover. Cowork requires separate evidence.
 
-## Evidence completed before Pairbar 2
+## Evidence completed before this update
 
 The deliberate 1.3.3 working tree was consolidated at commit `4efdd57718e9a652bcb49d01d6c9b077d7e410f5` with recovery tag `recovery/pairbar-1.3.3-20260919`. The then-known remote `main` was read-only verified at `4399fd2090d5e5aa152ec5f0aa0188f5f3e5c5cf` on 2026-09-19.
 
@@ -64,23 +64,23 @@ That baseline passed:
 - release compilation and local ad-hoc packaging;
 - strict verification of the staged Pairbar bundle.
 
-Historical live evidence also showed one disposable legacy Second process initializing separate directories beside a preserved Current process, and a later installed 1.3 workflow with Current + Second. That evidence applies to the fixed two-entry implementation only. It does not prove Pairbar 2 multi-profile behavior or Claude isolation.
+Historical live evidence also showed one disposable legacy Second process initializing separate directories beside a preserved Current process, and a later installed 1.3 workflow with Current + Second. That evidence applies to the fixed two-entry implementation only. It does not prove the current multi-profile behavior or Claude isolation.
 
-## Pairbar 2 validation completed
+## Pairbar validation completed
 
 The integrated tree completed its non-live validation pass:
 
-- all 131 Swift tests passed, covering the dynamic store/migration, state resolver, synthetic Claude inspection, panel model, controller fake runtime, suspended-inspection ownership revalidation, independent batch failures, memory-pressure focus behavior, and Claude lifecycle/archive denial;
+- all 132 Swift tests passed, covering the dynamic store/migration, injected archive durability failures, state resolver, synthetic Claude inspection, panel model, controller fake runtime, suspended-inspection ownership revalidation, independent batch failures, memory-pressure focus behavior, and Claude lifecycle/archive denial;
 - `scripts/audit.py`, `git diff --check`, plist validation, and shell syntax validation passed;
-- the release build produced Pairbar 2.0.0 (17);
+- the release build produced universal Pairbar 2.0.0 (17) for `x86_64 arm64`;
 - fresh extraction, ZIP integrity, and `codesign --verify --strict --all-architectures` passed;
-- `dist/Pairbar.zip` has SHA-256 `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`;
+- `dist/Pairbar.zip` has SHA-256 `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2`;
 - the bundle is ad-hoc signed with hardened runtime, not Developer ID signed or notarized.
-- GitHub Actions push run `35541461280` and PR run `35541463532` passed on macOS 14 and macOS 15 for code-bearing commit `3bec9feedfa59593c5a04d4bd8f38c7b72f7fb10`.
+- PR #1 merged implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` into `main`; post-merge run `35541961329` passed on macOS 14 and macOS 15 for merge commit `520f85db55fe403e910331a5e1f1760f0efd48eb`.
 
-An earlier read-only installed-app check passed for ChatGPT `26.915.31945 (9922)` with reported fingerprint `d87b…eacc1a`. On 2026-09-21, strict rechecks of the installed ChatGPT build and Claude `1.34493.1` both failed because macOS reported their signed bundles as modified. Pairbar refused both as designed. The provider bundles were not changed or repaired during this audit, and neither result is compatibility or isolation evidence.
+Read-only checks outside the task sandbox verified ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` with strict all-architectures signing and Gatekeeper. Pairbar's own checks passed for both. Earlier failures were sandbox trust-service false negatives; resource manifests, code pages, and CMS signatures were unchanged. The provider bundles were not changed or repaired during this audit. Static compatibility is not signed-in isolation evidence.
 
-The installed-Claude check was attempted read-only and failed at strict signature validation before packaged-code inspection. No smoke, signed-in, lifecycle, login-item, keyboard, or VoiceOver pass was performed. The inert native preview opened successfully and exposed the expected popover, Settings controls, disabled live actions, and accessibility labels. Exact evidence is recorded in [VALIDATION.md](../VALIDATION.md).
+The installed-Claude check completed read-only while managed Claude stayed hard disabled. No signed-in, lifecycle, login-item, full keyboard, or VoiceOver pass was performed. The inert native preview opened in English and Spanish and exposed Profiles, Settings, Help, disabled live actions, search behavior, and accessibility labels. Exact evidence is recorded in [VALIDATION.md](../VALIDATION.md).
 
 ## Real acceptance still required
 
@@ -95,6 +95,6 @@ Perform these from the normal Current context, a separate macOS user/machine, or
 
 ## Release boundary
 
-Pairbar 2 has not been declared Developer ID signed, notarized, stapled, published, or generally available. A passing local build produces an ad-hoc development artifact only.
+Pairbar has not been declared Developer ID signed, notarized, stapled, published, or generally available. A passing local build produces an ad-hoc development artifact only.
 
 Public release still requires safe real-account acceptance, native/accessibility validation, login-item validation, clean-machine packaging verification, authorized Developer ID signing, notarization, and stapling. Claude must remain described as Current-only while its managed gate is closed.

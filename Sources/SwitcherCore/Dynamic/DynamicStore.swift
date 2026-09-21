@@ -7,6 +7,14 @@ public enum DynamicStoreError: String, Error, LocalizedError {
     public var errorDescription: String? { "Pairbar metadata: \(rawValue). Data has been preserved." }
 }
 
+enum ArchiveDurabilityPoint: CaseIterable {
+    case journalCommitted
+    case storageRenamed
+    case sourceDirectorySynced
+    case destinationDirectorySynced
+    case profileCommitted
+}
+
 /// Only Pairbar metadata is decoded. Provider directories are created or renamed as opaque units.
 public final class DynamicStore {
     public let root: URL
@@ -14,9 +22,14 @@ public final class DynamicStore {
     private var locked = false
     private var rootIdentity: (dev_t, ino_t)?
     private let limit = 65_536
-    public init(root: URL) throws {
+    private let archiveFault: ((ArchiveDurabilityPoint) throws -> Void)?
+    public convenience init(root: URL) throws {
+        try self.init(root: root, archiveFault: nil)
+    }
+    init(root: URL, archiveFault: ((ArchiveDurabilityPoint) throws -> Void)?) throws {
         self.root = root.standardizedFileURL
         self.backing = try PrivateStore(root: root)
+        self.archiveFault = archiveFault
     }
     public func acquireLock() throws {
         try backing.acquireLock()
@@ -405,6 +418,7 @@ public final class DynamicStore {
         let sourceParts = profile.storage == .legacySecond ? ["Profiles", "b"] : ["Profiles", profile.provider.rawValue, pathsFor(profile).base.lastPathComponent]
         let operation = ArchiveOperation(id: id, before: profile, after: next, hadStorage: try directoryExists(sourceParts))
         try write(operation, ["Metadata", "operations", id.uuidString.lowercased() + ".json"])
+        try archiveFault?(.journalCommitted)
         return try finishArchive(operation)
     }
     private func finishArchive(_ operation: ArchiveOperation) throws -> ArchiveResult2 {
@@ -443,8 +457,14 @@ public final class DynamicStore {
                     throw DynamicStoreError.unsafePath
                 }
                 defer { close(sourceParent); close(destinationParent) }
-                guard renameat(sourceParent, source.lastPathComponent, destinationParent, destination.lastPathComponent) == 0,
-                      fsync(sourceParent) == 0, fsync(destinationParent) == 0 else { throw DynamicStoreError.writeFailed }
+                guard renameat(sourceParent, source.lastPathComponent, destinationParent, destination.lastPathComponent) == 0 else {
+                    throw DynamicStoreError.writeFailed
+                }
+                try archiveFault?(.storageRenamed)
+                guard fsync(sourceParent) == 0 else { throw DynamicStoreError.writeFailed }
+                try archiveFault?(.sourceDirectorySynced)
+                guard fsync(destinationParent) == 0 else { throw DynamicStoreError.writeFailed }
+                try archiveFault?(.destinationDirectorySynced)
             } else {
                 guard let sourceParent = try directory(operation.before.storage == .legacySecond ? ["Profiles"] : ["Profiles", operation.before.provider.rawValue], create: false) else {
                     throw DynamicStoreError.unsafePath
@@ -454,13 +474,17 @@ public final class DynamicStore {
                     throw DynamicStoreError.unsafePath
                 }
                 defer { close(sourceParent); close(destinationParent) }
-                guard fsync(sourceParent) == 0, fsync(destinationParent) == 0 else { throw DynamicStoreError.writeFailed }
+                guard fsync(sourceParent) == 0 else { throw DynamicStoreError.writeFailed }
+                try archiveFault?(.sourceDirectorySynced)
+                guard fsync(destinationParent) == 0 else { throw DynamicStoreError.writeFailed }
+                try archiveFault?(.destinationDirectorySynced)
             }
         } else if try directoryExists(operation.before.storage == .legacySecond ? ["Profiles", "b"] : ["Profiles", operation.before.provider.rawValue, source.lastPathComponent]) ||
                     directoryExists(["Profiles", "Archived", destination.lastPathComponent]) {
             throw DynamicStoreError.recoveryRequired
         }
         try saveProfile(operation.after)
+        try archiveFault?(.profileCommitted)
         try removeMetadata(["Metadata", "operations", operation.id.uuidString.lowercased() + ".json"])
         return ArchiveResult2(profile: operation.after, archiveURL: operation.hadStorage ? destination : nil)
     }

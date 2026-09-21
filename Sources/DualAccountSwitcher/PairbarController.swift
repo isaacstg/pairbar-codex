@@ -172,7 +172,7 @@ final class PairbarController {
         model.pruneSelection()
     }
     var diagnosticText: String {
-        var lines = ["Pairbar 2 development", "metadata-schema: 3", "managed-profiles: \(records.filter { !$0.archived }.count)",
+        var lines = ["Pairbar development", "metadata-schema: 3", "managed-profiles: \(records.filter { !$0.archived }.count)",
                      "claude-managed: unavailable; runtime-separation-unvalidated"]
         for provider in ProviderID2.allCases {
             lines.append("provider: \(provider.rawValue); official-processes: \(runtime.running(provider: provider).count); recovery: \(states[provider]?.needsRecovery == true)")

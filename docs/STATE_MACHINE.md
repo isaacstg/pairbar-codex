@@ -1,4 +1,4 @@
-# Pairbar 2 account state machine
+# Pairbar account state machine
 
 This document describes the policy implemented by `Dynamic/StateResolver.swift` and enforced again by `PairbarController.swift`. Pairbar derives no role from logins, cookies, Keychain items, process arguments, or process environments. It uses the official-app process set plus metadata and receipts that Pairbar created.
 

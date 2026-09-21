@@ -1,8 +1,8 @@
-# Pairbar 2 user guide
+# Pairbar user guide
 
 Pairbar is a native macOS menu-bar utility for keeping several account profiles close at hand while leaving the official provider apps unchanged. Pairbar has no permanent window and does not require a Dock icon; profile management, settings, help, recovery, diagnostics, and export all live in its popover.
 
-Pairbar 2 is currently a development build. Local and CI archives are ad-hoc development artifacts, not a signed and notarized public release.
+Pairbar is currently a development build. Local and CI archives are ad-hoc development artifacts, not a signed and notarized public release.
 
 ## What is supported
 
@@ -208,9 +208,9 @@ swift test
 bash scripts/build.sh
 ```
 
-The verified local arm64 development build created Pairbar 2.0.0 (17) at `dist/Pairbar.zip`, SHA-256 `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`. Its fresh extraction passed strict all-architectures signature verification. The bundle is ad-hoc signed with hardened runtime; public distribution still requires deliberate architecture support, an authorized Developer ID signature, notarization, stapling, and clean-machine acceptance.
+The verified local universal development build created Pairbar 2.0.0 (17) at `dist/Pairbar.zip`, SHA-256 `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2`. It contains `x86_64` and `arm64`; its fresh extraction passed strict all-architectures signature verification. The bundle is ad-hoc signed with hardened runtime. Public distribution still requires an authorized Developer ID signature, notarization, stapling, and clean-machine acceptance.
 
-The audited source passed 131 Swift tests and the source/diff/plist/shell checks. The inert native preview rendered its Profiles and Settings surfaces with accessibility labels, but no live account, login-item, keyboard, or VoiceOver acceptance was run. Current read-only checks of installed ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` failed strict signature validation and Pairbar blocked both; the official bundles were left untouched.
+The audited source passed 132 Swift tests and the source/diff/plist/shell checks. The inert native preview rendered Profiles, Settings, and Help in English and Spanish with accessibility labels; Command-F search worked and public screenshots contain synthetic data only. Full keyboard, VoiceOver, contrast, live-account, and login-item acceptance remains pending. Read-only checks verified installed ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` outside the task sandbox; both official bundles passed strict signing and Gatekeeper, and Pairbar's compatibility checks passed. The bundles were left untouched.
 
 To uninstall:
 

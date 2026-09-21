@@ -8,13 +8,20 @@
 
 [![macOS CI](https://github.com/isaacstg/pairbar-codex/actions/workflows/ci.yml/badge.svg)](https://github.com/isaacstg/pairbar-codex/actions/workflows/ci.yml) [![macOS 13+](https://img.shields.io/badge/macOS-13%2B-111827?logo=apple&logoColor=white)](#build-and-try-it) [![Swift 5.9+](https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift&logoColor=white)](Package.swift) [![MIT](https://img.shields.io/badge/license-MIT-69DCC8)](LICENSE)
 
-Pairbar is a native, local-only menu-bar utility for the official macOS apps. Pairbar 2 keeps one ordinary **Current** account per provider and lets you save any number of additional **ChatGPT/Codex profiles**. It imposes no profile-count limit, but it never opens every saved profile automatically: you choose what to open, and memory-pressure warnings pause unsafe automatic openings.
+Pairbar is a native, local-only menu-bar utility for the official macOS apps. The current update keeps one ordinary **Current** account per provider and lets you save any number of additional **ChatGPT/Codex profiles**. It imposes no profile-count limit, but it never opens every saved profile automatically: you choose what to open, and memory-pressure warnings pause unsafe automatic openings.
 
 Each additional Codex profile gets its own Electron storage and `CODEX_HOME`. Pairbar does not swap tokens, copy sessions, read credentials, or modify the official app. It is an independent, unofficial project and is not affiliated with or endorsed by OpenAI or Anthropic.
 
 **[Build and try it](#build-and-try-it) · [User guide](docs/USER_GUIDE.md) · [Security model](SECURITY.md) · [Engineering case study](docs/CASE_STUDY.md)**
 
-> **Development status:** the Pairbar 2 source, automated suite, audit, and local packaging checks are complete in this branch. The archive is an ad-hoc development artifact; there is no Developer ID signed, notarized public Pairbar 2 release. Managed Claude profiles remain disabled until real signed-in tests prove that both Chat and Code are separated without account crossover. Cowork is also unvalidated. See [implementation status](docs/IMPLEMENTATION_STATUS.md).
+> **Development status:** Pairbar's source, automated suite, audit, and local packaging checks are complete. The archive is an ad-hoc development artifact; there is no Developer ID signed, notarized public release. Managed Claude profiles remain disabled until real signed-in tests prove that both Chat and Code are separated without account crossover. Cowork is also unvalidated. See [implementation status](docs/IMPLEMENTATION_STATUS.md).
+
+<p align="center">
+  <img src="docs/images/pairbar-profiles.png" alt="Pairbar profiles popover with synthetic preview data" width="46%">
+  <img src="docs/images/pairbar-settings.png" alt="Pairbar settings in the inert native preview" width="46%">
+</p>
+
+These are real native screenshots from Pairbar's inert preview. All names and states are synthetic; the preview cannot open accounts, change login items, export data, or control provider processes.
 
 ## Everyday workflow
 
@@ -62,7 +69,7 @@ bash scripts/build.sh
 
 Use a regular checkout location such as your home directory. Filesystem tests deliberately reject macOS symlink aliases such as `/tmp` and `/var`. The build script creates `dist/Pairbar.zip`; local archives are ad-hoc signed and must not be described as notarized releases. Do not disable Gatekeeper globally.
 
-When upgrading from Codex Account Switcher or Pairbar 1.3.3, keep the existing application-support directory. Pairbar 2 migrates switcher-owned metadata and preserves the legacy Second directory without reading the profile inside it. Review the in-app migration/recovery state before opening a managed profile.
+When upgrading from Codex Account Switcher or Pairbar 1.3.3, keep the existing application-support directory. Pairbar migrates switcher-owned metadata and preserves the legacy Second directory without reading the profile inside it. Review the in-app migration/recovery state before opening a managed profile.
 
 ## How managed Codex profiles work
 
@@ -94,9 +101,11 @@ Read the [security model](SECURITY.md) and [Claude acceptance protocol](docs/CLA
 | Runtime controller | LaunchServices, process observations, ownership checks, memory pressure, and lifecycle orchestration |
 | Tests and audit | Pure state/storage/compatibility tests, fake-runtime integration checks, source-policy guard, and packaging checks |
 
-The audited Pairbar 2 tree passed 131 Swift tests, the source-policy audit, diff/plist/shell checks, release compilation, fresh extraction, and strict all-architectures signature verification. The resulting local arm64 Pairbar 2.0.0 (17) archive has SHA-256 `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`; it is ad-hoc signed with hardened runtime, not Developer ID signed or notarized.
+The audited Pairbar tree passed 132 Swift tests, including injected recovery at five archive durability boundaries, plus the source-policy audit, diff/plist/shell checks, universal release compilation, fresh extraction, and strict all-architectures signature verification. The current local Pairbar 2.0.0 (17) archive contains `x86_64` and `arm64`, has SHA-256 `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2`, and is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
 
-The inert native preview was opened and inspected without constructing a controller, registering shortcuts, changing login items, or touching provider apps; its popover, Settings page, and accessibility labels were present. Read-only checks of the currently installed ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` both failed strict signature validation, so Pairbar correctly blocks them. An earlier ChatGPT check on the same reported version had passed, making this a local installation-integrity failure rather than current compatibility evidence. Smoke/live account work, login-item behavior, keyboard/VoiceOver acceptance, and signed-in isolation remain untested.
+The inert native preview was inspected in English and Spanish without constructing a controller, registering shortcuts, changing login items, or touching provider apps. Its Profiles, Settings, Help, search shortcut, filtering, accessibility labels, and dark appearance rendered correctly. Full keyboard-navigation, VoiceOver, and contrast acceptance still require a manual pass with those system modes enabled.
+
+Read-only checks outside the task sandbox verified the installed ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` bundles with strict all-architectures signing and Gatekeeper (`Notarized Developer ID`). Pairbar's own checks passed for both. Earlier failures were sandbox false negatives: the restricted process could not reach the system trust store. No official bundle was changed. Signed-in isolation, lifecycle, login-item, migration, archive/reset, and reinstall acceptance remain pending in a separate disposable macOS user or machine.
 
 ## Contributing
 

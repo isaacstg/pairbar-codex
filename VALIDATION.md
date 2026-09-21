@@ -1,6 +1,6 @@
 # Pairbar validation and release status
 
-Last reconciled on 2026-09-21. This record separates the frozen 1.3.3 baseline, Pairbar 2 static/integration validation, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
+Last reconciled on 2026-09-21. This record separates the frozen 1.3.3 baseline, validation of the current Pairbar update, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
 
 ## Claims and required evidence
 
@@ -18,7 +18,7 @@ A PID, signature, static marker, successful build, or isolated directory alone c
 
 ## Frozen 1.3.3 baseline
 
-Before Pairbar 2 implementation, the deliberate local worktree was consolidated at:
+Before the current Pairbar update, the deliberate local worktree was consolidated at:
 
 ```text
 commit 4efdd57718e9a652bcb49d01d6c9b077d7e410f5
@@ -26,7 +26,7 @@ tag    recovery/pairbar-1.3.3-20260919
 branch codex/pairbar-2
 ```
 
-Remote `main` was read-only verified at `4399fd2090d5e5aa152ec5f0aa0188f5f3e5c5cf` on 2026-09-19 and rechecked unchanged on 2026-09-21. The Pairbar 2 branch had not been pushed when this audit began; no pull, reset, checkout, or clean was performed.
+PR [#1](https://github.com/isaacstg/pairbar-codex/pull/1) merged the verified implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` into `main` as merge commit `520f85db55fe403e910331a5e1f1760f0efd48eb` on 2026-09-21. The post-merge macOS 14/15 workflow run `35541961329` passed.
 
 The baseline passed:
 
@@ -48,7 +48,7 @@ Those are useful regression references only. They do not validate:
 
 Specific historical PIDs are intentionally omitted. They were observations from completed runs, not reusable ownership evidence.
 
-## Pairbar 2 integrated validation
+## Pairbar integrated validation
 
 The integration source includes:
 
@@ -64,33 +64,37 @@ The audited worktree completed the following non-live validation on 2026-09-21:
 
 - `scripts/audit.py` passed;
 - `git diff --check`, `plutil`, and `bash -n` passed;
-- all **131 Swift tests** passed using workspace-local module caches;
+- all **132 Swift tests** passed using workspace-local module caches;
 - the release build completed as Pairbar **2.0.0 (17)**;
-- the local arm64 build produced `dist/Pairbar.zip` with SHA-256 `da85d12d0c45546598f7eb7e6d52b8cbefbc2fea04ab31e9cd636d59a0da7b6c`;
+- the local universal build produced `dist/Pairbar.zip` for `x86_64 arm64` with SHA-256 `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2`;
 - a fresh extraction, ZIP integrity check, and `codesign --verify --strict --all-architectures` passed;
 - the extracted Pairbar bundle is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
-- GitHub Actions push run `35541461280` and pull-request run `35541463532` both passed the macOS 14 and macOS 15 matrix for code-bearing commit `3bec9feedfa59593c5a04d4bd8f38c7b72f7fb10`.
+- GitHub Actions passed macOS 14 and macOS 15 for implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273`, and the post-merge `main` run `35541961329` passed both jobs for merge commit `520f85db55fe403e910331a5e1f1760f0efd48eb`.
 
-The earlier implementation pass recorded a successful read-only `--check-app /Applications/ChatGPT.app` result for ChatGPT `26.915.31945 (9922)` with fingerprint `d87b…eacc1a`. On 2026-09-21, Pairbar rechecked that reported version and macOS returned `invalid signature (code or signature have been modified)`. Pairbar stopped before compatibility approval. The official bundle was not modified or repaired during this audit. The current local installation is therefore a failed identity gate, not compatibility evidence.
+Initial strict checks inside the task sandbox reported both installed apps as modified. The same sandbox could not read any of the 158 certificates in the system root keychain and also failed validation of a macOS system app. Independent resource-seal verification found 3,809 matching ChatGPT resources and 2,749 matching Claude resources with no missing or mismatched files; signed executable page hashes, `Info.plist`, `CodeResources`, and detached CMS signatures also matched.
 
-The first read-only `--check-claude /Applications/Claude.app` attempt ran against Claude `1.34493.1` and failed at the same strict signature gate before packaged-code inspection. No installed-Claude compatibility result is claimed. Synthetic Claude tests passed and the production managed-Claude gate remains closed.
+The decisive read-only checks were repeated outside the sandbox. `codesign --verify --strict --all-architectures` validated ChatGPT `26.915.31945 (9922)`, Claude `1.34493.1`, and every nested component; `spctl` accepted both as `Notarized Developer ID`. Pairbar then reported `OpenAI signature verified` with fingerprint `d87b…eacc1a` and `Anthropic signature verified` with fingerprint `cd6e…ab1f`. The earlier errors were sandbox trust-service false negatives. Neither official app was modified, repaired, replaced, or re-signed.
+
+Installed-Claude static inspection succeeded, but managed Claude remains unavailable because signed-in Chat, Code, and Cowork isolation has not passed.
 
 ### Automated/static checklist
 
 - [x] Source-policy audit passes on the integrated tree.
 - [x] Diff whitespace, shell syntax, and plist checks pass.
-- [x] Dynamic store and migration tests pass for the implemented future-schema, opaque legacy `Profiles/b`, duplicate, link, mode, size, orphan, interrupted archive, and transition-recovery cases.
+- [x] Dynamic store and migration tests pass for the implemented future-schema, opaque legacy `Profiles/b`, duplicate, link, mode, size, orphan, interrupted archive, transition-recovery, and five injected archive durability-boundary cases.
 - [x] Dynamic state tests pass for PID reuse, unreadable observations, duplicate ownership, pending launches, provider-wide uncertainty, and Current ambiguity.
 - [x] Controller fake-runtime tests pass for Current protection, pending-before-open, returned-process classification, post-inspection ownership revalidation, failure recovery, concurrency serialization, close timeout, restart exclusion, unreadable/reused PID, login selection, and critical-memory focus of existing instances.
 - [x] Synthetic Claude tests pass for ASAR parsing bounds, traversal/link rejection, unstable replacement, packaged-code findings, and the permanently false managed-launch preflight.
 - [x] UI/model tests pass for search, filters, favorites, selection/revalidation, stale action rejection, shortcut validation/display, and preview action no-ops.
-- [x] Full 131-test Swift suite passes using workspace-local module caches.
+- [x] Full 132-test Swift suite passes using workspace-local module caches.
 - [x] Release compilation succeeds for 2.0.0 (17).
 - [x] Fresh ZIP extraction, integrity check, and strict all-architectures app-bundle signature verification succeed.
 - [x] Packaged version, build number, executable archive, ad-hoc hardened-runtime signature, and SHA-256 are inspected.
-- [x] Preview execution bypasses controller/store/runtime/shortcut construction; the native preview opened with live and startup actions disabled, and Profiles/Settings accessibility labels were inspected.
+- [x] Preview execution bypasses controller/store/runtime/shortcut construction; Profiles, Settings, and Help opened in English and Spanish with live/startup actions disabled. Search and Command-F filtering worked, the accessibility tree exposed labeled controls and states, and three isolated synthetic screenshots were checked in under `docs/images/`.
 
-The 131-test result includes an in-memory preview action-no-op test and explicit Claude fail-closed lifecycle/archive tests. A native visual pass confirmed the popover and Settings surfaces render. Keyboard-only, VoiceOver, contrast, every view/state, and a checked-in product screenshot remain manual acceptance items.
+The 132-test result includes an in-memory preview action-no-op test, explicit Claude fail-closed lifecycle/archive tests, and injected one-shot failures after journal persistence, storage rename, each parent-directory sync, and profile metadata persistence. Every injected failure left a recoverable journal; recovery preserved the opaque marker and completed exactly one archive.
+
+The native preview confirms Command-F search, English/Spanish rendering, accessible labels, and visually legible dark-mode surfaces. Full keyboard-only traversal could not be completed with the host's current keyboard-navigation setting, and VoiceOver was not enabled. Those checks plus light/high-contrast modes remain manual acceptance items rather than passes.
 
 ### Reference commands
 
@@ -118,7 +122,7 @@ Run lifecycle and signed-in cases from one of these environments:
 
 Before each destructive-looking test, resolve the exact disposable profile and prove its receipt. Do not inspect profile contents, tokens, cookies, Keychain, provider logs, another process's arguments, or another process's environment. Do not modify an official app bundle.
 
-No smoke, signed-in, provider lifecycle, login-item, keyboard-only, or VoiceOver test was run. The only native visual test used the inert preview and could not touch accounts. This preserved the task-hosting Second Account. Every real-account acceptance item below therefore remains pending for Current or a disposable environment.
+No signed-in, provider lifecycle, login-item, migration, archive/reset, uninstall/reinstall, full keyboard-only, or VoiceOver test was run. The native visual test used the inert preview and could not touch accounts. This preserved the task-hosting account. Every real-account acceptance item below therefore remains pending for a separate disposable macOS user or machine.
 
 ## Codex signed-in acceptance matrix
 
@@ -173,7 +177,7 @@ The pass is valid only if instrumentation or code-path evidence also confirms th
 
 ## Release boundary
 
-A local or CI `Pairbar.zip` is an ad-hoc development artifact unless it has separately completed Developer ID signing and notarization. Do not describe the current Pairbar 2 worktree as published, notarized, or generally available.
+A local or CI `Pairbar.zip` is an ad-hoc development artifact unless it has separately completed Developer ID signing and notarization. Do not describe the current Pairbar worktree as published, notarized, or generally available.
 
 A public release requires:
 

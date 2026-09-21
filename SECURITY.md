@@ -203,7 +203,7 @@ Preview mode uses fixed in-memory examples. It disables account, process, storag
 
 The audit is a guardrail, not a formal proof. Pure tests, adversarial review, strict signature validation, fake-runtime integration tests, disposable live tests, and signed-in acceptance are separate layers.
 
-For Pairbar 2.0.0 (17), the integrated source-policy audit and all 128 Swift tests passed, and a freshly extracted ad-hoc hardened-runtime bundle passed strict all-architectures signature verification. The read-only installed ChatGPT check passed for `26.915.31945 (9922)` with reported fingerprint `d87b…eacc1a`. These results support source, policy, and static app-compatibility claims only. No final live/signed-in isolation test was run, the installed Claude check was not run, and the artifact is neither Developer ID signed nor notarized.
+For Pairbar 2.0.0 (17), the integrated source-policy audit and all 132 Swift tests passed, and a freshly extracted universal ad-hoc hardened-runtime bundle passed strict all-architectures signature verification. Read-only installed-app checks passed for ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1`; both official bundles also passed strict signing and Gatekeeper verification outside the task sandbox. These results support source, policy, and static app-compatibility claims only. No final live/signed-in isolation test was run, and the Pairbar artifact is neither Developer ID signed nor notarized.
 
 ## Threats deliberately not solved
 
