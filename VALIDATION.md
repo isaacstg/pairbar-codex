@@ -30,7 +30,7 @@ PR [#1](https://github.com/isaacstg/pairbar-codex/pull/1) merged the verified im
 
 PR [#2](https://github.com/isaacstg/pairbar-codex/pull/2) merged release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de` into `main` as `0bf3fbcb083e4a6454db2227e78e28522c566d89`. Its post-merge macOS 14/15 workflow run `35585485542` passed both jobs.
 
-Installed acceptance found one localization defect. Code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` clears a stale localized error and refreshes login-item status whenever the language changes. The 133-test suite and the universal artifact recorded below were produced from that application source; GitHub CI for the acceptance branch is recorded when its PR completes.
+Installed acceptance found one localization defect. Code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` clears a stale localized error and refreshes login-item status whenever the language changes. The 133-test suite and the universal artifact recorded below were produced from that application source. PR [#3](https://github.com/isaacstg/pairbar-codex/pull/3) is mergeable; workflow runs `35622701599` and `35622779005` passed on macOS 14 and 15 for the code and acceptance-ledger commits.
 
 The baseline passed:
 

@@ -4,7 +4,7 @@
 
 The approved 1.3.3 working tree was consolidated at `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, on `codex/pairbar-2`. PR #1 merged the verified update commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` into `main` as `520f85db55fe403e910331a5e1f1760f0efd48eb`. PR #2 merged release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de` as `0bf3fbcb083e4a6454db2227e78e28522c566d89`; post-merge macOS 14/15 run `35585485542` passed.
 
-Installed acceptance follow-up code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` refreshes localized errors and login-item status immediately after a language change. Its PR/CI integration state is recorded separately from the earlier merged baseline.
+Installed acceptance follow-up code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` refreshes localized errors and login-item status immediately after a language change. PR #3 is mergeable; workflow runs `35622701599` and `35622779005` passed on macOS 14 and 15 for the code and acceptance-ledger commits. This evidence remains separate from the earlier merged baseline until integration.
 
 Before delegation: source audit, whitespace, shell/plist validation, 47 unit tests and release packaging passed. Module caches were redirected into ignored `work/`; iconutil required building outside the restricted sandbox. Only Pairbar's staging bundle was signed.
 

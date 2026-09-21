@@ -8,7 +8,7 @@ The deliberately modified 1.3.3 base was consolidated in commit `4efdd57718e9a65
 
 The final recorded merge commit is `0bf3fbcb083e4a6454db2227e78e28522c566d89` from PR #2. Its macOS 14/15 workflow run `35585485542` passed both jobs. A source recovery tag does not roll back migrated user data. Do not install an old binary over schema 3 or restore metadata automatically.
 
-Installed acceptance follow-up code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` fixes immediate English/Spanish refresh of errors and login-item status. Its branch PR and macOS 14/15 CI must pass before this follow-up is integrated.
+Installed acceptance follow-up code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` fixes immediate English/Spanish refresh of errors and login-item status. PR #3 is mergeable, and workflow runs `35622701599` and `35622779005` passed on macOS 14 and 15 for its code and acceptance-ledger commits. Integration still requires the final adversarial verdict.
 
 The target product is a native menu-bar app with dynamic saved Codex profiles, one unmanaged Current per provider, explicit selected launches and conservative ownership. There is no promise of unlimited concurrent instances. Managed Claude remains unavailable until [the exact-build acceptance gate](CLAUDE_ACCEPTANCE.md) passes for both Chat and Code and resolves Cowork risks. A release with Claude still blocked must say so plainly and must not be labeled completed Claude support.
 
