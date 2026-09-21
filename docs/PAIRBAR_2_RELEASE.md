@@ -4,9 +4,9 @@ This checklist separates implementation validation from a signed, notarized publ
 
 ## Recovery and scope
 
-The deliberately modified 1.3.3 base was consolidated in commit `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, before delegation. PR #1 merged the update into `main`; release-readiness work continues on `codex/pairbar-release-readiness`. See [the execution record](PAIRBAR_2_EXECUTION.md) for integration results. Preserve the base and all unrelated local changes. Do not use destructive checkout, reset, clean or pull to restore it.
+The deliberately modified 1.3.3 base was consolidated in commit `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, before delegation. PR #1 merged the update into `main`; PR #2 merged the release-readiness work. See [the execution record](PAIRBAR_2_EXECUTION.md) for integration results. Preserve the base and all unrelated local changes. Do not use destructive checkout, reset, clean or pull to restore it.
 
-Remote `main` is `520f85db55fe403e910331a5e1f1760f0efd48eb`, the merge commit for PR #1. Its macOS 14/15 workflow run `35541961329` passed. A source recovery tag does not roll back migrated user data. Do not install an old binary over schema 3 or restore metadata automatically.
+The final recorded merge commit is `0bf3fbcb083e4a6454db2227e78e28522c566d89` from PR #2. Its macOS 14/15 workflow run `35585485542` passed both jobs. A source recovery tag does not roll back migrated user data. Do not install an old binary over schema 3 or restore metadata automatically.
 
 The target product is a native menu-bar app with dynamic saved Codex profiles, one unmanaged Current per provider, explicit selected launches and conservative ownership. There is no promise of unlimited concurrent instances. Managed Claude remains unavailable until [the exact-build acceptance gate](CLAUDE_ACCEPTANCE.md) passes for both Chat and Code and resolves Cowork risks. A release with Claude still blocked must say so plainly and must not be labeled completed Claude support.
 
@@ -36,7 +36,7 @@ Record the commit or a precise dirty-tree statement, compiler/macOS versions, ch
 - [x] Performance acceptance exercises 1,000 stored profiles and 10,000 resolved profiles with no artificial profile cap. Native UI responsiveness still belongs to the safe visual pass.
 - [x] Preview uses in-memory rows and bypasses controller/store/runtime/shortcut creation. Profiles, Settings, and Help rendered in English and Spanish with account/startup actions disabled, accessible labels, working Command-F search, and checked-in synthetic screenshots.
 - [x] Source, bundle and zip version/branding match; historical executable/bundle identifiers and storage root remain compatible.
-- [x] PR #1 merged cleanly. The macOS 14/15 matrix passed for implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` and post-merge `main` commit `520f85db55fe403e910331a5e1f1760f0efd48eb` in run `35541961329`.
+- [x] PR #1 and PR #2 merged cleanly. The macOS 14/15 matrix passed for implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273`, release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de`, and final recorded merge commit `0bf3fbcb083e4a6454db2227e78e28522c566d89`; its post-merge run is `35585485542`.
 - [x] The build script produces one universal `x86_64 arm64` archive by default, and CI rejects an archive missing either architecture.
 
 The build script atomically produces `dist/Pairbar.zip` and `dist/Pairbar.zip.sha256` and signs only its own temporary `Pairbar.app`. With the default ad-hoc signing identity it is a development artifact, not a notarized distribution. A Developer ID identity can be supplied explicitly, but the script still does not submit, staple or claim notarization. Rebuilding replaces that workspace ZIP only after the new archive passes an integrity check; copy or rename a needed prior artifact before rebuilding, without touching provider applications.

@@ -28,6 +28,8 @@ branch codex/pairbar-2
 
 PR [#1](https://github.com/isaacstg/pairbar-codex/pull/1) merged the verified implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` into `main` as merge commit `520f85db55fe403e910331a5e1f1760f0efd48eb` on 2026-09-21. The post-merge macOS 14/15 workflow run `35541961329` passed.
 
+PR [#2](https://github.com/isaacstg/pairbar-codex/pull/2) merged release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de` into `main` as `0bf3fbcb083e4a6454db2227e78e28522c566d89`. Its post-merge macOS 14/15 workflow run `35585485542` passed both jobs.
+
 The baseline passed:
 
 - `python3 scripts/audit.py`;
@@ -69,7 +71,7 @@ The audited worktree completed the following non-live validation on 2026-09-21:
 - the local universal build produced `dist/Pairbar.zip` for `x86_64 arm64` with SHA-256 `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2`;
 - a fresh extraction, ZIP integrity check, and `codesign --verify --strict --all-architectures` passed;
 - the extracted Pairbar bundle is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
-- GitHub Actions passed macOS 14 and macOS 15 for implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273`, and the post-merge `main` run `35541961329` passed both jobs for merge commit `520f85db55fe403e910331a5e1f1760f0efd48eb`.
+- GitHub Actions passed macOS 14 and macOS 15 for implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273`, release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de`, and both post-merge revisions. The final recorded `main` run `35585485542` passed both jobs for merge commit `0bf3fbcb083e4a6454db2227e78e28522c566d89`.
 
 Initial strict checks inside the task sandbox reported both installed apps as modified. The same sandbox could not read any of the 158 certificates in the system root keychain and also failed validation of a macOS system app. Independent resource-seal verification found 3,809 matching ChatGPT resources and 2,749 matching Claude resources with no missing or mismatched files; signed executable page hashes, `Info.plist`, `CodeResources`, and detached CMS signatures also matched.
 

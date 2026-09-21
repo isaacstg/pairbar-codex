@@ -2,7 +2,7 @@
 
 ## Recovery point
 
-The approved 1.3.3 working tree was consolidated at `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, on `codex/pairbar-2`. PR #1 merged the verified update commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` into `main` as `520f85db55fe403e910331a5e1f1760f0efd48eb`; post-merge macOS 14/15 CI passed.
+The approved 1.3.3 working tree was consolidated at `4efdd57718e9a652bcb49d01d6c9b077d7e410f5`, tagged `recovery/pairbar-1.3.3-20260919`, on `codex/pairbar-2`. PR #1 merged the verified update commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` into `main` as `520f85db55fe403e910331a5e1f1760f0efd48eb`. PR #2 merged release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de` as `0bf3fbcb083e4a6454db2227e78e28522c566d89`; post-merge macOS 14/15 run `35585485542` passed.
 
 Before delegation: source audit, whitespace, shell/plist validation, 47 unit tests and release packaging passed. Module caches were redirected into ignored `work/`; iconutil required building outside the restricted sandbox. Only Pairbar's staging bundle was signed.
 
@@ -54,7 +54,7 @@ The integrator completed the shared non-live validation and follow-up audit on t
 - `dist/Pairbar.zip` was freshly extracted and passed ZIP integrity and `codesign --verify --strict --all-architectures`;
 - the archive SHA-256 is `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2`;
 - Pairbar is ad-hoc signed with hardened runtime. It has no Developer ID signature or notarization.
-- implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273` and post-merge commit `520f85db55fe403e910331a5e1f1760f0efd48eb` passed the macOS 14/15 matrix; the post-merge run is `35541961329`.
+- implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273`, release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de`, and final recorded merge commit `0bf3fbcb083e4a6454db2227e78e28522c566d89` passed the macOS 14/15 matrix; the final post-merge run is `35585485542`.
 
 Read-only checks outside the task sandbox verified ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` with strict signing and Gatekeeper. Pairbar's checks reported fingerprints `d87b…eacc1a` and `cd6e…ab1f`. Earlier failures were reproduced as sandbox trust-store false negatives, not bundle modification. Both official bundles were left untouched.
 
