@@ -8,6 +8,8 @@ The deliberately modified 1.3.3 base was consolidated in commit `4efdd57718e9a65
 
 The final recorded merge commit is `0bf3fbcb083e4a6454db2227e78e28522c566d89` from PR #2. Its macOS 14/15 workflow run `35585485542` passed both jobs. A source recovery tag does not roll back migrated user data. Do not install an old binary over schema 3 or restore metadata automatically.
 
+Installed acceptance follow-up code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` fixes immediate English/Spanish refresh of errors and login-item status. PR #3 is mergeable, and workflow runs `35622701599` and `35622779005` passed on macOS 14 and 15 for its code and acceptance-ledger commits. Integration still requires the final adversarial verdict.
+
 The target product is a native menu-bar app with dynamic saved Codex profiles, one unmanaged Current per provider, explicit selected launches and conservative ownership. There is no promise of unlimited concurrent instances. Managed Claude remains unavailable until [the exact-build acceptance gate](CLAUDE_ACCEPTANCE.md) passes for both Chat and Code and resolves Cowork risks. A release with Claude still blocked must say so plainly and must not be labeled completed Claude support.
 
 ## Automated source and artifact gates
@@ -65,6 +67,20 @@ Use a separate macOS user/machine for the complete matrix. A test from Current A
 | Languages/shortcuts | Spanish and English cover onboarding, states, errors and confirmations. Configurable shortcuts report conflicts and preserve the previous valid binding. |
 | Claude | Current is normal and unmanaged. Managed profiles remain unavailable until all required evidence exists; a local fingerprint approval cannot lift that gate. |
 
+### Installed acceptance evidence on the development Mac
+
+The 2026-09-21 installed-app pass completed the parts that did not require stopping the task-hosting `Work` profile:
+
+- the real legacy root migrated to schema 3 while retaining opaque `Profiles/b` storage and a usable `Work` row;
+- two disposable profiles were saved without opening automatically, and their Electron and `CODEX_HOME` paths were distinct;
+- `Acceptance A` reached receipt-verified ownership;
+- Pairbar restart plus Pairbar-only uninstall/reinstall preserved Current, `Work`, the disposable records, preferences, and recovery state;
+- Launch at Login registered and unregistered through `SMAppService`; the separate per-profile login selection remained opt-in;
+- Full Keyboard Access traversed the popover, VoiceOver exposed labeled states/actions, and light, dark, increased-contrast, and reduced-transparency rendering was inspected; all system settings were restored;
+- English/Spanish changes refreshed both error text and login status after the localization correction.
+
+`Acceptance B` visibly opened but left a durable pending marker without a verified receipt. Pairbar correctly blocked ownership-dependent actions and refused safe recovery while provider processes were still present. Because `Work` hosts this task, provider-wide quiescence could not be established safely. Signed-in identity separation, owned close/restart, Open Selected, archive/reset, and completed recovery therefore remain blocked for a separate macOS user or test Mac. VoiceOver speech/rotor quality also still needs human observation. These are acceptance limits, not implementation failures to bypass.
+
 Record each result as passed, failed or not run, with the tested build and date. “Prepared” is not “passed.” No account screenshots, logs, cookies, credentials or user identifiers belong in a public issue or release artifact.
 
 ## Developer ID and notarization gate
@@ -89,6 +105,6 @@ Follow [Apple's notarization workflow](https://developer.apple.com/documentation
 - [x] No private paths, test identities, provider data, debug exports or generated live-profile directories enter Git or the verified development archive.
 - [x] Adversarial review lists concrete issues and a final verdict against the integrated revision. Addressed findings were rechecked; absent real acceptance and notarization still block a public binary.
 
-Current adversarial verdict: **BLOCK** for public binary release. The audited worktree passes the source-policy audit, 132 synthetic tests, universal Pairbar 2.0.0 (17) development build, ZIP integrity/checksum, strict all-architectures verification of Pairbar's ad-hoc signed bundle, and macOS 14/15 CI through the merged `main` commit. Injected failures cover five archive durability boundaries. The installed ChatGPT and Claude bundles pass strict signing, Gatekeeper, and Pairbar's read-only checks outside the task sandbox. The inert preview passed English/Spanish rendering, Command-F search, accessibility-tree inspection, and isolated public screenshots. Safe-environment signed-in lifecycle, Launch at Login, migration, archive/reset, uninstall/reinstall, full keyboard/VoiceOver/contrast acceptance, Developer ID signing, notarization, stapling, and clean-machine acceptance remain pending. Managed Claude is separately blocked by its signed-in Chat, Code, and Cowork evidence gate.
+Current adversarial verdict: **BLOCK** for public binary release. The audited worktree passes the source-policy audit, 133 synthetic tests, universal Pairbar 2.0.0 (17) development build, ZIP integrity/checksum, and strict all-architectures verification of Pairbar's ad-hoc signed bundle. Injected failures cover five archive durability boundaries. The installed ChatGPT and Claude bundles pass strict signing, Gatekeeper, and Pairbar's read-only checks outside the task sandbox. The real installed Pairbar pass completed migration, Pairbar restart/reinstall persistence, login-item registration, keyboard traversal, accessibility-tree inspection, appearance modes, and language refresh. Signed-in identity separation, owned lifecycle, an actual login event, completed recovery, archive/reset, human VoiceOver acceptance, Developer ID signing, notarization, stapling, and clean-user acceptance remain pending. Managed Claude is separately blocked by its signed-in Chat, Code, and Cowork evidence gate.
 
-Truthful development-delivery wording: “Pairbar's dynamic profile update and 132 local synthetic checks are available as a universal ad-hoc development artifact. Managed Claude remains blocked pending signed-in isolation acceptance. Final live acceptance, Developer ID signing, notarization, and public binary release are not claimed.”
+Truthful development-delivery wording: “Pairbar's dynamic profile update and 133 local synthetic checks are available as a universal ad-hoc development artifact. Managed Claude remains blocked pending signed-in isolation acceptance. Remaining live lifecycle acceptance, Developer ID signing, notarization, and public binary release are not claimed.”

@@ -70,31 +70,31 @@ Historical live evidence also showed one disposable legacy Second process initia
 
 The integrated tree completed its non-live validation pass:
 
-- all 132 Swift tests passed, covering the dynamic store/migration, injected archive durability failures, state resolver, synthetic Claude inspection, panel model, controller fake runtime, suspended-inspection ownership revalidation, independent batch failures, memory-pressure focus behavior, and Claude lifecycle/archive denial;
+- all 133 Swift tests passed, covering the dynamic store/migration, injected archive durability failures, state resolver, synthetic Claude inspection, panel model, controller fake runtime, suspended-inspection ownership revalidation, independent batch failures, memory-pressure focus behavior, Claude lifecycle/archive denial, and language-change refresh behavior;
 - `scripts/audit.py`, `git diff --check`, plist validation, and shell syntax validation passed;
 - the release build produced universal Pairbar 2.0.0 (17) for `x86_64 arm64`;
 - fresh extraction, ZIP integrity, and `codesign --verify --strict --all-architectures` passed;
-- `dist/Pairbar.zip` has SHA-256 `89e26e781329eb075c037bdc994de623ff78ca211301434b7b884971d143f5b2`;
+- `dist/Pairbar.zip` has SHA-256 `fbd9891b696fac98b4b28e2ed4f9502db9705956632dd998fa7f3a6514ff8058`;
 - the bundle is ad-hoc signed with hardened runtime, not Developer ID signed or notarized.
 - PR #1 merged implementation commit `91db9471a05ada20e58c5a1b4f6e9c181afad273`; PR #2 merged release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de`. Post-merge run `35585485542` passed on macOS 14 and macOS 15 for merge commit `0bf3fbcb083e4a6454db2227e78e28522c566d89`.
 
 Read-only checks outside the task sandbox verified ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` with strict all-architectures signing and Gatekeeper. Pairbar's own checks passed for both. Earlier failures were sandbox trust-service false negatives; resource manifests, code pages, and CMS signatures were unchanged. The provider bundles were not changed or repaired during this audit. Static compatibility is not signed-in isolation evidence.
 
-The installed-Claude check completed read-only while managed Claude stayed hard disabled. No signed-in, lifecycle, login-item, full keyboard, or VoiceOver pass was performed. The inert native preview opened in English and Spanish and exposed Profiles, Settings, Help, disabled live actions, search behavior, and accessibility labels. Exact evidence is recorded in [VALIDATION.md](../VALIDATION.md).
+The installed-Claude check completed read-only while managed Claude stayed hard disabled. The installed Pairbar pass migrated the real legacy metadata opaquely, created two disposable records, receipt-verified one managed launch, demonstrated fail-closed behavior for a second uncertain launch, preserved state through Pairbar restart/reinstall, registered and unregistered its login item, traversed the UI with Full Keyboard Access, and inspected VoiceOver labels plus light/dark/contrast/transparency modes. It did not verify signed-in account separation or owned lifecycle because the provider entered recovery-required state while the task-hosting profile had to remain running. Exact evidence and limits are recorded in [VALIDATION.md](../VALIDATION.md).
 
 ## Real acceptance still required
 
 Perform these from the normal Current context, a separate macOS user/machine, or explicitly new disposable profiles. Do not close, restart, reset, or recover the Second Account that hosts this development task.
 
-1. Migrate a copy of legacy Current + Second metadata and prove profile contents remain unread and the legacy Second login persists.
-2. Create at least two new Codex profiles; prove distinct signed-in Chat and Code state across focus, restart, Pairbar restart, and official-app update.
-3. Exercise rapid requests, configurable hotkeys, multi-select, memory warnings, login launch selection, interrupted launch, stale/reused PID, unreadable observation, changed fingerprint, moved app, and provider-wide recovery.
+1. In a separate user or test Mac, sign two disposable Codex profiles into distinct test accounts and prove Chat/Code separation across focus, restart, Pairbar restart, and official-app update.
+2. Resolve interrupted launch state with all disposable provider processes stopped; then exercise owned close/restart, rapid requests, hotkeys, multi-select, stale/reused PID, changed fingerprint, and provider-wide recovery.
+3. Run an actual login event with a selected subset and prove no other profile opens.
 4. Archive and reset disposable profiles only after provider quiescence; verify data is moved to the archive and can be manually recovered.
-5. Verify English/Spanish accessibility, keyboard navigation, long names, search/filter/favorite behavior, first-run migration, upgrade, and uninstall on clean supported macOS versions.
+5. Complete human VoiceOver speech/rotor review, long-name/reordering acceptance, and a clean-user installation test.
 6. Run the separate Claude Chat + Code protocol. Keep managed Claude disabled unless every required gate passes; treat Cowork as its own unvalidated surface.
 
 ## Release boundary
 
 Pairbar has not been declared Developer ID signed, notarized, stapled, published, or generally available. A passing local build produces an ad-hoc development artifact only.
 
-Public release still requires safe real-account acceptance, native/accessibility validation, login-item validation, clean-machine packaging verification, authorized Developer ID signing, notarization, and stapling. Claude must remain described as Current-only while its managed gate is closed.
+Public release still requires the remaining safe real-account lifecycle matrix, actual login-event validation, human VoiceOver acceptance, clean-user packaging verification, authorized Developer ID signing, notarization, and stapling. Claude must remain described as Current-only while its managed gate is closed.

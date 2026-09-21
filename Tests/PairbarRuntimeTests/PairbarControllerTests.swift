@@ -405,6 +405,20 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertTrue(runtime.openRequests.isEmpty)
         XCTAssertNil(controller.model.errorMessage)
     }
+
+    func testChangingLanguageClearsStaleErrorAndRefreshesLoginStatus() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        controller.model.errorMessage = "Stale English error"
+
+        controller.model.send(.setLanguage(.spanish))
+
+        XCTAssertEqual(controller.model.language, .spanish)
+        XCTAssertNil(controller.model.errorMessage)
+        XCTAssertEqual(try fixture.store.loadPreferences().language, PairbarLanguage.spanish.rawValue)
+        XCTAssertTrue(["Activado", "Requiere aprobación en Ajustes del Sistema", "Desactivado", "Instala Pairbar en Aplicaciones primero"].contains(controller.model.loginStatus))
+    }
 }
 
 private enum InvalidObservation: String, CaseIterable {
