@@ -4,6 +4,16 @@ import Darwin
 @testable import SwitcherCore
 
 final class DynamicStoreTests: XCTestCase {
+    func testNumericShortcutPolicyReusesFirstFreePhysicalDigitAndStopsAtZero() {
+        let slots = NumericShortcutPolicy.keyCodes.map { Shortcut2(keyCode: $0, modifiers: 2304) }
+        XCTAssertEqual(slots.count, 10)
+        XCTAssertEqual(slots[0], .legacyCurrent)
+        XCTAssertEqual(slots[1], .legacySecond)
+        XCTAssertEqual(NumericShortcutPolicy.firstAvailable(occupied: Set(slots.prefix(2))), slots[2])
+        XCTAssertEqual(NumericShortcutPolicy.firstAvailable(occupied: Set(slots.filter { $0 != slots[1] })), slots[1])
+        XCTAssertEqual(slots.last?.keyCode, 29) // physical 0, not a nonexistent ⌥⌘10 chord
+        XCTAssertNil(NumericShortcutPolicy.firstAvailable(occupied: Set(slots)))
+    }
     private var scratch: URL!
     override func setUpWithError() throws {
         scratch = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)

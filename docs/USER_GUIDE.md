@@ -35,8 +35,8 @@ Pairbar has no third-party Swift package dependency and contains no updater. Bui
 1. Place `Pairbar.app` in `/Applications` or `~/Applications`.
 2. Open it. The Pairbar icon appears in the menu bar.
 3. Read the welcome page and continue to Profiles.
-4. Check the installed official app for the provider you want to use.
-5. For Codex, confirm the checked build before creating or opening additional profiles.
+4. Add a Codex profile and open it. Pairbar finds the official app at its standard location and checks it automatically.
+5. If this official build has not been approved yet, approve it once in the contextual prompt. If Pairbar cannot verify the app, use **Settings → Advanced → Choose app…** only for a nonstandard installation.
 
 An existing Codex Account Switcher or Pairbar 1.3.3 installation is migrated without reading profile contents:
 
@@ -53,10 +53,10 @@ Keep the existing application-support directory during an upgrade. If migration 
 
 The Profiles page shows Current and managed profiles together. Every row identifies its provider, whether it is Current or managed, and its state.
 
-- Use **Search** to match a saved display name or provider.
-- Use **All**, **Codex**, or **Claude** to filter the list.
+- Use **Search** to match a saved display name.
+- Use **Filter** to show all, Codex, or Claude entries.
 - Mark frequently used entries as favorites; favorites sort before other rows.
-- Choose **Select**, tick only the profiles you want, then open the selected set.
+- Choose **Select**, tick only the profiles you want, then open the selected set. If the installed build needs approval, Pairbar asks once per batch; cancelling skips new launches for that provider in the batch.
 - Open or switch to a single row with its main button.
 - Use the row menu to edit, favorite, reorder, or—only for a verified managed profile—close, restart, archive, or archive and reset.
 
@@ -69,8 +69,8 @@ Saved profiles are not a promise that every profile can remain open simultaneous
 ## Creating and editing a Codex profile
 
 1. On Profiles, choose **Add profile**.
-2. Select Codex and enter a unique name from 1 to 40 characters.
-3. Optionally mark it as a favorite, assign a shortcut, or opt it into the profile-at-login list.
+2. Enter a unique name from 1 to 40 characters.
+3. Pairbar assigns the first available ⌥⌘ digit shortcut automatically when one is free; edit the profile later to change or clear it.
 4. Save. The profile is stored but is not opened.
 5. Open it when ready and sign into the intended account in the official app window.
 6. Verify the displayed account before using it for sensitive work, especially after an official-app update.
@@ -101,7 +101,7 @@ Opening Current while a managed instance exists requests a distinct normal app i
 
 Opening Current requires an identity check of the selected official app. Opening a stopped managed Codex profile also requires a successful compatibility inspection and approval of the installed build fingerprint.
 
-After a ChatGPT update, Pairbar may continue to focus an already verified, receipt-owned managed process. It blocks a new managed launch until the new installed build is inspected and explicitly approved. Approval never bypasses pending recovery or ambiguous ownership.
+After a ChatGPT update, Pairbar can focus an already receipt-owned managed process only if its live code still matches the installed app. The first new managed launch checks the official build, asks for one contextual approval, then checks the build again before saving that approval and launching. A failed check cannot be approved. Automatic login never prompts for approval or launches an unapproved build. Approval never bypasses pending recovery or ambiguous ownership. Manual **Check again** and **Choose app…** remain in Settings → Advanced for diagnostics and nonstandard installations.
 
 Claude's identity check is intentionally separate from managed capability. A genuine, correctly signed Claude.app can be used as Current without implying that profile relocation isolates Chat, Code, secure storage, OAuth, deep links, extensions, or Cowork.
 
@@ -109,7 +109,7 @@ Claude's identity check is intentionally separate from managed capability. A gen
 
 Shortcuts are configurable per Current entry or managed profile. Pairbar rejects an invalid or duplicate chord and retains the previous working bindings if registration fails. Shortcuts do not bypass app identity, compatibility, memory, ownership, or recovery checks.
 
-The migrated Codex Current and Second entries retain the historical shortcuts where possible. New profiles do not receive an implicit shortcut.
+The migrated Codex Current and Second entries retain ⌥⌘1 and ⌥⌘2. New profiles receive the first free physical digit chord from ⌥⌘1 through ⌥⌘9, then ⌥⌘0. Existing custom assignments are preserved; after all ten slots are occupied, profiles can still be created without a shortcut. Edit a profile to change or clear its shortcut.
 
 Inside the popover:
 
@@ -124,7 +124,7 @@ Two separate choices are required:
 1. **Start Pairbar at login** registers only the Pairbar menu-bar app.
 2. **Open selected profiles at login** allows Pairbar to consider rows individually marked for login opening.
 
-Both are off by default. Marking a row for login does nothing until the global profile-opening option is also enabled. Pairbar never interprets this as “open all saved profiles.” Startup processing runs only for the actual login launch, respects memory and safety gates, and stops when a selected target cannot be opened safely.
+Both are off by default. Marking a row for login does nothing until the global profile-opening option is also enabled. Pairbar never interprets this as “open all saved profiles.” Startup processing runs only for the actual login launch, respects memory and safety gates, and can continue to another independently safe provider when one target fails.
 
 ## Process ownership and lifecycle controls
 
@@ -139,7 +139,7 @@ Before launching a managed profile, Pairbar persists a pending marker. It then v
 
 Pairbar never reads another process's arguments or environment to establish ownership. It uses OS-provided process identity and its own launch record.
 
-Close is graceful and is available only for a verified managed process. Pairbar waits for exit and does not escalate to a forced kill. Restart first proves that the profile is safe to reopen, closes the verified owned process, confirms its exit, and then performs a new verified launch. Any mismatch preserves the receipt and stops the operation.
+Close is graceful and is available only for a verified managed process. Pairbar waits for exit and does not escalate to a forced kill. Restart checks the installed build and, when needed, asks for one contextual approval before any close. It reinspects the build, rechecks recovery and ownership, closes only a live process whose code still matches the installed app, confirms its exit, and then performs a new verified launch. Cancelling or failing any check leaves the running process untouched. If ChatGPT was updated while the old process remained open and its code no longer matches the installed bundle, Pairbar cannot close it safely: close that ChatGPT app normally, then open the profile again.
 
 ## Recovery
 
@@ -171,7 +171,7 @@ Managed Claude profiles remain unavailable. Enabling them requires repeatable si
 - confirmation that normal Current remains on ordinary storage and Pairbar can identify every managed process without reading credentials;
 - a separate Cowork matrix covering cloud execution, local VM state, shared configuration, permissions, links, and transitions between Chat and Cowork.
 
-The detailed protocol is in [CLAUDE_ACCEPTANCE.md](CLAUDE_ACCEPTANCE.md). Until it passes, the UI must say “under investigation” or “unavailable”; it must not describe Claude as isolated or supported for managed profiles.
+The detailed protocol is in [CLAUDE_ACCEPTANCE.md](CLAUDE_ACCEPTANCE.md). Until it passes, managed Claude remains unavailable. The ordinary profile list does not show a permanent investigation notice; Settings → Advanced explains the limitation.
 
 ## Diagnostics and export
 
@@ -208,9 +208,9 @@ swift test
 bash scripts/build.sh
 ```
 
-The verified local universal development build created Pairbar 2.0.0 (17) at `dist/Pairbar.zip`, SHA-256 `fbd9891b696fac98b4b28e2ed4f9502db9705956632dd998fa7f3a6514ff8058`. It contains `x86_64` and `arm64`; its fresh extraction passed strict all-architectures signature verification. The bundle is ad-hoc signed with hardened runtime. Public distribution still requires an authorized Developer ID signature, notarization, stapling, and clean-machine acceptance.
+The current local universal development build created Pairbar 2.0.0 (17) at `dist/Pairbar.zip`, SHA-256 `f82b511e061d77ae5630ac17854ff8fb053f34314e974e66f0b50d61af873244`. It contains `x86_64` and `arm64`; its fresh extraction passed strict all-architectures signature verification. The bundle is ad-hoc signed with hardened runtime. Public distribution still requires an authorized Developer ID signature, notarization, stapling, and clean-machine acceptance. The earlier integrated build had SHA-256 `fbd9891b696fac98b4b28e2ed4f9502db9705956632dd998fa7f3a6514ff8058`; its 133-test validation remains recorded in [VALIDATION.md](../VALIDATION.md).
 
-The audited source passed 133 Swift tests and the source/diff/plist/shell checks. The native UI rendered Profiles, Settings, and Help in English and Spanish with accessibility labels; Command-F search worked and public screenshots contain synthetic data only. The installed app passed keyboard traversal, light/dark/contrast/transparency inspection, opaque migration, Pairbar-only reinstall persistence, and login-item registration. Human VoiceOver listening, signed-in account separation, owned lifecycle, actual login launch, recovery/archive/reset, and clean-user acceptance remain pending. Read-only checks verified installed ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` outside the task sandbox; both official bundles passed strict signing and Gatekeeper, and Pairbar's compatibility checks passed. The bundles were left untouched.
+The current PR #4 remediation passed 150 Swift tests and the source/diff/plist/shell checks. The simplified native UI rendered Profiles, Add profile, Settings, and Advanced in an inert preview; first-click Search and Command-F accepted immediate typing. Light and dark modes were inspected and the original dark appearance restored. The earlier PR #4 source passed 140 tests before this remediation. The installed Pairbar process held the production profile lock, so neither pass created or opened a real account. Human VoiceOver listening, signed-in account separation, owned lifecycle, actual login launch, recovery/archive/reset, and clean-user acceptance remain pending. Earlier read-only checks verified installed ChatGPT `26.917.62051 (10789)` and Claude `1.34493.1` outside the task sandbox. The bundles were left untouched.
 
 To uninstall:
 

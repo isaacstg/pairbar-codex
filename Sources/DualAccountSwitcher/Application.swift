@@ -38,6 +38,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     Task { _ = await controller.open(account) }
                 }
                 controller.replaceShortcuts = { [weak keys] bindings in keys?.replaceBindings(bindings) ?? false }
+                controller.confirmNewBuild = { [weak self, weak model] report in
+                    guard let self, let model else { return false }
+                    let alert = NSAlert()
+                    alert.messageText = model.text("Approve this ChatGPT/Codex version?", "¿Aprobar esta versión de ChatGPT/Codex?")
+                    alert.informativeText = model.text(
+                        "Pairbar verified the official app and its static compatibility. Version \(report.identity.version) needs your approval before opening an additional profile. Check the account shown in the app after it opens.",
+                        "Pairbar verificó la app oficial y su compatibilidad estática. La versión \(report.identity.version) requiere tu aprobación antes de abrir otro perfil. Comprueba la cuenta mostrada al abrirse.")
+                    alert.addButton(withTitle: model.text("Approve and open", "Aprobar y abrir"))
+                    alert.addButton(withTitle: model.text("Cancel", "Cancelar"))
+                    self.showPopover()
+                    return alert.runModal() == .alertFirstButtonReturn
+                }
                 let shortcutsReady = keys.replaceBindings(controller.shortcutBindings())
                 if !shortcutsReady {
                     model.errorMessage = model.text(

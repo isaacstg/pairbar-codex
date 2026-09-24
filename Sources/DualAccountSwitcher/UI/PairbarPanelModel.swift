@@ -46,7 +46,6 @@ struct PairbarProviderRow: Identifiable, Equatable {
     var version: String = ""
     var canCreate: Bool = false
     var canCheck: Bool = true
-    var canApprove: Bool = false
     var canChoose: Bool = true
     var canRecover: Bool = false
     var busy: Bool = false
@@ -71,7 +70,7 @@ enum PairbarPanelAction {
     case create(PairbarProfileDraft), update(String, PairbarProfileDraft)
     case favorite(String, Bool), move(String, Int)
     case close(String), restart(String), archive(String), reset(String)
-    case check(String), approve(String), choose(String), recover(String)
+    case check(String), choose(String), recover(String)
     case setStartAtLogin(Bool), setOpenProfilesAtLogin(Bool), setProfileAtLogin(String, Bool)
     case setLanguage(PairbarLanguage), completeWelcome
     case exportConfiguration, copyDiagnostics, clearDiagnostics, quitPairbar
@@ -150,8 +149,6 @@ final class PairbarPanelModel: ObservableObject {
             guard rows.contains(where: { $0.id == id && $0.canEdit }) else { return }
         case .create(let draft):
             guard providers.contains(where: { $0.id == draft.providerID && $0.canCreate && !$0.busy }) else { return }
-        case .approve(let id):
-            guard providers.contains(where: { $0.id == id && $0.canApprove && !$0.busy }) else { return }
         case .recover(let id):
             guard providers.contains(where: { $0.id == id && $0.canRecover && !$0.busy }) else { return }
         case .check(let id):

@@ -1,6 +1,6 @@
 # Pairbar implementation status
 
-Last reconciled with the Pairbar audit worktree on 2026-09-21. This document distinguishes implemented source, completed evidence, and acceptance still required.
+Last reconciled with PR #4 remediation on 2026-09-25. This document distinguishes implemented source, completed evidence, and acceptance still required.
 
 ## Product invariant
 
@@ -53,6 +53,12 @@ A PID, bundle identifier, or signature by itself is never ownership evidence. Th
 
 The installed bundle and static markers do not establish account isolation. Managed Claude support remains blocked until [CLAUDE_ACCEPTANCE.md](CLAUDE_ACCEPTANCE.md) passes with signed-in Chat and Code sessions and no crossover. Cowork requires separate evidence.
 
+## Current PR #4 remediation evidence
+
+The current branch passed 150 Swift tests with no failures, source-policy audit, diff/shell/plist checks, a universal `x86_64 arm64` Pairbar 2.0.0 (17) build, fresh ZIP extraction, and strict all-architectures signature verification. `dist/Pairbar.zip` has SHA-256 `f82b511e061d77ae5630ac17854ff8fb053f34314e974e66f0b50d61af873244` and remains ad-hoc signed. The inert English/Spanish preview was inspected in light and dark modes; refreshed synthetic screenshots are in `docs/images/`. First-click Search and Command-F both accepted immediate typing from collapsed search. No new signed-in account isolation or live lifecycle acceptance was claimed.
+
+Restart can request contextual approval for a changed installed Codex build, but it closes only when the existing receipt and live code can still be verified against the installed bundle. If an old running process cannot match the new bundle, it remains untouched and the user is guided to close it normally before reopening the profile. Open Selected asks at most once after cancellation for a provider in that batch; automatic login still never asks for build approval. Managed Claude creation remains disabled.
+
 ## Evidence completed before this update
 
 The deliberate 1.3.3 working tree was consolidated at commit `4efdd57718e9a652bcb49d01d6c9b077d7e410f5` with recovery tag `recovery/pairbar-1.3.3-20260919`. The then-known remote `main` was read-only verified at `4399fd2090d5e5aa152ec5f0aa0188f5f3e5c5cf` on 2026-09-19.
@@ -66,7 +72,7 @@ That baseline passed:
 
 Historical live evidence also showed one disposable legacy Second process initializing separate directories beside a preserved Current process, and a later installed 1.3 workflow with Current + Second. That evidence applies to the fixed two-entry implementation only. It does not prove the current multi-profile behavior or Claude isolation.
 
-## Pairbar validation completed
+## Historical Pairbar validation completed (2026-09-21)
 
 The integrated tree completed its non-live validation pass:
 

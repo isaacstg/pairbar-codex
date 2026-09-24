@@ -39,6 +39,18 @@ public struct Shortcut2: Codable, Equatable, Hashable {
     public static let legacySecond = Shortcut2(keyCode: 19, modifiers: 2304)
 }
 
+/// Physical ANSI digit keys in display order. Existing assignments, including
+/// customized Current shortcuts, reserve their chords before a new profile is saved.
+public enum NumericShortcutPolicy {
+    public static let keyCodes: [UInt32] = [18, 19, 20, 21, 23, 22, 26, 28, 25, 29]
+    public static func available(occupied: Set<Shortcut2>) -> [Shortcut2] {
+        keyCodes.map { Shortcut2(keyCode: $0, modifiers: 2304) }.filter { !occupied.contains($0) }
+    }
+    public static func firstAvailable(occupied: Set<Shortcut2>) -> Shortcut2? {
+        available(occupied: occupied).first
+    }
+}
+
 public struct Preferences2: Codable, Equatable {
     public static let currentSchemaVersion = 3
     public var schemaVersion = Self.currentSchemaVersion

@@ -8,6 +8,14 @@ Passing unit tests, finding directory override strings, verifying Anthropic's si
 
 The initial installation observed during planning was Claude 1.34493.1, bundle ID `com.anthropic.claudefordesktop`, Team ID `Q6L2SF6YDW`. Packaged markers for `CLAUDE_USER_DATA_DIR`, `CLAUDE_CONFIG_DIR` and `CLAUDE_SECURESTORAGE_CONFIG_DIR` were present. Inspection also identified removal of the user-data override in the production entry point and local-pairing behavior affected by relocated storage. These are static findings, not a working recipe or isolation approval. A later installation needs fresh inspection.
 
+### Local read-only inspection, 2026-09-25
+
+The installed `/Applications/Claude.app` is still version/build `1.34493.1`, bundle ID `com.anthropic.claudefordesktop`, Team ID `Q6L2SF6YDW`. Strict all-architecture `codesign` verification and Gatekeeper assessment passed (`Notarized Developer ID`). Pairbar's offline inspector returned fingerprint `cd6ee12b613a9470d02da15bb49abfe7ae6f187c8a5fbe1c8a0a1da316b3ab1f` for the 36 MB packaged `app.asar`. The restricted task sandbox could not validate the trust chain, so these checks were repeated with normal macOS trust-store access.
+
+Packaged-code review confirms the production entrypoint executes `delete process.env.CLAUDE_USER_DATA_DIR` when packaged and outside its developer-approved test harness, before the later code that calls Electron `app.setPath("userData", ...)`. Thus setting `CLAUDE_USER_DATA_DIR` in a normal Pairbar launch would not isolate Electron storage. `CLAUDE_CONFIG_DIR` is read by the bundled Code component for its configuration root; its secure-storage code derives a hashed namespace from `CLAUDE_SECURESTORAGE_CONFIG_DIR` or that config root, but this does not establish that Desktop Chat, helpers and Code share one intended profile boundary. The Code child environment forwards `CLAUDE_CONFIG_DIR`; the observed secure-storage forwarding at that call site is Windows-specific. The app also registers `open-url` and `continue-activity` handlers at bundle scope, including a Code session activity. The code records `userData relocated` as a local-pairing-disabled reason. No ordinary production launch recipe isolates all of these surfaces in this build.
+
+**Decision B:** version `1.34493.1` has no demonstrated reliable isolation recipe for additional Pairbar profiles. No Claude process was launched, changed or closed for this inspection. Managed Claude remains disabled; the signed-in Chat, Code, OAuth and Cowork matrix remains pending in a disposable user after a viable recipe exists.
+
 ## Concrete risks that remain open
 
 | Surface | Evidence or uncertainty | Consequence for Pairbar |
