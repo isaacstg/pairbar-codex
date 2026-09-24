@@ -25,10 +25,10 @@ These are real native screenshots from Pairbar's inert preview. All names and st
 
 ## Everyday workflow
 
-- Find profiles by name or filter the list by Codex or Claude.
+- Open or switch profiles from a simple list; use Search or Filter when needed.
 - Keep frequently used profiles at the top with favorites.
 - Open one profile, or select a specific group and open that group.
-- Assign configurable global shortcuts to individual profiles.
+- New profiles receive the first free ⌥⌘ digit shortcut automatically; edit or clear it later.
 - Opt individual profiles into opening at login only after enabling the separate global setting. Both settings are off by default.
 
 Pairbar stays in a native popover. It has no permanent window and does not require a Dock icon. Profile creation, editing, ordering, shortcuts, lifecycle controls, diagnostics, recovery, export, and startup preferences remain inside the popover.
@@ -101,11 +101,11 @@ Read the [security model](SECURITY.md) and [Claude acceptance protocol](docs/CLA
 | Runtime controller | LaunchServices, process observations, ownership checks, memory pressure, and lifecycle orchestration |
 | Tests and audit | Pure state/storage/compatibility tests, fake-runtime integration checks, source-policy guard, and packaging checks |
 
-The audited Pairbar tree passed 133 Swift tests, including injected recovery at five archive durability boundaries and a language-change regression test, plus the source-policy audit, diff/plist/shell checks, universal release compilation, fresh extraction, and strict all-architectures signature verification. The current local Pairbar 2.0.0 (17) archive contains `x86_64` and `arm64`, has SHA-256 `fbd9891b696fac98b4b28e2ed4f9502db9705956632dd998fa7f3a6514ff8058`, and is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
+The current source passes 140 Swift tests, including shortcut assignment and contextual build-approval regressions, plus the source-policy audit, diff/plist/shell checks, universal release compilation, fresh extraction, and strict all-architectures signature verification. The local Pairbar 2.0.0 (17) archive contains `x86_64` and `arm64`, has SHA-256 `3194d8aea9abca4689e0d48eb60c7e570ced8514418e33b24e9cb3360b9ed43a`, and is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
 
 The inert native preview was inspected in English and Spanish without constructing a controller, registering shortcuts, changing login items, or touching provider apps. Its Profiles, Settings, Help, search shortcut, filtering, accessibility labels, and public screenshots use the real native UI with synthetic account names. A later installed-app pass exercised full keyboard traversal, exposed labeled controls through VoiceOver, and checked light, dark, increased-contrast, and reduced-transparency modes. Human confirmation of VoiceOver announcements is still required.
 
-Read-only checks outside the task sandbox verified the installed ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` bundles with strict all-architectures signing and Gatekeeper (`Notarized Developer ID`). Pairbar's own checks passed for both. Earlier failures were sandbox false negatives: the restricted process could not reach the system trust store. No official bundle was changed. Local migration, reinstall persistence, login-item registration, and several accessibility modes have now been exercised; signed-in account separation, owned lifecycle, recovery/archive/reset, an actual login event, and clean-user acceptance remain pending.
+Read-only checks outside the task sandbox verified the installed ChatGPT `26.917.62051 (10789)` and Claude `1.34493.1` bundles. Pairbar's own compatibility checks passed for both; Claude's strict signature and Gatekeeper checks passed (`Notarized Developer ID`). Earlier failures were sandbox false negatives: the restricted process could not reach the system trust store. No official bundle was changed. The simplified UI was inspected in an inert native preview in light and dark modes; live profile creation and signed-in account separation still require acceptance without disturbing existing user accounts.
 
 ## Contributing
 

@@ -8,6 +8,104 @@ import SwitcherCore
 final class PairbarControllerTests: XCTestCase {
     private let fingerprint = "test-codex-fingerprint"
 
+    func testCreatingProfilesAssignsPersistentFreeDigitsWithoutChangingExistingShortcuts() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        XCTAssertEqual(controller.providers[.codex]?.currentShortcut, .legacyCurrent)
+        controller.saveDraft(id: nil, draft: PairbarProfileDraft(name: "One"))
+        controller.saveDraft(id: nil, draft: PairbarProfileDraft(name: "Two"))
+        XCTAssertEqual(controller.records.map(\.shortcut), [.legacySecond, Shortcut2(keyCode: 20, modifiers: 2304)])
+        let first = try XCTUnwrap(controller.records.first)
+        controller.saveDraft(id: first.id.description, draft: PairbarProfileDraft(name: "One", shortcut: PairbarShortcut(keyCode: 0, modifiers: 256)))
+        controller.saveDraft(id: nil, draft: PairbarProfileDraft(name: "Three"))
+        XCTAssertEqual(controller.records.last?.shortcut, .legacySecond)
+        XCTAssertEqual(try fixture.store.listProfiles().last?.shortcut, .legacySecond)
+        XCTAssertEqual(controller.records.first?.shortcut, Shortcut2(keyCode: 0, modifiers: 256))
+    }
+
+    func testProfileCreationContinuesAfterAllNumericShortcutsAreUsed() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        for number in 1...11 {
+            controller.saveDraft(id: nil, draft: PairbarProfileDraft(name: "Account \(number)"))
+        }
+        XCTAssertEqual(controller.records.count, 11)
+        XCTAssertEqual(Set(controller.records.compactMap(\.shortcut)).count, 9)
+        XCTAssertEqual(controller.records[8].shortcut, Shortcut2(keyCode: 29, modifiers: 2304))
+        XCTAssertNil(controller.records[9].shortcut)
+        XCTAssertNil(controller.records[10].shortcut)
+        let reloaded = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        XCTAssertEqual(reloaded.records.map(\.shortcut), controller.records.map(\.shortcut))
+    }
+
+    func testUnavailableSystemChordSkipsToNextFreeDigit() throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        controller.replaceShortcuts = { bindings in !bindings.contains { $0.keyCode == 19 } }
+        controller.saveDraft(id: nil, draft: PairbarProfileDraft(name: "Work"))
+        XCTAssertEqual(controller.records.first?.shortcut, Shortcut2(keyCode: 20, modifiers: 2304))
+    }
+
+    func testNewBuildNeedsOneContextualApprovalThenOpensWithoutAskingAgain() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let profile = try fixture.addProfile(provider: .codex, name: "New build")
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        let runtime = FakeRuntime()
+        let stamp = inspector.stamp(provider: .codex, pid: 700, seconds: 101)
+        runtime.openHandler = { _ in
+            runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+            return stamp.pid
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        var approvals = 0
+        controller.confirmNewBuild = { _ in approvals += 1; return true }
+        let firstOpen = await controller.open(.managed(profile.id))
+        XCTAssertTrue(firstOpen)
+        XCTAssertEqual(approvals, 1)
+        XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, fingerprint)
+        let secondOpen = await controller.open(.managed(profile.id))
+        XCTAssertTrue(secondOpen)
+        XCTAssertEqual(approvals, 1)
+    }
+
+    func testDeclinedBuildAndAutomaticLoginNeverApproveOrLaunch() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let profile = try fixture.addProfile(provider: .codex, name: "Blocked")
+        let runtime = FakeRuntime()
+        let controller = try fixture.controller(runtime: runtime, inspector: FakeInspector())
+        controller.confirmNewBuild = { _ in false }
+        let declinedOpen = await controller.open(.managed(profile.id))
+        XCTAssertFalse(declinedOpen)
+        await controller.openBatch([.managed(profile.id)], automatic: true)
+        XCTAssertNil(try fixture.store.loadProvider(.codex).approvedFingerprint)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertNil(try fixture.store.listProfiles().first?.pending)
+    }
+
+    func testBuildChangeDuringContextualApprovalFailsClosed() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let profile = try fixture.addProfile(provider: .codex, name: "Changed")
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        inspector.inspectionResponses[.codex] = [
+            inspector.report(provider: .codex, fingerprint: fingerprint, managedLaunchAllowed: true),
+            inspector.report(provider: .codex, fingerprint: "changed-during-approval", managedLaunchAllowed: true)
+        ]
+        let runtime = FakeRuntime()
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        controller.confirmNewBuild = { _ in true }
+        let opened = await controller.open(.managed(profile.id))
+        XCTAssertFalse(opened)
+        XCTAssertNil(try fixture.store.loadProvider(.codex).approvedFingerprint)
+        XCTAssertNil(try fixture.store.listProfiles().first?.pending)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+    }
+
     func testCurrentAccountCanOnlyBeActivatedAndNeverTerminated() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

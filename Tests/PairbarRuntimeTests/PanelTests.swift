@@ -209,7 +209,6 @@ final class PanelTests: XCTestCase {
         case .archive(let id): return "archive:\(id)"
         case .reset(let id): return "reset:\(id)"
         case .check(let id): return "check:\(id)"
-        case .approve(let id): return "approve:\(id)"
         case .choose(let id): return "choose:\(id)"
         case .recover(let id): return "recover:\(id)"
         case .setStartAtLogin(let value): return "startAtLogin:\(value)"

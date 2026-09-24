@@ -40,13 +40,7 @@ struct PairbarProfileEditor: View {
                       systemImage: row.isCurrent ? "person.crop.circle" : "person.crop.circle.badge.plus")
                     .font(.callout).foregroundStyle(.secondary)
             } else {
-                Picker(t("Provider", "Proveedor"), selection: $draft.providerID) {
-                    ForEach(model.providers) { provider in
-                        Text(provider.name).tag(provider.id).disabled(!provider.canCreate)
-                    }
-                }
-                Text(t("Creating a profile saves its configuration. It does not open an app or sign you in.", "Crear un perfil guarda su configuración. No abre una app ni inicia sesión."))
-                    .font(.caption).foregroundStyle(.secondary)
+                Text("ChatGPT/Codex").font(.callout).foregroundStyle(.secondary)
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(t("Profile name", "Nombre del perfil")).font(.callout.bold())
@@ -54,16 +48,19 @@ struct PairbarProfileEditor: View {
                     .textFieldStyle(.roundedBorder).accessibilityLabel(t("Profile name", "Nombre del perfil"))
                 Text("\(normalizedName.count)/40").font(.caption2).foregroundStyle(.secondary)
             }
-            Toggle(t("Favorite", "Favorito"), isOn: $draft.favorite)
-            VStack(alignment: .leading, spacing: 8) {
-                Text(t("Global shortcut", "Atajo global")).font(.callout.bold())
-                PairbarShortcutRecorder(shortcut: $draft.shortcut, language: model.language).frame(height: 28)
-                Text(t("Click to record, then press a key with Command, Option or Control. Escape cancels; Delete clears. A conflicting shortcut keeps your previous assignment.", "Pulsa para grabar y usa una tecla con Comando, Opción o Control. Escape cancela; Suprimir borra. Si hay un conflicto, se conserva el atajo anterior."))
+            if row == nil {
+                Text(t("A free ⌥⌘ number shortcut is assigned automatically. You can change it later.", "Se asigna automáticamente un atajo numérico ⌥⌘ libre. Puedes cambiarlo después."))
                     .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Toggle(t("Favorite", "Favorito"), isOn: $draft.favorite)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(t("Global shortcut", "Atajo global")).font(.callout.bold())
+                    PairbarShortcutRecorder(shortcut: $draft.shortcut, language: model.language).frame(height: 28)
+                    Text(t("Press a key with Command, Option or Control. Delete clears the shortcut.", "Pulsa una tecla con Comando, Opción o Control. Suprimir borra el atajo."))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Toggle(t("Include in chosen profiles at login", "Incluir entre los perfiles elegidos al iniciar sesión"), isOn: $draft.openAtLogin)
             }
-            Toggle(t("Include in chosen profiles at login", "Incluir entre los perfiles elegidos al iniciar sesión"), isOn: $draft.openAtLogin)
-            Text(t("This selection only runs when both startup options are enabled in Settings.", "Esta selección solo se ejecuta cuando ambas opciones de inicio están activadas en Ajustes."))
-                .font(.caption).foregroundStyle(.secondary)
             if row?.isCurrent == true {
                 Text(t("Current keeps the provider's normal storage. Its label and shortcut are preferences only.", "Current conserva el almacenamiento normal del proveedor. Su etiqueta y atajo son solo preferencias."))
                     .font(.caption).foregroundStyle(.secondary)

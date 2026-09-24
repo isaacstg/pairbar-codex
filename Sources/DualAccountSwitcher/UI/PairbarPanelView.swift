@@ -5,6 +5,7 @@ struct PairbarPanelView: View {
     @ObservedObject var model: PairbarPanelModel
     let dismiss: () -> Void
     @FocusState private var searchFocused: Bool
+    @State private var searchExpanded = false
     @State private var confirmation: PairbarConfirmation?
 
     private func t(_ english: String, _ spanish: String) -> String { model.text(english, spanish) }
@@ -80,6 +81,7 @@ struct PairbarPanelView: View {
         HStack {
             Button("") {
                 model.page = .accounts
+                searchExpanded = true
                 searchFocused = true
             }.keyboardShortcut("f", modifiers: .command)
             Button("") { model.showAccounts() }.keyboardShortcut("b", modifiers: [.command, .shift])
@@ -87,7 +89,26 @@ struct PairbarPanelView: View {
     }
 
     private var searchAndFilters: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
+            HStack {
+                Button { searchExpanded.toggle(); if searchExpanded { searchFocused = true } else { model.search = "" } } label: {
+                    Label(t("Search", "Buscar"), systemImage: "magnifyingglass")
+                }.buttonStyle(.borderless)
+                Spacer()
+                Menu {
+                    Picker(t("Provider", "Proveedor"), selection: $model.providerFilter) {
+                        Text(t("All", "Todos")).tag("all")
+                        Text("Codex").tag("codex")
+                        Text("Claude").tag("claude")
+                    }
+                } label: { Label(t("Filter", "Filtrar"), systemImage: "line.3.horizontal.decrease") }
+                    .menuStyle(.borderlessButton)
+                Button(model.selecting ? t("Done", "Listo") : t("Select", "Elegir")) {
+                    model.selecting.toggle()
+                    if !model.selecting { model.selectedIDs = [] }
+                }.buttonStyle(.borderless)
+            }
+            if searchExpanded || !model.search.isEmpty {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
                 TextField(t("Search profile names", "Buscar nombres de perfiles"), text: $model.search)
@@ -99,17 +120,6 @@ struct PairbarPanelView: View {
                         .accessibilityLabel(t("Clear search", "Borrar búsqueda"))
                 }
             }.padding(9).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
-            HStack {
-                Picker(t("Provider", "Proveedor"), selection: $model.providerFilter) {
-                    Text(t("All", "Todos")).tag("all")
-                    Text("Codex").tag("codex")
-                    Text("Claude").tag("claude")
-                }.pickerStyle(.segmented).labelsHidden()
-                Button(model.selecting ? t("Done", "Listo") : t("Select", "Elegir")) {
-                    model.selecting.toggle()
-                    if !model.selecting { model.selectedIDs = [] }
-                }.buttonStyle(.borderless)
-                    .accessibilityLabel(model.selecting ? t("Finish selecting profiles", "Terminar selección") : t("Choose profiles to open", "Elegir perfiles para abrir"))
             }
         }.padding(.horizontal, 16).padding(.bottom, 12)
     }
@@ -149,20 +159,11 @@ struct PairbarPanelView: View {
                 }.padding(.vertical, 16)
             }
             ForEach(model.visibleRows) { row in profileRow(row) }
-            if model.providerFilter == "all" || model.providerFilter == "claude" {
-                if let claude = model.providers.first(where: { $0.id == "claude" }), !claude.canCreate {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Label(t("Claude profiles · under investigation", "Perfiles Claude · en investigación"), systemImage: "info.circle")
-                            .font(.caption.bold())
-                        Text(t("Additional Claude profiles are unavailable until Chat and Code session separation is verified. The normal Current account remains separate from managed profiles.", "Los perfiles adicionales de Claude no están disponibles hasta verificar la separación de sesiones de Chat y Code. La cuenta Current normal se mantiene aparte de los perfiles administrados."))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }.padding(.top, 4)
-                }
+            ForEach(model.providers.filter(\.canRecover)) { provider in
+                Button(t("Recover " + provider.name + "…", "Recuperar " + provider.name + "…")) {
+                    confirmation = .recover(provider)
+                }.disabled(model.previewOnly || provider.busy)
             }
-            Text(model.previewOnly
-                 ? t("Preview · account and startup actions are disabled.", "Vista previa · las acciones de cuentas e inicio están desactivadas.")
-                 : t("Save as many profiles as you need. Only profiles you choose will open.", "Guarda los perfiles que necesites. Solo se abrirán los que elijas."))
-                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -185,9 +186,11 @@ struct PairbarPanelView: View {
                 }
                 Text(model.providerName(row.providerID) + " · " + (row.isCurrent ? "Current" : t("Profile", "Perfil")))
                     .font(.caption2).foregroundStyle(.secondary)
-                Label(row.status, systemImage: row.needsAttention ? "exclamationmark.circle" : (row.running ? "checkmark.circle.fill" : "circle"))
-                    .font(.caption).foregroundStyle(row.needsAttention ? Color.orange : (row.running ? Color.green : Color.secondary))
-                    .fixedSize(horizontal: false, vertical: true)
+                if row.needsAttention || row.running || row.isBusy {
+                    Label(row.status, systemImage: row.needsAttention ? "exclamationmark.circle" : (row.running ? "checkmark.circle.fill" : "circle"))
+                        .font(.caption).foregroundStyle(row.needsAttention ? Color.orange : (row.running ? Color.green : Color.secondary))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }.frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .trailing, spacing: 5) {
                 Button { model.send(.open(row.id)) } label: {
@@ -244,8 +247,6 @@ struct PairbarPanelView: View {
                 t("Name each profile and sign in inside its own app window. Your saved Current and Second setup is preserved.", "Pon nombre a cada perfil e inicia sesión en su propia ventana. Se conserva tu configuración de Current y Second."))
             welcomeStep("3", t("Choose what opens", "Elige qué se abre"),
                 t("Use favorites, search and shortcuts. Saving a profile does not open it or enable startup at login.", "Usa favoritos, búsqueda y atajos. Guardar un perfil no lo abre ni activa su inicio de sesión."))
-            Text(t("Claude Chat and Code profiles remain unavailable until real isolation tests pass. Cowork requires its own acceptance evidence.", "Los perfiles de Claude Chat y Code no están disponibles hasta superar pruebas reales de aislamiento. Cowork requiere sus propias pruebas de aceptación."))
-                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -273,14 +274,13 @@ struct PairbarPanelView: View {
                 Toggle(t("Start Pairbar at login", "Iniciar Pairbar al iniciar sesión"), isOn: Binding(
                     get: { model.startAtLogin }, set: { model.send(.setStartAtLogin($0)) }
                 )).disabled(model.previewOnly || model.busy)
-                Text(t("Starts the menu-bar utility. Opening profiles is a separate option.", "Inicia la utilidad de barra de menú. Abrir perfiles es una opción independiente."))
-                    .font(.caption).foregroundStyle(.secondary)
-                if !model.loginStatus.isEmpty { Text(model.loginStatus).font(.caption).foregroundStyle(.secondary) }
+                if model.loginStatus == t("Approve in System Settings", "Requiere aprobación en Ajustes del Sistema") ||
+                    model.loginStatus == t("Install Pairbar in Applications first", "Instala Pairbar en Aplicaciones primero") {
+                    Text(model.loginStatus).font(.caption).foregroundStyle(.secondary)
+                }
                 Toggle(t("Open chosen profiles at login", "Abrir perfiles elegidos al iniciar sesión"), isOn: Binding(
                     get: { model.openProfilesAtLogin }, set: { model.send(.setOpenProfilesAtLogin($0)) }
                 )).disabled(model.previewOnly || model.busy)
-                Text(t("Off by default. Choose each profile explicitly; Pairbar never opens every saved profile automatically.", "Desactivado por defecto. Elige cada perfil; Pairbar nunca abre automáticamente todos los perfiles guardados."))
-                    .font(.caption).foregroundStyle(.secondary)
                 if model.openProfilesAtLogin {
                     if !model.startAtLogin {
                         Label(t("Enable Start Pairbar at login to use this selection.", "Activa el inicio de Pairbar para usar esta selección."), systemImage: "info.circle")
@@ -295,13 +295,13 @@ struct PairbarPanelView: View {
                     }
                 }
             }
-            Divider()
-            ForEach(model.providers) { provider in providerSettings(provider) }
-            Divider()
-            Button(t("Export configuration…", "Exportar configuración…")) { model.send(.exportConfiguration) }
-                .disabled(model.previewOnly || model.busy)
-            Text(t("Includes labels, favorites, shortcuts and preferences. Excludes account data, private paths, process receipts and approvals.", "Incluye etiquetas, favoritos, atajos y preferencias. Excluye datos de cuentas, rutas privadas, recibos de procesos y aprobaciones."))
-                .font(.caption).foregroundStyle(.secondary)
+            DisclosureGroup(t("Advanced", "Avanzado")) {
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(model.providers) { provider in providerSettings(provider) }
+                    Button(t("Export configuration…", "Exportar configuración…")) { model.send(.exportConfiguration) }
+                        .disabled(model.previewOnly || model.busy)
+                }.padding(.top, 10)
+            }
         }
     }
 
@@ -319,10 +319,6 @@ struct PairbarPanelView: View {
                 Button(t("Choose app…", "Elegir app…")) { model.send(.choose(provider.id)) }.disabled(!provider.canChoose)
                 Button(t("Check again", "Comprobar")) { model.send(.check(provider.id)) }.disabled(!provider.canCheck)
             }.disabled(model.previewOnly || provider.busy)
-            if provider.canApprove {
-                Button(t("Confirm checked version", "Confirmar versión comprobada")) { model.send(.approve(provider.id)) }
-                    .disabled(model.previewOnly || provider.busy)
-            }
             if provider.canRecover {
                 Button(t("Try safe recovery…", "Intentar recuperación segura…")) { confirmation = .recover(provider) }
                     .disabled(model.previewOnly || provider.busy)
@@ -393,7 +389,7 @@ struct PairbarPanelView: View {
                     .buttonStyle(.plain).disabled(model.page == .settings)
                 Spacer()
                 Button { model.page = .create } label: { Label(t("Add profile", "Añadir perfil"), systemImage: "plus") }
-                    .buttonStyle(.plain).disabled(!model.canCreate || model.page == .create)
+                    .buttonStyle(.borderedProminent).disabled(!model.canCreate || model.page == .create)
                 Spacer()
                 Button { model.page = .help } label: { Label(t("Help", "Ayuda"), systemImage: "questionmark.circle") }
                     .buttonStyle(.plain).disabled(model.page == .help)

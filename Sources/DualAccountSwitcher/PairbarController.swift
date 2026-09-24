@@ -26,6 +26,8 @@ final class PairbarController {
     var onActivate: (() -> Void)?
     var onPresent: (() -> Void)?
     var replaceShortcuts: (([HotKeys.Binding]) -> Bool)?
+    /// UI supplies a contextual decision. Nil keeps headless/test callers fail-closed.
+    var confirmNewBuild: ((ProviderInspection) -> Bool)?
 
     init(store: DynamicStore, runtime: ApplicationRuntime, inspector: ProviderInspecting,
          model: PairbarPanelModel) throws {
@@ -44,7 +46,7 @@ final class PairbarController {
     private func fail(_ code: String = "operation-blocked") {
         event(code)
         switch code {
-        case "compatibility": model.errorMessage = text("Check and confirm this official app build before opening an additional profile.", "Comprueba y confirma esta versión oficial antes de abrir otro perfil.")
+        case "compatibility": model.errorMessage = text("This official app build could not be verified or approved. See Advanced in Settings.", "No se pudo verificar o aprobar esta versión oficial. Consulta Avanzado en Ajustes.")
         case "claude-unvalidated": model.errorMessage = text("Additional Claude profiles are unavailable until real Chat and Code separation is validated.", "Los perfiles adicionales de Claude no están disponibles hasta validar la separación real de Chat y Code.")
         case "ownership": model.errorMessage = text("Ownership is uncertain. Use safe recovery; no process was controlled.", "La propiedad es incierta. Usa la recuperación segura; no se ha controlado ningún proceso.")
         case "shortcut": model.errorMessage = text("That shortcut is invalid or unavailable. The previous shortcut was retained.", "El atajo no es válido o no está disponible. Se conserva el anterior.")
@@ -147,8 +149,8 @@ final class PairbarController {
                     row.canClose = managedProfilesEnabled && !isBusy
                     row.canRestart = ready && !isBusy && !state.needsRecovery
                 case .stopped:
-                    row.status = ready ? text("Closed", "Cerrado") : text("Check app before opening", "Comprueba la app para abrir")
-                    row.canOpen = ready && !isBusy && !state.needsRecovery
+                    row.status = text("Closed", "Cerrado")
+                    row.canOpen = managedProfilesEnabled && !isBusy && !state.needsRecovery
                 case .launching: row.status = text("Opening…", "Abriendo…"); row.isBusy = true
                 case .quitting: row.status = text("Closing…", "Cerrando…"); row.isBusy = true
                 default: row.status = text("Ownership needs recovery", "La propiedad requiere recuperación"); row.needsAttention = true
@@ -159,11 +161,11 @@ final class PairbarController {
             let approved = report?.fingerprint != nil && report?.fingerprint == settings.approvedFingerprint && settings.setupComplete
             providerRows.append(PairbarProviderRow(id: provider.rawValue, name: provider == .codex ? "Codex" : "Claude",
                 status: provider == .claude ? text("Managed profiles unvalidated", "Perfiles administrados sin validar") :
-                    (approved ? text("Build confirmed", "Versión confirmada") : text("App check / confirmation required", "Requiere comprobación o confirmación")),
+                    (approved ? text("Build approved", "Versión aprobada") : text("Approval requested when opening a profile", "Se pedirá aprobación al abrir un perfil")),
                 detail: provider == .claude ? text("Current stays normal. Additional Chat and Code profiles remain unavailable pending real separation tests.", "Current sigue siendo normal. Los perfiles adicionales de Chat y Code esperan pruebas reales de separación.") :
                     text("Static compatibility does not prove account isolation. Verify the account inside the official app.", "La compatibilidad estática no demuestra aislamiento. Verifica la cuenta dentro de la app oficial."),
                 version: identities[provider]?.version ?? "", canCreate: provider == .codex && !isBusy,
-                canCheck: !isBusy, canApprove: provider == .codex && report?.managedLaunchAllowed == true && !approved && !state.needsRecovery && !isBusy,
+                canCheck: !isBusy,
                 canChoose: !isBusy, canRecover: managedProfilesEnabled && state.needsRecovery && !isBusy, busy: isBusy))
         }
         model.rows = rows; model.providers = providerRows; model.busy = !busy.isEmpty
@@ -206,21 +208,9 @@ final class PairbarController {
             event("provider-identity-unavailable")
         }
     }
-    func approve(_ provider: ProviderID2) async {
-        guard provider == .codex else { fail("claude-unvalidated"); return }
-        guard !busy.contains(provider), states[provider]?.needsRecovery == false, var settings = providers[provider] else { fail("ownership"); return }
-        busy.insert(provider); refresh(); defer { busy.remove(provider); refresh() }
-        do {
-            let report = try await inspector.inspect(provider: provider, at: URL(fileURLWithPath: settings.appPath))
-            identities[provider] = report.identity; refresh()
-            guard states[provider]?.needsRecovery == false, report.managedLaunchAllowed, let fingerprint = report.fingerprint else { fail("compatibility"); return }
-            settings.approvedFingerprint = fingerprint; settings.setupComplete = true
-            try store.saveProvider(settings); providers[provider] = settings; reports[provider] = report
-        } catch { caught(error) }
-    }
     @discardableResult
     func open(_ target: AccountTarget2, allowCriticalMemory: Bool = false,
-              holdingProviderLock: Bool = false) async -> Bool {
+              holdingProviderLock: Bool = false, allowBuildApproval: Bool = true) async -> Bool {
         guard let provider = provider(for: target), let settings = providers[provider],
               holdingProviderLock || !busy.contains(provider) else { return false }
         let ownsProviderLock = !holdingProviderLock
@@ -260,9 +250,22 @@ final class PairbarController {
                 guard state == .stopped, states[provider]?.needsRecovery == false else { fail("ownership"); return false }
                 guard model.memoryPressure != .critical || allowCriticalMemory else { fail("memory"); return false }
                 let report = try await inspector.inspect(provider: provider, at: identity.app)
-                guard report.managedLaunchAllowed, settings.setupComplete, let fingerprint = report.fingerprint,
-                      fingerprint == settings.approvedFingerprint else { fail("compatibility"); return false }
+                guard report.managedLaunchAllowed, let fingerprint = report.fingerprint else { fail("compatibility"); return false }
                 reports[provider] = report
+                if !settings.setupComplete || fingerprint != settings.approvedFingerprint {
+                    guard allowBuildApproval, confirmNewBuild?(report) == true else { event("build-approval-declined"); return false }
+                    // Reinspect after the user's decision: the approved hash must still
+                    // describe the exact official build that will be launched.
+                    let confirmed = try await inspector.inspect(provider: provider, at: report.identity.app)
+                    guard confirmed.managedLaunchAllowed, confirmed.fingerprint == fingerprint,
+                          confirmed.identity == report.identity else { fail("compatibility"); return false }
+                    refresh()
+                    guard states[provider]?.needsRecovery == false, var current = providers[provider],
+                          current.appPath == settings.appPath else { fail("ownership"); return false }
+                    current.approvedFingerprint = fingerprint; current.setupComplete = true
+                    try store.saveProvider(current); providers[provider] = current
+                    event("official-build-approved")
+                }
                 // Inspection suspends this MainActor method. Re-resolve live ownership before
                 // creating storage or durable launch intent so an unreadable/reused process that
                 // appeared during inspection cannot be crossed by a new managed launch.
@@ -439,9 +442,21 @@ final class PairbarController {
                 let maximum = records.map(\.order).max() ?? 0
                 guard maximum < Int.max else { fail(); return }
                 record.order = maximum + 1
-                record.name = name; record.favorite = draft.favorite; record.shortcut = shortcut; record.launchAtLogin = draft.openAtLogin
-                let next = records.filter { $0.id != record.id } + [record]
-                guard acceptShortcuts(shortcutBindings(profiles: next)) else { fail("shortcut"); return }
+                let occupied = Set(providers.values.compactMap(\.currentShortcut) +
+                    records.filter { !$0.archived }.compactMap(\.shortcut))
+                record.name = name; record.favorite = draft.favorite; record.launchAtLogin = draft.openAtLogin
+                if let shortcut {
+                    record.shortcut = shortcut
+                    guard acceptShortcuts(shortcutBindings(profiles: records + [record])) else { fail("shortcut"); return }
+                } else {
+                    // Skip chords reserved by another app; the profile itself is unlimited.
+                    for candidate in NumericShortcutPolicy.available(occupied: occupied) {
+                        record.shortcut = candidate
+                        if acceptShortcuts(shortcutBindings(profiles: records + [record])) { break }
+                        record.shortcut = nil
+                    }
+                    // With no registered chord, saving the profile cannot change hotkeys.
+                }
                 try replaceRecord(record)
             } else if let id, let uuid = UUID(uuidString: id),
                       var record = records.first(where: { $0.id.rawValue == uuid && !$0.archived }) {
@@ -481,7 +496,7 @@ final class PairbarController {
             // Targets are independent. A missing/invalid optional provider or one stale
             // selection must not prevent later safe targets from opening. Critical memory
             // remains the only batch-wide stop because it applies to every new instance.
-            _ = await open(target, allowCriticalMemory: allowCriticalMemory)
+            _ = await open(target, allowCriticalMemory: allowCriticalMemory, allowBuildApproval: !automatic)
         }
     }
     private func handle(_ action: PairbarPanelAction) {
@@ -508,7 +523,6 @@ final class PairbarController {
         case .archive(let id): if let uuid = UUID(uuidString: id) { archive(ManagedProfileID(uuid), reset: false) }
         case .reset(let id): if let uuid = UUID(uuidString: id) { archive(ManagedProfileID(uuid), reset: true) }
         case .check(let id): if let provider = ProviderID2(rawValue: id) { Task { await check(provider) } }
-        case .approve(let id): if let provider = ProviderID2(rawValue: id) { Task { await approve(provider) } }
         case .recover(let id): if let provider = ProviderID2(rawValue: id) { Task { await recover(provider) } }
         case .choose(let id): if let provider = ProviderID2(rawValue: id) { choose(provider) }
         case .setStartAtLogin(let enabled): configureLogin(enabled)
