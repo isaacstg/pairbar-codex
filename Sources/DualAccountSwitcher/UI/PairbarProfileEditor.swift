@@ -49,7 +49,7 @@ struct PairbarProfileEditor: View {
                 Text("\(normalizedName.count)/40").font(.caption2).foregroundStyle(.secondary)
             }
             if row == nil {
-                Text(t("A free ⌥⌘ number shortcut is assigned automatically. You can change it later.", "Se asigna automáticamente un atajo numérico ⌥⌘ libre. Puedes cambiarlo después."))
+                Text(t("A free ⌥⌘ number shortcut is assigned automatically when available. You can change it later.", "Se asigna automáticamente un atajo numérico ⌥⌘ libre cuando haya uno disponible. Puedes cambiarlo después."))
                     .font(.caption).foregroundStyle(.secondary)
             } else {
                 Toggle(t("Favorite", "Favorito"), isOn: $draft.favorite)

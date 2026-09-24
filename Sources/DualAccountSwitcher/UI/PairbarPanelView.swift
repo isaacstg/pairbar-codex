@@ -81,17 +81,24 @@ struct PairbarPanelView: View {
         HStack {
             Button("") {
                 model.page = .accounts
-                searchExpanded = true
-                searchFocused = true
+                revealSearch()
             }.keyboardShortcut("f", modifiers: .command)
             Button("") { model.showAccounts() }.keyboardShortcut("b", modifiers: [.command, .shift])
         }.frame(width: 0, height: 0).clipped().accessibilityHidden(true)
     }
 
+    private func revealSearch() {
+        if searchExpanded { searchFocused = true }
+        else { searchExpanded = true }
+    }
+
     private var searchAndFilters: some View {
         VStack(spacing: 8) {
             HStack {
-                Button { searchExpanded.toggle(); if searchExpanded { searchFocused = true } else { model.search = "" } } label: {
+                Button {
+                    if searchExpanded { searchExpanded = false; model.search = ""; searchFocused = false }
+                    else { revealSearch() }
+                } label: {
                     Label(t("Search", "Buscar"), systemImage: "magnifyingglass")
                 }.buttonStyle(.borderless)
                 Spacer()
@@ -107,12 +114,19 @@ struct PairbarPanelView: View {
                     model.selecting.toggle()
                     if !model.selecting { model.selectedIDs = [] }
                 }.buttonStyle(.borderless)
+                    .accessibilityLabel(model.selecting ? t("Finish selecting profiles", "Terminar de elegir perfiles") :
+                        t("Choose profiles to open", "Elegir perfiles para abrir"))
             }
             if searchExpanded || !model.search.isEmpty {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
                 TextField(t("Search profile names", "Buscar nombres de perfiles"), text: $model.search)
                     .textFieldStyle(.plain).focused($searchFocused)
+                    .onAppear {
+                        DispatchQueue.main.async {
+                            if model.page == .accounts && (searchExpanded || !model.search.isEmpty) { searchFocused = true }
+                        }
+                    }
                     .accessibilityLabel(t("Search profiles", "Buscar perfiles"))
                 if !model.search.isEmpty {
                     Button { model.search = "" } label: { Image(systemName: "xmark.circle.fill") }

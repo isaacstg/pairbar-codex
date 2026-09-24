@@ -49,6 +49,7 @@ final class PairbarController {
         case "compatibility": model.errorMessage = text("This official app build could not be verified or approved. See Advanced in Settings.", "No se pudo verificar o aprobar esta versión oficial. Consulta Avanzado en Ajustes.")
         case "claude-unvalidated": model.errorMessage = text("Additional Claude profiles are unavailable until real Chat and Code separation is validated.", "Los perfiles adicionales de Claude no están disponibles hasta validar la separación real de Chat y Code.")
         case "ownership": model.errorMessage = text("Ownership is uncertain. Use safe recovery; no process was controlled.", "La propiedad es incierta. Usa la recuperación segura; no se ha controlado ningún proceso.")
+        case "updated-running-app": model.errorMessage = text("ChatGPT may have been updated while this profile was open. Close that ChatGPT app normally, then open the profile again.", "Es posible que ChatGPT se haya actualizado mientras este perfil estaba abierto. Cierra esa app de ChatGPT de forma normal y vuelve a abrir el perfil.")
         case "shortcut": model.errorMessage = text("That shortcut is invalid or unavailable. The previous shortcut was retained.", "El atajo no es válido o no está disponible. Se conserva el anterior.")
         case "name": model.errorMessage = text("Use a unique name of 1–40 characters without line breaks or control characters.", "Usa un nombre único de 1–40 caracteres, sin saltos de línea ni caracteres de control.")
         case "memory": model.errorMessage = text("Memory pressure paused new openings. Existing instances were preserved.", "La presión de memoria ha pausado las aperturas. Se conservan las instancias abiertas.")
@@ -134,8 +135,6 @@ final class PairbarController {
             rows.append(row)
             for record in records where record.provider == provider && !record.archived {
                 let profileState = state.profiles[record.id] ?? .ownershipUncertain
-                let ready = managedProfilesEnabled && settings.setupComplete && reports[provider]?.managedLaunchAllowed == true &&
-                    reports[provider]?.fingerprint == settings.approvedFingerprint
                 let archiveSafe = managedProfilesEnabled && !isBusy && !state.needsRecovery && runtime.running(provider: provider).isEmpty &&
                     !records.contains(where: { $0.provider == provider && ($0.receipt != nil || $0.pending != nil) })
                 var row = PairbarProfileRow(id: record.id.description, providerID: provider.rawValue, name: record.name,
@@ -147,7 +146,7 @@ final class PairbarController {
                     row.status = text("Running", "En ejecución"); row.running = true
                     row.canOpen = managedProfilesEnabled && !isBusy
                     row.canClose = managedProfilesEnabled && !isBusy
-                    row.canRestart = ready && !isBusy && !state.needsRecovery
+                    row.canRestart = managedProfilesEnabled && !isBusy && !state.needsRecovery
                 case .stopped:
                     row.status = text("Closed", "Cerrado")
                     row.canOpen = managedProfilesEnabled && !isBusy && !state.needsRecovery
@@ -208,9 +207,35 @@ final class PairbarController {
             event("provider-identity-unavailable")
         }
     }
+    /// The approval is bound to a second inspection of the same installed build.
+    /// Callers must recheck their own target's ownership after this may suspend or show an alert.
+    private func approvedManagedBuild(_ provider: ProviderID2, settings: ProviderSettings2,
+                                      allowApproval: Bool, onDecline: ((ProviderID2) -> Void)? = nil) async throws -> ProviderInspection? {
+        let report = try await inspector.inspect(provider: provider, at: URL(fileURLWithPath: settings.appPath))
+        guard report.managedLaunchAllowed, let fingerprint = report.fingerprint else { fail("compatibility"); return nil }
+        identities[provider] = report.identity
+        reports[provider] = report
+        if !settings.setupComplete || fingerprint != settings.approvedFingerprint {
+            guard allowApproval else { event("build-approval-required"); return nil }
+            guard confirmNewBuild?(report) == true else {
+                event("build-approval-declined"); onDecline?(provider); return nil
+            }
+            let confirmed = try await inspector.inspect(provider: provider, at: report.identity.app)
+            guard confirmed.managedLaunchAllowed, confirmed.fingerprint == fingerprint,
+                  confirmed.identity == report.identity else { fail("compatibility"); return nil }
+            refresh()
+            guard states[provider]?.needsRecovery == false, var current = providers[provider],
+                  current.appPath == settings.appPath else { fail("ownership"); return nil }
+            current.approvedFingerprint = fingerprint; current.setupComplete = true
+            try store.saveProvider(current); providers[provider] = current
+            event("official-build-approved")
+        }
+        return report
+    }
     @discardableResult
     func open(_ target: AccountTarget2, allowCriticalMemory: Bool = false,
-              holdingProviderLock: Bool = false, allowBuildApproval: Bool = true) async -> Bool {
+              holdingProviderLock: Bool = false, allowBuildApproval: Bool = true,
+              onBuildApprovalDeclined: ((ProviderID2) -> Void)? = nil) async -> Bool {
         guard let provider = provider(for: target), let settings = providers[provider],
               holdingProviderLock || !busy.contains(provider) else { return false }
         let ownsProviderLock = !holdingProviderLock
@@ -249,23 +274,9 @@ final class PairbarController {
                    runtime.activate(stamp, provider: provider) { onActivate?(); return true }
                 guard state == .stopped, states[provider]?.needsRecovery == false else { fail("ownership"); return false }
                 guard model.memoryPressure != .critical || allowCriticalMemory else { fail("memory"); return false }
-                let report = try await inspector.inspect(provider: provider, at: identity.app)
-                guard report.managedLaunchAllowed, let fingerprint = report.fingerprint else { fail("compatibility"); return false }
-                reports[provider] = report
-                if !settings.setupComplete || fingerprint != settings.approvedFingerprint {
-                    guard allowBuildApproval, confirmNewBuild?(report) == true else { event("build-approval-declined"); return false }
-                    // Reinspect after the user's decision: the approved hash must still
-                    // describe the exact official build that will be launched.
-                    let confirmed = try await inspector.inspect(provider: provider, at: report.identity.app)
-                    guard confirmed.managedLaunchAllowed, confirmed.fingerprint == fingerprint,
-                          confirmed.identity == report.identity else { fail("compatibility"); return false }
-                    refresh()
-                    guard states[provider]?.needsRecovery == false, var current = providers[provider],
-                          current.appPath == settings.appPath else { fail("ownership"); return false }
-                    current.approvedFingerprint = fingerprint; current.setupComplete = true
-                    try store.saveProvider(current); providers[provider] = current
-                    event("official-build-approved")
-                }
+                guard let report = try await approvedManagedBuild(provider, settings: settings,
+                    allowApproval: allowBuildApproval, onDecline: onBuildApprovalDeclined),
+                    let fingerprint = report.fingerprint else { return false }
                 // Inspection suspends this MainActor method. Re-resolve live ownership before
                 // creating storage or durable launch intent so an unreadable/reused process that
                 // appeared during inspection cannot be crossed by a new managed launch.
@@ -340,12 +351,23 @@ final class PairbarController {
         busy.insert(provider); refresh()
         defer { busy.remove(provider); refresh() }
         do {
-            let report = try await inspector.inspect(provider: provider, at: URL(fileURLWithPath: settings.appPath))
-            guard report.managedLaunchAllowed, report.fingerprint == settings.approvedFingerprint, settings.setupComplete else { fail("compatibility"); return }
+            guard let report = try await approvedManagedBuild(provider, settings: settings, allowApproval: true) else { return }
+            refresh()
+            guard let current = records.first(where: { $0.id == id && !$0.archived }), current == record,
+                  case .runningVerified = states[provider]?.profiles[id], states[provider]?.needsRecovery == false,
+                  let receipt = current.receipt,
+                  case .observed(let stamp) = runtime.observe(pid: receipt.stamp.pid),
+                  receipt.owns(stamp, profile: current, paths: store.paths(for: current), uid: runtime.uid) else {
+                fail("ownership"); return
+            }
+            guard runtime.verifyLiveIdentity(stamp, provider: provider, identity: report.identity) else {
+                fail(receipt.fingerprint != report.fingerprint ? "updated-running-app" : "ownership"); return
+            }
             if await close(id, holdingProviderLock: true) {
                 // A restart replaces one verified instance, so it does not increase
                 // process count even if pressure changes during the graceful close.
-                _ = await open(.managed(id), allowCriticalMemory: true, holdingProviderLock: true)
+                _ = await open(.managed(id), allowCriticalMemory: true, holdingProviderLock: true,
+                               allowBuildApproval: false)
             }
         } catch { caught(error) }
     }
@@ -489,14 +511,17 @@ final class PairbarController {
     func openBatch(_ targets: [AccountTarget2], automatic: Bool = false, allowCriticalMemory: Bool = false) async {
         guard !batchRunning else { return }; batchRunning = true; defer { batchRunning = false }
         var seen = Set<AccountTarget2>()
+        var declinedProviders = Set<ProviderID2>()
         for target in targets where seen.insert(target).inserted {
+            if let provider = provider(for: target), declinedProviders.contains(provider) { continue }
             if model.memoryPressure == .critical && needsNewInstance(target) && (automatic || !allowCriticalMemory) {
                 fail("memory"); break
             }
             // Targets are independent. A missing/invalid optional provider or one stale
             // selection must not prevent later safe targets from opening. Critical memory
             // remains the only batch-wide stop because it applies to every new instance.
-            _ = await open(target, allowCriticalMemory: allowCriticalMemory, allowBuildApproval: !automatic)
+            _ = await open(target, allowCriticalMemory: allowCriticalMemory, allowBuildApproval: !automatic,
+                           onBuildApprovalDeclined: { declinedProviders.insert($0) })
         }
     }
     private func handle(_ action: PairbarPanelAction) {

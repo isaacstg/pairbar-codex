@@ -1,6 +1,18 @@
 # Pairbar validation and release status
 
-Last reconciled on 2026-09-21. This record separates the frozen 1.3.3 baseline, validation of the current Pairbar update, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
+Last reconciled on 2026-09-25. This record separates the frozen 1.3.3 baseline, historical Pairbar validation, the PR #4 remediation, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
+
+## PR #4 remediation validation — current source
+
+On 2026-09-25, the `codex/pairbar-simplify-ux-v1` remediation passed:
+
+- `swift test`: **150 tests, 0 failures**. New cases cover Restart approval and cancellation for a changed build, build change and ownership change during approval, an old live process that cannot match the installed code, one-prompt Open Selected approval/cancellation, failed approval persistence, approval persisted before a later ownership abort, and exact shortcut-binding rollback after profile persistence fails. The prior approval regression now opens a second stopped profile rather than refocusing the first.
+- `python3 scripts/audit.py`, `git diff --check`, `bash -n scripts/build.sh`, and `plutil -lint Resources/Info.plist`: passed.
+- `bash scripts/build.sh`: built Pairbar **2.0.0 (17)** with `x86_64 arm64`; `dist/Pairbar.zip` SHA-256 is `f82b511e061d77ae5630ac17854ff8fb053f34314e974e66f0b50d61af873244`.
+- Fresh ZIP extraction, `unzip -tq`, `lipo -archs`, and `codesign --verify --strict --all-architectures`: passed. This is still an ad-hoc development artifact.
+- Inert native preview: Profiles, Add profile, Filter, Select/Done accessibility labels, Settings, and Advanced were inspected. From collapsed Search, the first click focused the field and immediately accepted “Work”; after collapsing it, Command-F focused the field and immediately accepted “Second”. The preview rendered in light and dark appearances; the original dark setting was restored. `docs/images/pairbar-profiles.png`, `pairbar-profiles-es.png`, and `pairbar-settings.png` were refreshed from synthetic preview data only.
+
+Restart on a changed installed build now uses the same contextual approval preflight as Open. Approval is reinspected and does not waive receipt, UID, PID/start-time, executable, recovery, or live-code checks. When an old running process no longer matches the installed bundle, Pairbar makes no termination request and tells the user to close that ChatGPT app normally before reopening the profile. The automated fixture proves that fail-closed path; no real signed-in lifecycle run was performed in this remediation.
 
 ## Claims and required evidence
 
@@ -30,7 +42,7 @@ PR [#1](https://github.com/isaacstg/pairbar-codex/pull/1) merged the verified im
 
 PR [#2](https://github.com/isaacstg/pairbar-codex/pull/2) merged release-readiness commit `d34d82728cf0dc0b65b438c8975c262e5d0d74de` into `main` as `0bf3fbcb083e4a6454db2227e78e28522c566d89`. Its post-merge macOS 14/15 workflow run `35585485542` passed both jobs.
 
-Installed acceptance found one localization defect. Code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` clears a stale localized error and refreshes login-item status whenever the language changes. The 133-test suite and the universal artifact recorded below were produced from that application source. PR [#3](https://github.com/isaacstg/pairbar-codex/pull/3) is mergeable; workflow runs `35622701599` and `35622779005` passed on macOS 14 and 15 for the code and acceptance-ledger commits.
+Installed acceptance found one localization defect. Code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` clears a stale localized error and refreshes login-item status whenever the language changes. The 133-test suite and the universal artifact recorded below were produced from that application source. At the time of this historical validation, PR [#3](https://github.com/isaacstg/pairbar-codex/pull/3) was mergeable; workflow runs `35622701599` and `35622779005` passed on macOS 14 and 15 for the code and acceptance-ledger commits.
 
 The baseline passed:
 
@@ -52,7 +64,7 @@ Those are useful regression references only. They do not validate:
 
 Specific historical PIDs are intentionally omitted. They were observations from completed runs, not reusable ownership evidence.
 
-## Pairbar integrated validation
+## Historical Pairbar integrated validation (2026-09-21)
 
 The integration source includes:
 
