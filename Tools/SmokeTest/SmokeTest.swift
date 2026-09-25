@@ -35,7 +35,8 @@ struct SmokeTest {
         var failure: Error?
         do {
             let report = try Compatibility.inspect(candidate)
-            identity = OfficialAppIdentity(app: report.app, executable: report.executable, version: report.version)
+            identity = OfficialAppIdentity(app: report.app, executable: report.executable, version: report.version,
+                                           verification: report.verification)
             guard let identity,
                   currentStamp.uid == getuid(), currentStamp.executable == identity.executable.path,
                   before[0].bundleURL?.resolvingSymlinksInPath() == identity.app,

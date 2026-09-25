@@ -6,18 +6,22 @@ public struct OfficialAppIdentity: Equatable {
     public let app: URL
     public let executable: URL
     public let version: String
-    public init(app: URL, executable: URL, version: String) {
-        self.app = app; self.executable = executable; self.version = version
+    public let verification: OfficialVerification
+    public init(app: URL, executable: URL, version: String, verification: OfficialVerification = .codeSigning) {
+        self.app = app; self.executable = executable; self.version = version; self.verification = verification
     }
 }
+
+public enum OfficialVerification: Equatable { case codeSigning, reviewedArtifact }
 
 public struct CompatibilityReport {
     public let app: URL
     public let executable: URL
     public let version: String
     public let fingerprint: String
+    public let verification: OfficialVerification
     public var summary: String {
-        "OpenAI signature verified · version \(version)\nElectron profile override found · CODEX_HOME support found\nBuild fingerprint: \(fingerprint)\nThese static checks cannot prove account isolation. Verify both accounts in the official app."
+        "\(verification == .codeSigning ? "OpenAI signature verified" : "Reviewed official artifact verified") · version \(version)\nElectron profile override found · CODEX_HOME support found\nBuild fingerprint: \(fingerprint)\nThese static checks cannot prove account isolation. Verify both accounts in the official app."
     }
 }
 
@@ -35,12 +39,12 @@ public enum Compatibility {
         }
         guard app.pathExtension == "app", let bundle = Bundle(url: app),
               bundle.bundleIdentifier == bundleIdentifier, let executable = bundle.executableURL else {
-            throw SwitcherError.message("Select the official Electron-based ChatGPT/Codex app (bundle ID \(bundleIdentifier)).")
+            throw SwitcherError.message("Pairbar no puede verificar esta app.")
         }
-        try verifyOpenAISignature(app)
+        let verification = try verifyOpenAISignature(app, bundle: bundle, executable: executable)
         let version = (bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unknown") +
                       " (" + (bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown") + ")"
-        return OfficialAppIdentity(app: app, executable: executable.resolvingSymlinksInPath(), version: version)
+        return OfficialAppIdentity(app: app, executable: executable.resolvingSymlinksInPath(), version: version, verification: verification)
     }
 
     /// Performs the stronger checks required before creating an isolated Second Account.
@@ -65,7 +69,7 @@ public enum Compatibility {
             while let chunk = try handle.read(upToCount: 1_048_576), !chunk.isEmpty { hash.update(data: chunk) }
         }
         let fingerprint = hash.finalize().map { String(format: "%02x", $0) }.joined()
-        return CompatibilityReport(app: app, executable: executable, version: identity.version, fingerprint: fingerprint)
+        return CompatibilityReport(app: app, executable: executable, version: identity.version, fingerprint: fingerprint, verification: identity.verification)
     }
 
     /// Conservative convenience lookup. Only standard install locations are considered;
@@ -79,18 +83,67 @@ public enum Compatibility {
         return values.filter { seen.insert($0.standardizedFileURL.path).inserted }
     }
 
-    private static func verifyOpenAISignature(_ app: URL) throws {
+    struct ArtifactPin {
+        let version: String
+        let build: String
+        let sha256: String
+        let entries: Int
+    }
+    // Reviewed against the Apple-signed production DMG and the Ed25519-verified
+    // Sparkle ZIP; see VALIDATION.md. A future build requires a new review.
+    private static let reviewedArtifact = ArtifactPin(version: "26.917.71314", build: "10954",
+        sha256: "830b61866b65323b8c0f4546dc07d5950b37cc3b0e8c4fc109886df2e1eb72a5", entries: 5326)
+
+    static func decideOfficialVerification(signatureValid: Bool, version: String?, build: String?,
+                                           team: String?, identifier: String?, arm64: Bool,
+                                           pin: ArtifactPin, digest: () throws -> CanonicalBundleDigest.Result) throws -> OfficialVerification {
+        if signatureValid { return .codeSigning }
+        guard team == expectedTeamIdentifier, identifier == bundleIdentifier, arm64 else {
+            throw SwitcherError.message("Pairbar no puede verificar esta app.")
+        }
+        guard version == pin.version, build == pin.build else {
+            throw SwitcherError.message("Esta versión de ChatGPT necesita una actualización/revisión de Pairbar antes de usar perfiles adicionales.")
+        }
+        let actual = try? digest()
+        guard actual?.sha256 == pin.sha256, actual?.entries == pin.entries else {
+            throw SwitcherError.message("Pairbar no puede verificar esta app.")
+        }
+        return .reviewedArtifact
+    }
+
+    private static func verifyOpenAISignature(_ app: URL, bundle: Bundle, executable: URL) throws -> OfficialVerification {
         var code: SecStaticCode?
         guard SecStaticCodeCreateWithPath(app as CFURL, [], &code) == errSecSuccess, let code else {
-            throw SwitcherError.message("Cannot inspect the app signature. Reinstall ChatGPT from OpenAI.")
+            throw SwitcherError.message("Pairbar no puede verificar esta app.")
         }
         var requirement: SecRequirement?
         let expression = "anchor apple generic and certificate leaf[subject.OU] = \"\(expectedTeamIdentifier)\" and identifier \"\(bundleIdentifier)\""
-        guard SecRequirementCreateWithString(expression as CFString, [], &requirement) == errSecSuccess,
-              let requirement,
-              SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSStrictValidate | kSecCSCheckAllArchitectures | SecCSFlags.noNetworkAccess.rawValue), requirement) == errSecSuccess else {
-            throw SwitcherError.message("App signature is invalid or does not match OpenAI's expected signing identity. No launch was attempted. Reinstall the official app; a legitimate signing change requires a reviewed switcher update.")
+        guard SecRequirementCreateWithString(expression as CFString, [], &requirement) == errSecSuccess, let requirement else {
+            throw SwitcherError.message("Pairbar no puede verificar esta app.")
         }
+        let status = SecStaticCodeCheckValidity(code, SecCSFlags(rawValue: kSecCSStrictValidate | kSecCSCheckAllArchitectures | SecCSFlags.noNetworkAccess.rawValue), requirement)
+        if status == errSecSuccess { return .codeSigning }
+
+        let version = bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        var signing: CFDictionary?
+        guard SecCodeCopySigningInformation(code, SecCSFlags(rawValue: kSecCSSigningInformation), &signing) == errSecSuccess else {
+            throw SwitcherError.message("Pairbar no puede verificar esta app.")
+        }
+        let info = (signing as? [String: Any]) ?? [:]
+        return try decideOfficialVerification(signatureValid: false, version: version, build: build,
+            team: info[kSecCodeInfoTeamIdentifier as String] as? String,
+            identifier: info[kSecCodeInfoIdentifier as String] as? String,
+            arm64: isArm64MachO(executable), pin: reviewedArtifact) {
+            try CanonicalBundleDigest.calculate(app)
+        }
+    }
+
+    private static func isArm64MachO(_ executable: URL) -> Bool {
+        guard let handle = try? FileHandle(forReadingFrom: executable) else { return false }
+        defer { try? handle.close() }
+        guard let header = try? handle.read(upToCount: 8), header.count == 8 else { return false }
+        return Array(header) == [0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0x00, 0x00, 0x01]
     }
 
     // Inspect packaged program code only. Never inspect profile files, process argv, or environment.

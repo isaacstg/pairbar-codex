@@ -1,5 +1,13 @@
 # Pairbar validation and release status
 
+## Official ChatGPT artifact verification — 2026-09-25
+
+Remote `main` was `fbf61d3c6c70ba4b2cc0e827dcd7f5070d608010`. The signed `Install ChatGPT.app` 0.1.4 (4), downloaded from OpenAI's `ChatGPTInstaller.dmg`, contains the production `https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg` URL. Its Info.plist and resources do not supply a SHA-256 or signed manifest binding this DMG to the app. The installer was not executed. The installed app's `SUPublicEDKey` is `mNfr1v9t63BfgDtlw4C8lRvSY6uMggIXABDOCi3tS6k=`. The production `appcast.xml` advertises arm64 build 10954 as `ChatGPT-darwin-arm64-26.917.71314.zip` with an Ed25519 `sparkle:edSignature`. That signature verified over all 599,957,253 ZIP bytes using the key from the independently verified signed DMG app; the ZIP SHA-256 was `e3f436f729295bdb72b9acc9115bbf767a1fda7d081f2f83de84f70b93fdca9c`. The appcast itself was not treated as signed; its ZIP signature authenticates the payload. The freshly downloaded production DMG contains `com.openai.codex` arm64 `26.917.71314 (10954)`. The signed ZIP extraction, mounted DMG app, and `/Applications/ChatGPT.app` each contain 5,326 canonical entries and all hash to `830b61866b65323b8c0f4546dc07d5950b37cc3b0e8c4fc109886df2e1eb72a5`. Pairbar's read-only check accepted the local and DMG apps via the reviewed-artifact path in the restricted environment. One changed byte in a temporary copy's `Contents/PkgInfo` was rejected; the copy was deleted without launch.
+
+The restricted environment returned `-67061` for static and live Security.framework checks. Outside that sandbox, strict `codesign` verification and Pairbar's normal signature path passed on the same app; `SecCodeCheckValidity` of the current PID also returned success. This discrepancy is recorded rather than attributed to a specific signing defect. `LiveCodeIdentity` was not changed, and the existing pending Second profile was not touched. The artifact pin alone does not make a managed process adoptable or prove account isolation. GitHub Actions CI is unavailable for this PR because the monthly quota is exhausted.
+
+The local pass added eight deterministic Swift tests (158 total, zero failures). `python3 scripts/audit.py`, `git diff --check`, `bash -n scripts/build.sh`, and `plutil -lint Resources/Info.plist` passed. The final `bash scripts/build.sh` produced a universal ad-hoc Pairbar 2.0.0 (17) ZIP with SHA-256 `92bb3bbe33f77c835ba28c1f7784d778552a7dbe9b7d76ce4e518da1afd992b4`.
+
 Last reconciled on 2026-09-25. This record separates the frozen 1.3.3 baseline, historical Pairbar validation, the PR #4 remediation, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
 
 ## PR #4 remediation validation — current source
@@ -18,7 +26,7 @@ Restart on a changed installed build now uses the same contextual approval prefl
 
 | Claim | Minimum evidence |
 |---|---|
-| Selected bundle is the official provider app | Expected bundle ID, Team ID, executable, and strict signature verification |
+| Selected bundle is the official provider app | Strict signature verification, or for reviewed ChatGPT builds only, exact canonical artifact pin plus identifier, claimed Team ID, version/build, and architecture |
 | Pairbar owns a managed process | Exact profile receipt plus stable live UID, start time, executable, provider identity, storage generation, launch ID, paths, and policy checks |
 | Managed storage was initialized separately | Filesystem metadata observed only inside a new disposable profile after launch |
 | Accounts are isolated | Distinct signed-in accounts exercised across Chat and Code, focus, restart, Pairbar restart, and app update with no crossover |

@@ -43,7 +43,7 @@ struct InstalledProviderInspector: ProviderInspecting {
             case .codex:
                 let report = try Compatibility.inspect(url)
                 return ProviderInspection(identity: OfficialAppIdentity(app: report.app, executable: report.executable,
-                    version: report.version), fingerprint: report.fingerprint, managedLaunchAllowed: true,
+                    version: report.version, verification: report.verification), fingerprint: report.fingerprint, managedLaunchAllowed: true,
                     detail: "Static compatibility checked; account separation requires live acceptance.")
             case .claude:
                 let report = try ClaudeCompatibility.inspect(url)

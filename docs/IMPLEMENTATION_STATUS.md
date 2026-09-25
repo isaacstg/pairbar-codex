@@ -1,5 +1,9 @@
 # Pairbar implementation status
 
+## Official artifact verification pass (2026-09-25)
+
+ChatGPT keeps the normal strict Apple code-signing path. An exact reviewed pin for arm64 `26.917.71314 (10954)` allows static identity when Security.framework rejects that build. The canonical SHA-256 covers 5,326 directory, regular-file, and symlink entries: `830b61866b65323b8c0f4546dc07d5950b37cc3b0e8c4fc109886df2e1eb72a5`. A new or changed build remains blocked pending review. This does not establish live process ownership or signed-in account isolation. `LiveCodeIdentity`, pending/receipts/recovery, storage, and managed Claude remain unchanged. See [VALIDATION.md](../VALIDATION.md) for the installer and DMG evidence and the sandbox-dependent signature result.
+
 Last reconciled with PR #4 remediation on 2026-09-25. This document distinguishes implemented source, completed evidence, and acceptance still required.
 
 ## Product invariant

@@ -36,7 +36,7 @@ Pairbar has no third-party Swift package dependency and contains no updater. Bui
 2. Open it. The Pairbar icon appears in the menu bar.
 3. Read the welcome page and continue to Profiles.
 4. Add a Codex profile and open it. Pairbar finds the official app at its standard location and checks it automatically.
-5. If this official build has not been approved yet, approve it once in the contextual prompt. If Pairbar cannot verify the app, use **Settings → Advanced → Choose app…** only for a nonstandard installation.
+5. If this official build has not been approved yet, approve it once in the contextual prompt. If Pairbar says it cannot verify the app, use **Settings → Advanced → Choose app…** only for a nonstandard installation. If Pairbar says this ChatGPT version needs a Pairbar update or review, wait for a reviewed update before using additional profiles.
 
 An existing Codex Account Switcher or Pairbar 1.3.3 installation is migrated without reading profile contents:
 

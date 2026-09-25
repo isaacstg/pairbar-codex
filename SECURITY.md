@@ -6,11 +6,15 @@ Pairbar provides profile separation inside one macOS user. It is not an operatin
 
 The security model distinguishes three facts:
 
-1. **Official app identity**: the selected bundle has the expected identifier, Team ID, executable, and valid signature.
+1. **Official app identity**: the selected bundle passes strict Apple code-signing validation, or exactly matches a reviewed official ChatGPT artifact pin when that validation fails.
 2. **Pairbar process ownership**: live kernel identity exactly matches a durable receipt created for a specific managed profile launch.
 3. **Runtime account isolation**: the official app actually kept signed-in account, Chat, Code, secure storage, links, and other state separate.
 
 The first two can be checked by Pairbar. They do not prove the third. Runtime isolation requires provider- and version-specific acceptance tests.
+
+For ChatGPT, strict Apple generic-anchor, Team ID `2DC432GLL2`, identifier `com.openai.codex`, all-architectures, no-network signature validation remains the preferred path. If it fails, only `26.917.71314 (10954)` arm64 is currently pinned. Pairbar checks the claimed signing Team ID and identifier, exact version/build, Mach-O architecture, and a SHA-256 digest of the entire canonical bundle tree. The pin was reviewed against the production DMG referenced by OpenAI's signed installer and the Sparkle ZIP for the same build. The installer provides a URL but no authenticated payload hash. The appcast advertises an Ed25519 signature over the complete ZIP; that signature verified under the `SUPublicEDKey` from the independently verified signed DMG. The ZIP, DMG app, and local installation all had the same canonical digest. Pairbar uses the audited digest at runtime because it has no network dependency or copy of the signed ZIP. An unknown build fails closed and needs Pairbar review. The pin verifies exact bytes; it is not a general substitute for a valid code signature, live process ownership, or account isolation. Managed Claude is unchanged.
+
+Canonical bundle digest v1 starts with `Pairbar canonical bundle v1\0`, then visits every directory, regular file, and symlink below the `.app` in UTF-8 bytewise path order. Each record contains a type byte and 64-bit big-endian length-framed relative path; files add their 64-bit length and complete contents, links add their length-framed target. Directory entries include empty directories. The walk rejects unexpected filesystem types, ambiguous normalized names, invalid links, loops, and links escaping the bundle; it never follows links for file content. Timestamps, ownership, xattrs, inode numbers, and quarantine are excluded. The record count is checked along with the SHA-256 pin.
 
 ## Trust and ownership roles
 
