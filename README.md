@@ -17,11 +17,14 @@ Each additional Codex profile gets its own Electron storage and `CODEX_HOME`. Pa
 > **Development status:** Pairbar's source, automated suite, audit, and local packaging checks are complete. The archive is an ad-hoc development artifact; there is no Developer ID signed, notarized public release. Managed Claude profiles remain disabled until real signed-in tests prove that both Chat and Code are separated without account crossover. Cowork is also unvalidated. See [implementation status](docs/IMPLEMENTATION_STATUS.md).
 
 <p align="center">
-  <img src="docs/images/pairbar-profiles.png" alt="Pairbar profiles popover with synthetic preview data" width="46%">
-  <img src="docs/images/pairbar-settings.png" alt="Pairbar settings in the inert native preview" width="46%">
+  <img src="docs/images/pairbar-profiles.png" alt="Pairbar's compact profile list in English with synthetic accounts" width="46%">
+  <img src="docs/images/pairbar-profiles-es.png" alt="Pairbar's compact profile list in Spanish with synthetic accounts" width="46%">
+</p>
+<p align="center">
+  <img src="docs/images/pairbar-settings.png" alt="Pairbar settings with synthetic preview data" width="46%">
 </p>
 
-These are real native screenshots from Pairbar's inert preview. All names and states are synthetic; the preview cannot open accounts, change login items, export data, or control provider processes.
+These are native screenshots from Pairbar's inert preview. Names and states are synthetic. The preview can change language and login selections locally for visual inspection, but cannot open accounts, change system login items, export data, or control provider processes.
 
 ## Everyday workflow
 
@@ -101,9 +104,9 @@ Read the [security model](SECURITY.md) and [Claude acceptance protocol](docs/CLA
 | Runtime controller | LaunchServices, process observations, ownership checks, memory pressure, and lifecycle orchestration |
 | Tests and audit | Pure state/storage/compatibility tests, fake-runtime integration checks, source-policy guard, and packaging checks |
 
-The PR #4 remediation source passes 150 Swift tests, including Restart approval/cancellation, ownership and persistence failures, and one-prompt Open Selected behavior. The source-policy audit, diff/plist/shell checks, universal release compilation, fresh ZIP extraction, and strict all-architectures signature verification also passed. The local Pairbar 2.0.0 (17) archive contains `x86_64` and `arm64`, has SHA-256 `f82b511e061d77ae5630ac17854ff8fb053f34314e974e66f0b50d61af873244`, and is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
+The current source passes 150 Swift tests, including Restart approval/cancellation, ownership and persistence failures, one-prompt Open Selected behavior, and inert preview settings. The source-policy audit, diff/plist/shell checks, universal release compilation, ZIP extraction, and strict all-architectures signature verification also passed. The local Pairbar 2.0.0 (17) archive contains `x86_64` and `arm64` and is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
 
-The inert native preview was inspected in English and Spanish without constructing a controller, registering shortcuts, changing login items, or touching provider apps. The first Search click and Command-F from collapsed search both focused the field and accepted immediate typing. Profiles, Add profile, Filter, Select/Done labels, Settings, and Advanced were checked in the real native UI; the README images and Spanish counterpart in `docs/images/` were refreshed with synthetic names. Light and dark appearance were checked, then the Mac's original dark setting was restored. An earlier installed-app pass exercised full keyboard traversal and exposed labeled controls through VoiceOver. Human confirmation of VoiceOver announcements is still required.
+The inert native preview was inspected in English and Spanish without constructing a controller, registering shortcuts, changing system login items, or touching provider apps. The first Search click and Command-F from collapsed search focused the field and accepted immediate typing. Profiles, Add/Edit profile, Filter, Select/Done, Settings, Advanced, Help, and Welcome were checked in the native UI. The screenshots above were refreshed with synthetic names in light and dark appearance; the Mac's original dark setting was restored. An earlier installed-app pass exercised full keyboard traversal and exposed labeled controls through VoiceOver. Human confirmation of VoiceOver announcements is still required.
 
 Read-only checks outside the task sandbox verified the installed ChatGPT `26.917.62051 (10789)` and Claude `1.34493.1` bundles. Pairbar's own compatibility checks passed for both; Claude's strict signature and Gatekeeper checks passed (`Notarized Developer ID`). Earlier failures were sandbox false negatives: the restricted process could not reach the system trust store. No official bundle was changed. The simplified UI was inspected in an inert native preview in light and dark modes; live profile creation and signed-in account separation still require acceptance without disturbing existing user accounts.
 

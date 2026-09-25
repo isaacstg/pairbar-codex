@@ -19,9 +19,17 @@ final class PanelTests: XCTestCase {
             XCTAssertTrue(model.rows.filter(\.isCurrent).allSatisfy { !$0.canClose && !$0.canRestart })
 
             model.send(.open("preview-work"))
+            model.send(.setLanguage(.english))
+            model.send(.setStartAtLogin(true))
+            model.send(.setOpenProfilesAtLogin(true))
+            model.send(.setProfileAtLogin("preview-work", true))
             model.completeWelcome()
 
             XCTAssertTrue(actions.isEmpty)
+            XCTAssertEqual(model.language, .english)
+            XCTAssertTrue(model.startAtLogin)
+            XCTAssertTrue(model.openProfilesAtLogin)
+            XCTAssertTrue(model.rows.first(where: { $0.id == "preview-work" })?.openAtLogin == true)
             XCTAssertEqual(model.page, .accounts)
         }
     }
