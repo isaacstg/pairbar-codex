@@ -790,7 +790,7 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertFalse(controller.diagnosticText.contains("provider-standard-path-rediscovered"))
     }
 
-    func testAbsentReceiptIsClearedOnlyAfterQuiescentCheck() async throws {
+    func testAbsentReceiptIsClearedLocally() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         let inspector = FakeInspector()
         let stamp = inspector.stamp(provider: .codex, pid: 705, seconds: 101)
@@ -805,6 +805,99 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertTrue(runtime.terminationAttempts.isEmpty)
     }
 
+    func testAbsentReceiptClearsWhileCurrentRemainsOpen() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector()
+        let stale = inspector.stamp(provider: .codex, pid: 710, seconds: 101)
+        let current = inspector.stamp(provider: .codex, pid: 711, seconds: 102)
+        let profile = try fixture.addOwnedProfile(name: "Second", stamp: stale, fingerprint: fingerprint)
+        let runtime = FakeRuntime()
+        runtime.install(current, provider: .codex, app: inspector.identity(for: .codex).app)
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        await controller.check(.codex, presentErrors: false)
+        let saved = try XCTUnwrap(try fixture.store.listProfiles(provider: .codex).first)
+        XCTAssertNil(saved.receipt)
+        XCTAssertNil(saved.pending)
+        XCTAssertEqual(controller.states[.codex]?.needsRecovery, false)
+        XCTAssertTrue(runtime.running(provider: .codex).contains { $0.pid == current.pid })
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertEqual(controller.model.providers.first { $0.id == "codex" }?.canRecover, false)
+        XCTAssertEqual(profile.storageGeneration, saved.storageGeneration)
+    }
+
+    func testUnavailableReceiptIsNotClearedLocally() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector()
+        let stamp = inspector.stamp(provider: .codex, pid: 712, seconds: 101)
+        let profile = try fixture.addOwnedProfile(name: "Second", stamp: stamp, fingerprint: fingerprint)
+        let runtime = FakeRuntime()
+        runtime.processObservations[stamp.pid] = .unavailable
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        await controller.check(.codex, presentErrors: false)
+        XCTAssertEqual(try fixture.store.listProfiles(provider: .codex).first?.receipt, profile.receipt)
+        XCTAssertEqual(controller.states[.codex]?.needsRecovery, true)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+    }
+
+    func testFreshPendingWaitsWithoutPauseOrMetadataWrite() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        var profile = try fixture.addProfile(provider: .codex, name: "Second")
+        profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 95), fingerprint: fingerprint)
+        try fixture.store.saveProfile(profile)
+        let runtime = FakeRuntime()
+        let controller = try fixture.controller(runtime: runtime, inspector: FakeInspector())
+        await controller.check(.codex, presentErrors: false)
+        XCTAssertEqual(try fixture.store.listProfiles(provider: .codex).first?.pending, profile.pending)
+        XCTAssertEqual(runtime.pauseCount, 0)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+    }
+
+    func testFreshPendingBecomesEligibleOnceAfterTimeWindow() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        var profile = try fixture.addProfile(provider: .codex, name: "Second")
+        profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 95), fingerprint: fingerprint)
+        try fixture.store.saveProfile(profile)
+        let runtime = FakeRuntime()
+        let controller = try fixture.controller(runtime: runtime, inspector: FakeInspector())
+        for _ in 0..<10 { controller.refresh() }
+        await Task.yield()
+        XCTAssertEqual(runtime.pauseCount, 0)
+        XCTAssertNotNil(try fixture.store.listProfiles(provider: .codex).first?.pending)
+        runtime.now = Date(timeIntervalSince1970: 156)
+        controller.refresh()
+        for _ in 0..<1_000 {
+            if try fixture.store.listProfiles(provider: .codex).first?.pending == nil { break }
+            await Task.yield()
+        }
+        XCTAssertNil(try fixture.store.listProfiles(provider: .codex).first?.pending)
+        XCTAssertEqual(runtime.pauseCount, 1)
+        for _ in 0..<10 { controller.refresh() }
+        await Task.yield()
+        XCTAssertEqual(runtime.pauseCount, 1)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+    }
+
+    func testOpenWithFreshPendingDoesNotLaunchOrPause() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        try fixture.approveCodex(fingerprint: fingerprint)
+        var profile = try fixture.addProfile(provider: .codex, name: "Second")
+        profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 95), fingerprint: fingerprint)
+        try fixture.store.saveProfile(profile)
+        let runtime = FakeRuntime()
+        let controller = try fixture.controller(runtime: runtime, inspector: FakeInspector(codexFingerprint: fingerprint))
+        let opened = await controller.open(.managed(profile.id))
+        XCTAssertFalse(opened)
+        XCTAssertEqual(try fixture.store.listProfiles(provider: .codex).first?.pending, profile.pending)
+        XCTAssertEqual(runtime.pauseCount, 0)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+        XCTAssertNotNil(controller.model.errorMessage)
+    }
+
     func testAutomaticRecoveryClearsStaleMetadataAndPreservesStorage() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         var profile = try fixture.addProfile(provider: .codex, name: "Second")
@@ -812,7 +905,7 @@ final class PairbarControllerTests: XCTestCase {
         let sentinel = paths.electron.appendingPathComponent("keep-me")
         try Data("session".utf8).write(to: sentinel)
         let generation = profile.storageGeneration
-        profile.pending = PendingLaunch2(fingerprint: fingerprint)
+        profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 0), fingerprint: fingerprint)
         try fixture.store.saveProfile(profile)
         let runtime = FakeRuntime()
         let controller = try fixture.controller(runtime: runtime, inspector: FakeInspector())
@@ -833,7 +926,7 @@ final class PairbarControllerTests: XCTestCase {
             let inspector = FakeInspector()
             let stamp = inspector.stamp(provider: .codex, pid: 701, seconds: 100)
             var profile = try fixture.addProfile(provider: .codex, name: "Second")
-            profile.pending = PendingLaunch2(fingerprint: fingerprint)
+            profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 0), fingerprint: fingerprint)
             if condition == "unreadable" {
                 profile.receipt = LaunchReceipt2(provider: .codex, profileID: profile.id,
                     storageGeneration: profile.storageGeneration, launchID: profile.pending!.launchID,
@@ -857,7 +950,7 @@ final class PairbarControllerTests: XCTestCase {
     func testAutomaticRecoveryAbortsWhenProcessAppearsDuringPause() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         var profile = try fixture.addProfile(provider: .codex, name: "Second")
-        profile.pending = PendingLaunch2(fingerprint: fingerprint)
+        profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 0), fingerprint: fingerprint)
         try fixture.store.saveProfile(profile)
         let runtime = FakeRuntime()
         let inspector = FakeInspector()
@@ -901,10 +994,76 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertEqual(controller.states[.codex]?.needsRecovery, true)
     }
 
+    func testPartialMultiRecordSaveFailureRemainsConservative() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector()
+        var first = try fixture.addProfile(provider: .codex, name: "First", order: 0)
+        var second = try fixture.addProfile(provider: .codex, name: "Second", order: 1)
+        let firstPaths = try fixture.store.prepareStorage(for: first)
+        let secondPaths = try fixture.store.prepareStorage(for: second)
+        let firstSentinel = firstPaths.electron.appendingPathComponent("session")
+        let secondSentinel = secondPaths.electron.appendingPathComponent("session")
+        try Data("first".utf8).write(to: firstSentinel)
+        try Data("second".utf8).write(to: secondSentinel)
+        first.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 0), fingerprint: fingerprint)
+        second.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 0), fingerprint: fingerprint)
+        let stamp = inspector.stamp(provider: .codex, pid: 713, seconds: 101)
+        second.receipt = LaunchReceipt2(provider: .codex, profileID: second.id,
+            storageGeneration: second.storageGeneration, launchID: second.pending!.launchID,
+            stamp: stamp, paths: fixture.store.paths(for: second), fingerprint: fingerprint)
+        try fixture.store.saveProfile(first)
+        try fixture.store.saveProfile(second)
+        let secondFile = fixture.root.appendingPathComponent("Metadata/profiles/codex/" + second.id.description + ".json")
+        let extra = fixture.root.appendingPathComponent("Metadata/profiles/codex/.blocked-second")
+        let runtime = FakeRuntime()
+        var observationsAfterPause = 0
+        runtime.observeHook = {
+            guard runtime.pauseCount > 0 else { return }
+            observationsAfterPause += 1
+            if observationsAfterPause == 2 { try? FileManager.default.linkItem(at: secondFile, to: extra) }
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        await controller.check(.codex, presentErrors: false)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: extra.path))
+        try FileManager.default.removeItem(at: extra)
+        let saved = try fixture.store.listProfiles(provider: .codex)
+        XCTAssertNil(saved.first { $0.id == first.id }?.pending)
+        XCTAssertNotNil(saved.first { $0.id == second.id }?.pending)
+        XCTAssertNotNil(saved.first { $0.id == second.id }?.receipt)
+        XCTAssertEqual(saved.first { $0.id == first.id }?.storageGeneration, first.storageGeneration)
+        XCTAssertEqual(saved.first { $0.id == second.id }?.storageGeneration, second.storageGeneration)
+        XCTAssertEqual(try Data(contentsOf: firstSentinel), Data("first".utf8))
+        XCTAssertEqual(try Data(contentsOf: secondSentinel), Data("second".utf8))
+        controller.refresh()
+        XCTAssertEqual(controller.states[.codex]?.needsRecovery, true)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+    }
+
+    func testFreshPendingWithReceiptStillRequiresAbsentPID() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector()
+        let stamp = inspector.stamp(provider: .codex, pid: 714, seconds: 101)
+        var profile = try fixture.addProfile(provider: .codex, name: "Second")
+        profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 95), fingerprint: fingerprint)
+        profile.receipt = LaunchReceipt2(provider: .codex, profileID: profile.id,
+            storageGeneration: profile.storageGeneration, launchID: profile.pending!.launchID,
+            stamp: stamp, paths: fixture.store.paths(for: profile), fingerprint: fingerprint)
+        try fixture.store.saveProfile(profile)
+        let runtime = FakeRuntime()
+        runtime.processObservations[stamp.pid] = .unavailable
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        await controller.check(.codex, presentErrors: false)
+        let saved = try XCTUnwrap(try fixture.store.listProfiles(provider: .codex).first)
+        XCTAssertEqual(saved.pending, profile.pending)
+        XCTAssertEqual(saved.receipt, profile.receipt)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+    }
+
     func testAutomaticRecoveryDoesNotWriteCorruptDurableMetadata() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         var profile = try fixture.addProfile(provider: .codex, name: "Second")
-        profile.pending = PendingLaunch2(fingerprint: fingerprint)
+        profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 0), fingerprint: fingerprint)
         try fixture.store.saveProfile(profile)
         let runtime = FakeRuntime()
         let controller = try fixture.controller(runtime: runtime, inspector: FakeInspector())
@@ -940,7 +1099,7 @@ final class PairbarControllerTests: XCTestCase {
     func testIneligibleAutomaticRecoveryIsNotRetriedEachRefresh() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         var profile = try fixture.addProfile(provider: .codex, name: "Second")
-        profile.pending = PendingLaunch2(fingerprint: fingerprint)
+        profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 0), fingerprint: fingerprint)
         try fixture.store.saveProfile(profile)
         let orphan = fixture.root.appendingPathComponent("Profiles/codex/orphan")
         try FileManager.default.createDirectory(at: orphan, withIntermediateDirectories: true)
@@ -958,7 +1117,7 @@ final class PairbarControllerTests: XCTestCase {
         let fixture = try Fixture(); defer { fixture.remove() }
         try fixture.approveCodex(fingerprint: fingerprint)
         var profile = try fixture.addProfile(provider: .codex, name: "Second")
-        profile.pending = PendingLaunch2(fingerprint: fingerprint)
+        profile.pending = PendingLaunch2(startedAt: Date(timeIntervalSince1970: 0), fingerprint: fingerprint)
         try fixture.store.saveProfile(profile)
         let runtime = FakeRuntime()
         let inspector = FakeInspector(codexFingerprint: fingerprint)

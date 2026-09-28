@@ -1,6 +1,6 @@
 # Pairbar implementation status
 
-Normal use now resolves a moved standard ChatGPT path and quiescent stale Codex launch metadata automatically during startup check or Open. Repair remains visible only for unresolved account issues; technical controls remain in Settings → Advanced. New build approval remains contextual and explicit. Managed Claude remains disabled.
+Normal use now resolves a moved standard ChatGPT path and proven absent Codex receipts locally and old quiescent pending launches automatically during startup check or Open. Repair remains visible only for unresolved account issues; technical controls remain in Settings → Advanced. New build approval remains contextual and explicit. Managed Claude remains disabled.
 
 Last reconciled with PR #4 remediation on 2026-09-25. This document distinguishes implemented source, completed evidence, and acceptance still required.
 

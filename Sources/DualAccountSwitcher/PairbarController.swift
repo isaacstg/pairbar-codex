@@ -6,6 +6,8 @@ import SwitcherCore
 
 @MainActor
 final class PairbarController {
+    /// Longer than NativeApplicationRuntime.open's 20-second LaunchServices timeout.
+    static let automaticPendingMinimumAge: TimeInterval = 60
     let model: PairbarPanelModel
     let store: DynamicStore
     private let runtime: ApplicationRuntime
@@ -100,23 +102,36 @@ final class PairbarController {
         do { return try store.hasPendingOperations(provider: provider) || store.hasOrphanStorage(provider: provider, records: records) }
         catch { return true }
     }
-    private func staleReceiptNeedsRecovery(_ provider: ProviderID2, apps: [RunningInstance]) -> Bool {
-        records.contains { record in
-            guard record.provider == provider, let receipt = record.receipt,
-                  !apps.contains(where: { $0.pid == receipt.stamp.pid }) else { return false }
-            if case .absent = runtime.observe(pid: receipt.stamp.pid) { return true }
-            return false
+    private func automaticPendingIsOldEnough(_ provider: ProviderID2) -> Bool {
+        !records.contains { record in
+            guard record.provider == provider, record.receipt == nil, let pending = record.pending else { return false }
+            return runtime.now.timeIntervalSince(pending.startedAt) < Self.automaticPendingMinimumAge
         }
     }
     func refresh() {
         var candidates: [ProviderID2] = []
         for provider in ProviderID2.allCases {
             let apps = runtime.running(provider: provider)
+            var staleReceiptSaveFailed = false
+            // A receipt for a proven absent PID can be cleared locally even while
+            // Current or another managed instance remains open. Pending intent is
+            // never cleared here.
+            for var record in records where record.provider == provider && record.pending == nil && record.receipt != nil &&
+                !launching.contains(record.id) && !quitting.contains(record.id) {
+                if let receipt = record.receipt, !apps.contains(where: { $0.pid == receipt.stamp.pid }),
+                   case .absent = runtime.observe(pid: receipt.stamp.pid) {
+                    record.receipt = nil
+                    do { try replaceRecord(record) }
+                    catch { staleReceiptSaveFailed = true; event("stale-receipt-save-failed") }
+                }
+            }
             states[provider] = DynamicStateResolver.resolve(provider: provider, records: records, root: store.root,
                 officialPIDs: apps.map(\.pid), observations: observations(provider: provider, apps: apps), uid: runtime.uid,
                 launching: launching, quitting: quitting, currentLaunching: currentLaunching.contains(provider),
-                metadataUncertain: providerHasMetadataIssue(provider) || staleReceiptNeedsRecovery(provider, apps: apps))
-            if states[provider]?.needsRecovery != true || !apps.isEmpty { autoRecoveryAttempted.remove(provider) }
+                metadataUncertain: providerHasMetadataIssue(provider) || staleReceiptSaveFailed)
+            if states[provider]?.needsRecovery != true || !apps.isEmpty || !automaticPendingIsOldEnough(provider) {
+                autoRecoveryAttempted.remove(provider)
+            }
             else if hasRefreshed && provider.managedProfilesEnabled && !busy.contains(provider) &&
                         autoRecoveryAttempted.insert(provider).inserted { candidates.append(provider) }
         }
@@ -217,7 +232,8 @@ final class PairbarController {
             if presentErrors { caught(error) } else { event("provider-check-unavailable") }
         }
         refresh()
-        if provider.managedProfilesEnabled, states[provider]?.needsRecovery == true {
+        if provider.managedProfilesEnabled, states[provider]?.needsRecovery == true,
+           automaticPendingIsOldEnough(provider) {
             autoRecoveryAttempted.insert(provider)
             _ = await recoverQuiescentProvider(provider, automatic: true)
         }
@@ -291,6 +307,7 @@ final class PairbarController {
             let identity = try await officialIdentity(provider, settings: settings)
             identities[provider] = identity; refresh()
             if provider.managedProfilesEnabled, states[provider]?.needsRecovery == true {
+                guard automaticPendingIsOldEnough(provider) else { fail("ownership"); return false }
                 autoRecoveryAttempted.insert(provider)
                 guard await recoverQuiescentProvider(provider, automatic: true) else { fail("ownership"); return false }
                 refresh()
@@ -432,6 +449,7 @@ final class PairbarController {
         }
         guard provider.managedProfilesEnabled, busy.contains(provider),
               states[provider]?.needsRecovery == true,
+              (!automatic || automaticPendingIsOldEnough(provider)),
               launching.isDisjoint(with: Set(records.filter { $0.provider == provider }.map(\.id))),
               quitting.isDisjoint(with: Set(records.filter { $0.provider == provider }.map(\.id))),
               !currentLaunching.contains(provider) else { return ineligible("state") }
