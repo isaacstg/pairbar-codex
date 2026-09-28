@@ -1,5 +1,7 @@
 # Pairbar user guide
 
+For normal use, open Pairbar and click an account. Pairbar checks the official ChatGPT app, finds a unique verified standard installation if the saved path moved, and clears an absent receipt even while Current is open, and repairs old interrupted launches only after ChatGPT is fully closed. If Pairbar cannot prove safety, use **Repair…** in Profiles; close ChatGPT or inspect Settings → Advanced if it remains blocked. Advanced also contains Choose app… for nonstandard installations and Check again for troubleshooting. New app builds still require **Approve and open**. A pending launch without a receipt must be at least 60 seconds old before automatic repair; recent launches remain blocked in case the app is still starting.
+
 Pairbar is a native macOS menu-bar utility for keeping several account profiles close at hand while leaving the official provider apps unchanged. Pairbar has no permanent window and does not require a Dock icon; profile management, settings, help, recovery, diagnostics, and export all live in its popover.
 
 Pairbar is currently a development build. Local and CI archives are ad-hoc development artifacts, not a signed and notarized public release.

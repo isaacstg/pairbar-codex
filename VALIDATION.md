@@ -1,8 +1,10 @@
 # Pairbar validation and release status
 
+PR #7 zero-maintenance validation: `swift test` passes 168 tests, including standard-path selection, local absent-receipt cleanup with Current open, the 60-second pending window, Open during fresh and stale pending, process appearance during pause, and a partial two-record save failure. `python3 scripts/audit.py`, `git diff --check`, shell/plist checks and `bash scripts/build.sh` are run before publication. No live ChatGPT account is opened or closed.
+
 Last reconciled on 2026-09-25. This record separates the frozen 1.3.3 baseline, historical Pairbar validation, the PR #4 remediation, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
 
-## PR #4 remediation validation — current source
+## PR #4 remediation validation — historical
 
 On 2026-09-25, the `codex/pairbar-simplify-ux-v1` remediation passed:
 

@@ -204,9 +204,13 @@ struct PairbarPanelView: View {
             }
             .background(Color(nsColor: .controlBackgroundColor).opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
             ForEach(model.providers.filter(\.canRecover)) { provider in
-                Button(t("Recover " + provider.name + "…", "Recuperar " + provider.name + "…")) {
-                    confirmation = .recover(provider)
-                }.disabled(model.previewOnly || provider.busy)
+                HStack {
+                    Text(t("Pairbar needs to verify this account before it can be opened.", "Pairbar necesita verificar esta cuenta antes de abrirla."))
+                        .font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button(t("Repair…", "Reparar…")) { confirmation = .recover(provider) }
+                        .disabled(model.previewOnly || provider.busy)
+                }
             }
         }
     }
@@ -522,7 +526,7 @@ private enum PairbarConfirmation: Identifiable {
         case .reset:
             return language.text("Existing data will be archived. The profile keeps its name and uses fresh storage next time; you will need to sign in again. Every instance of this provider must be closed first.", "Se archivarán los datos existentes. El perfil conservará su nombre y usará almacenamiento nuevo la próxima vez; tendrás que iniciar sesión de nuevo. Primero deben cerrarse todas las instancias de este proveedor.")
         case .recover:
-            return language.text("Pairbar will verify recorded processes conservatively. If it cannot establish ownership, it preserves the uncertain state and asks for manual recovery. No process will be adopted by approximation.", "Pairbar verificará los procesos registrados de forma conservadora. Si no puede demostrar la propiedad, conservará el estado incierto y solicitará recuperación manual. No asumirá la propiedad de procesos por aproximación.")
+            return language.text("Pairbar will check whether ChatGPT is closed and whether this account can be opened safely. If the issue remains, close ChatGPT and check Advanced.", "Pairbar comprobará si ChatGPT está cerrado y si esta cuenta puede abrirse con seguridad. Si el problema continúa, cierra ChatGPT y revisa Avanzado.")
         }
     }
 }
