@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.0 (19) — Current development candidate
+
+- Let users delete a stopped managed Codex profile while Current or other verified profiles remain open. A running verified target is closed gracefully and checked again before removal.
+- Keep removed profile storage at its original path under an explicit archived metadata record; release its shortcut and startup selection without deleting local data. Unknown directories still block recovery.
+- Keep archive and reset under Advanced with its existing provider-wide quiescence requirement. Build 18 remains the preceding release candidate.
+
 ## 2.0.0 — Development candidate
 
 - Replace the fixed Current + Second interface with one protected Current entry per provider and any number of saved Codex profiles.

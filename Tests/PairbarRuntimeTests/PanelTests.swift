@@ -114,11 +114,11 @@ final class PanelTests: XCTestCase {
             let model = PairbarPanelModel()
             let current = PairbarProfileRow(
                 id: "current:codex", providerID: "codex", name: "Current", isCurrent: true,
-                canClose: true, canRestart: true, canArchive: true, canReset: true
+                canClose: true, canRestart: true, canArchive: true, canDelete: true, canReset: true
             )
             let managed = PairbarProfileRow(
                 id: "managed", providerID: "codex", name: "Managed",
-                canClose: true, canRestart: true, canArchive: true, canReset: true
+                canClose: true, canRestart: true, canArchive: true, canDelete: true, canReset: true
             )
             model.rows = [current, managed]
             var actions: [String] = []
@@ -127,15 +127,26 @@ final class PanelTests: XCTestCase {
             model.send(.close(current.id))
             model.send(.restart(current.id))
             model.send(.archive(current.id))
+            model.send(.delete(current.id))
             model.send(.reset(current.id))
 
             model.rows.removeAll { $0.id == managed.id }
             model.send(.close(managed.id))
             model.send(.restart(managed.id))
             model.send(.archive(managed.id))
+            model.send(.delete(managed.id))
             model.send(.reset(managed.id))
 
             XCTAssertTrue(actions.isEmpty)
+        }
+    }
+
+    func testPreviewShowsRemovableManagedProfileWhileCurrentRuns() async {
+        await MainActor.run {
+            let model = PairbarPanelModel.preview()
+            XCTAssertEqual(model.rows.first { $0.id == "current:codex" }?.running, true)
+            XCTAssertEqual(model.rows.first { $0.id == "current:codex" }?.canDelete, false)
+            XCTAssertEqual(model.rows.first { $0.id == "preview-work" }?.canDelete, true)
         }
     }
 
@@ -144,7 +155,7 @@ final class PanelTests: XCTestCase {
             let model = PairbarPanelModel()
             model.rows = [PairbarProfileRow(
                 id: "managed", providerID: "codex", name: "Managed",
-                canOpen: true, canClose: true, canRestart: true, canArchive: true, canReset: true
+                canOpen: true, canClose: true, canRestart: true, canArchive: true, canDelete: true, canReset: true
             )]
             var actions: [String] = []
             model.onAction = { actions.append(Self.describe($0)) }
@@ -155,6 +166,8 @@ final class PanelTests: XCTestCase {
             model.send(.open("managed"))
             model.rows[0].canArchive = false
             model.send(.archive("managed"))
+            model.rows[0].canDelete = false
+            model.send(.delete("managed"))
 
             model.rows[0].canRestart = true
             model.send(.restart("managed"))
@@ -215,6 +228,7 @@ final class PanelTests: XCTestCase {
         case .close(let id): return "close:\(id)"
         case .restart(let id): return "restart:\(id)"
         case .archive(let id): return "archive:\(id)"
+        case .delete(let id): return "delete:\(id)"
         case .reset(let id): return "reset:\(id)"
         case .check(let id): return "check:\(id)"
         case .choose(let id): return "choose:\(id)"

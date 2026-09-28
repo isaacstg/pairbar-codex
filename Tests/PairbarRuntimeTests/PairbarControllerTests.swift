@@ -1134,6 +1134,155 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertNotNil(saved.receipt)
         XCTAssertEqual(runtime.openRequests.count, 1)
     }
+
+    func testDeleteStoppedProfileWhileCurrentAndWorkRunKeepsBothAndReleasesShortcut() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector()
+        let current = inspector.stamp(provider: .codex, pid: 801, seconds: 100)
+        let workStamp = inspector.stamp(provider: .codex, pid: 802, seconds: 100)
+        _ = try fixture.addOwnedProfile(name: "Work", stamp: workStamp, fingerprint: fingerprint)
+        var target = try fixture.addProfile(provider: .codex, name: "Unused", launchAtLogin: true)
+        target.shortcut = .legacySecond
+        try fixture.store.saveProfile(target)
+        let storage = try fixture.store.prepareStorage(for: target)
+        let marker = storage.codexHome.appendingPathComponent("retained-marker")
+        try Data("keep".utf8).write(to: marker)
+        let runtime = FakeRuntime()
+        runtime.install(current, provider: .codex, app: inspector.identity(for: .codex).app)
+        runtime.install(workStamp, provider: .codex, app: inspector.identity(for: .codex).app)
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        await controller.identify(.codex)
+        XCTAssertEqual(controller.model.rows.first { $0.id == target.id.description }?.canDelete, true)
+        let before = controller.shortcutBindings()
+        var installed = before
+        controller.replaceShortcuts = { installed = $0; return true }
+
+        await controller.delete(target.id)
+
+        let saved = try XCTUnwrap(try fixture.store.listProfiles().first { $0.id == target.id })
+        XCTAssertTrue(saved.archived)
+        XCTAssertEqual(saved.storageRetainedInPlace, true)
+        XCTAssertNil(saved.shortcut)
+        XCTAssertFalse(saved.launchAtLogin)
+        XCTAssertFalse(controller.model.rows.contains { $0.id == target.id.description })
+        XCTAssertTrue(runtime.running(provider: .codex).contains { $0.pid == current.pid })
+        XCTAssertTrue(runtime.running(provider: .codex).contains { $0.pid == workStamp.pid })
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+        XCTAssertEqual(try String(contentsOf: marker, encoding: .utf8), "keep")
+        XCTAssertFalse(try fixture.store.hasOrphanStorage(provider: .codex, records: fixture.store.listProfiles()))
+        XCTAssertEqual(installed.count, before.count - 1)
+        XCTAssertFalse(installed.contains { $0.targetID == target.id.description })
+        XCTAssertEqual(installed.filter { $0.targetID != target.id.description }, before.filter { $0.targetID != target.id.description })
+        controller.saveDraft(id: nil, draft: PairbarProfileDraft(name: "New"))
+        XCTAssertEqual(controller.records.last?.shortcut, .legacySecond)
+    }
+
+    func testDeleteRunningProfileClosesOnlyExactTarget() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector()
+        let current = inspector.stamp(provider: .codex, pid: 811, seconds: 100)
+        let workStamp = inspector.stamp(provider: .codex, pid: 812, seconds: 100)
+        let targetStamp = inspector.stamp(provider: .codex, pid: 813, seconds: 100)
+        let work = try fixture.addOwnedProfile(name: "Work", stamp: workStamp, fingerprint: fingerprint)
+        let target = try fixture.addOwnedProfile(name: "Remove", stamp: targetStamp, fingerprint: fingerprint)
+        let runtime = FakeRuntime()
+        for stamp in [current, workStamp, targetStamp] { runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app) }
+        runtime.pauseHandler = {
+            runtime.runningInstances[.codex]?.removeAll { $0.pid == targetStamp.pid }
+            runtime.processObservations[targetStamp.pid] = .absent
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        await controller.identify(.codex)
+        XCTAssertEqual(controller.model.rows.first { $0.id == target.id.description }?.canDelete, true)
+
+        await controller.delete(target.id)
+
+        XCTAssertEqual(runtime.terminationAttempts, [targetStamp])
+        XCTAssertTrue(runtime.running(provider: .codex).contains { $0.pid == current.pid })
+        XCTAssertTrue(runtime.running(provider: .codex).contains { $0.pid == workStamp.pid })
+        XCTAssertFalse(controller.model.rows.contains { $0.id == target.id.description })
+        XCTAssertEqual(try fixture.store.listProfiles().first { $0.id == target.id }?.archived, true)
+        XCTAssertEqual(try fixture.store.listProfiles().first { $0.id == work.id }?.receipt?.stamp, workStamp)
+    }
+
+    func testDeleteCloseTimeoutOrStampChangePreservesProfile() async throws {
+        for changed in [false, true] {
+            let fixture = try Fixture(); defer { fixture.remove() }
+            let inspector = FakeInspector()
+            let stamp = inspector.stamp(provider: .codex, pid: changed ? 822 : 821, seconds: 100)
+            let target = try fixture.addOwnedProfile(name: "Target", stamp: stamp, fingerprint: fingerprint)
+            let runtime = FakeRuntime()
+            runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+            if changed {
+                runtime.pauseHandler = { runtime.processObservations[stamp.pid] = .observed(
+                    inspector.stamp(provider: .codex, pid: stamp.pid, seconds: 101)) }
+            }
+            let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+            await controller.identify(.codex)
+            await controller.delete(target.id)
+            XCTAssertEqual(runtime.terminationAttempts, [stamp])
+            XCTAssertEqual(try fixture.store.listProfiles().first { $0.id == target.id }?.archived, false)
+            XCTAssertNotNil(try fixture.store.listProfiles().first { $0.id == target.id }?.receipt)
+            XCTAssertTrue(controller.model.rows.contains { $0.id == target.id.description })
+        }
+    }
+
+    func testDeletePersistenceFailureRestoresShortcutAndKeepsStorage() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        var target = try fixture.addProfile(provider: .codex, name: "Keep")
+        target.shortcut = .legacySecond
+        try fixture.store.saveProfile(target)
+        let paths = try fixture.store.prepareStorage(for: target)
+        let marker = paths.codexHome.appendingPathComponent("marker")
+        try Data("keep".utf8).write(to: marker)
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        let original = controller.shortcutBindings()
+        var installed = original
+        controller.replaceShortcuts = { installed = $0; return true }
+        let directory = fixture.root.appendingPathComponent("Metadata/profiles/codex")
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: directory.path)
+        await controller.delete(target.id)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
+        XCTAssertEqual(installed, original)
+        XCTAssertEqual(try fixture.store.listProfiles().first { $0.id == target.id }?.archived, false)
+        XCTAssertTrue(controller.model.rows.contains { $0.id == target.id.description })
+        XCTAssertEqual(try String(contentsOf: marker, encoding: .utf8), "keep")
+    }
+
+    func testDeleteUnsafeStatesAndAmbiguousCurrentDoNotRemove() async throws {
+        for mode in 0..<4 {
+            let fixture = try Fixture(); defer { fixture.remove() }
+            let inspector = FakeInspector()
+            var target = try fixture.addProfile(provider: .codex, name: "Unsafe")
+            let runtime = FakeRuntime()
+            if mode == 0 { target.pending = PendingLaunch2(fingerprint: fingerprint); try fixture.store.saveProfile(target) }
+            if mode == 1 {
+                let stamp = inspector.stamp(provider: .codex, pid: 831, seconds: 100)
+                target.receipt = LaunchReceipt2(provider: .codex, profileID: target.id,
+                    storageGeneration: target.storageGeneration, stamp: stamp,
+                    paths: fixture.store.paths(for: target), fingerprint: fingerprint)
+                try fixture.store.saveProfile(target)
+                runtime.processObservations[stamp.pid] = .unavailable
+            }
+            if mode == 2 {
+                let unknown = fixture.root.appendingPathComponent("Profiles/codex/unknown")
+                try FileManager.default.createDirectory(at: unknown, withIntermediateDirectories: true,
+                                                        attributes: [.posixPermissions: 0o700])
+            }
+            if mode == 3 {
+                for pid in [Int32(832), 833] {
+                    runtime.install(inspector.stamp(provider: .codex, pid: pid, seconds: 100),
+                                    provider: .codex, app: inspector.identity(for: .codex).app)
+                }
+            }
+            let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+            await controller.identify(.codex)
+            XCTAssertEqual(controller.model.rows.first { $0.id == target.id.description }?.canDelete, false, "mode \(mode)")
+            await controller.delete(target.id)
+            XCTAssertEqual(try fixture.store.listProfiles().first { $0.id == target.id }?.archived, false)
+            XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+        }
+    }
 }
 
 private enum InvalidObservation: String, CaseIterable {

@@ -162,6 +162,9 @@ public struct ProfileRecord2: Codable, Equatable, Identifiable {
     public var pending: PendingLaunch2?
     public var archived = false
     public var archiveID: UUID?
+    /// True only for a removed profile whose opaque storage stays at its original path.
+    /// Optional so records written before this field existed still decode.
+    public var storageRetainedInPlace: Bool?
     public init(id: ManagedProfileID = ManagedProfileID(), provider: ProviderID2, name: String,
                 storage: StorageLocator2? = nil, storageGeneration: UUID = UUID()) {
         self.id = id; self.provider = provider; self.name = name

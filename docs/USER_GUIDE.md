@@ -4,7 +4,7 @@
 
 The PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
 
-This source declares Pairbar **2.0.0 (18)** as a release candidate. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
+This source declares Pairbar **2.0.0 (19)** as the current release candidate; build 18 was the preceding candidate. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
 
 For normal use, open Pairbar and click an account. Pairbar checks the official ChatGPT app, finds a unique verified standard installation if the saved path moved, and clears an absent receipt even while Current is open, and repairs old interrupted launches only after ChatGPT is fully closed. If Pairbar cannot prove safety, use **Repair…** in Profiles; close ChatGPT or inspect Settings → Advanced if it remains blocked. Advanced also contains Choose app… for nonstandard installations and Check again for troubleshooting. New app builds still require **Approve and open**. A pending launch without a receipt must be at least 60 seconds old before automatic repair; recent launches remain blocked in case the app is still starting.
 
@@ -162,9 +162,9 @@ Do not use recovery to close the Second Account that hosts a development task. F
 
 ## Archive, reset, and retained data
 
-Archive operations are conservative and recoverable. They require the provider to be quiescent, with no unreadable process, receipt, pending launch, competing archive operation, or unexplained profile directory.
+Delete profile removes only the selected managed Codex profile from Pairbar. It keeps local storage at its original path and requires verified ownership and no conflicting recovery state. Archive and reset remains conservative and recoverable: it requires the provider to be quiescent, with no unreadable process, receipt, pending launch, competing archive operation, or unexplained profile directory.
 
-- **Archive profile** removes it from the active list and atomically moves its whole storage directory under `Profiles/Archived`.
+- **Delete profile** removes a managed profile from Pairbar, releases its shortcut and startup selection, and keeps its local storage in place. If the profile is open, Pairbar first closes only that verified profile. Other accounts stay open.
 - **Archive and reset** archives the old directory, assigns fresh storage and a new storage generation, and keeps the profile entry ready for a future clean sign-in.
 
 Pairbar does not inspect the contents during the move and does not immediately delete the archived directory. Purging archived data is a separate, deliberate manual operation performed only when all relevant provider processes are closed.

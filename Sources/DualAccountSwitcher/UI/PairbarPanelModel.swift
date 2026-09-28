@@ -33,6 +33,7 @@ struct PairbarProfileRow: Identifiable, Equatable {
     var canClose: Bool = false
     var canRestart: Bool = false
     var canArchive: Bool = false
+    var canDelete: Bool = false
     var canReset: Bool = false
     var canEdit: Bool = true
     var unavailableReason: String?
@@ -69,7 +70,7 @@ enum PairbarPanelAction {
     case open(String), openSelected([String])
     case create(PairbarProfileDraft), update(String, PairbarProfileDraft)
     case favorite(String, Bool), move(String, Int)
-    case close(String), restart(String), archive(String), reset(String)
+    case close(String), restart(String), archive(String), reset(String), delete(String)
     case check(String), choose(String), recover(String)
     case setStartAtLogin(Bool), setOpenProfilesAtLogin(Bool), setProfileAtLogin(String, Bool)
     case setLanguage(PairbarLanguage), completeWelcome
@@ -147,6 +148,8 @@ final class PairbarPanelModel: ObservableObject {
             guard rows.contains(where: { $0.id == id && !$0.isCurrent && $0.canRestart }) else { return }
         case .archive(let id):
             guard rows.contains(where: { $0.id == id && !$0.isCurrent && $0.canArchive }) else { return }
+        case .delete(let id):
+            guard rows.contains(where: { $0.id == id && !$0.isCurrent && $0.canDelete }) else { return }
         case .reset(let id):
             guard rows.contains(where: { $0.id == id && !$0.isCurrent && $0.canReset }) else { return }
         case .open(let id):
@@ -199,7 +202,7 @@ extension PairbarPanelModel {
             PairbarProfileRow(id: "preview-second", providerID: "codex", name: "Second Account", status: model.text("Running · protected session", "En ejecución · sesión protegida"),
                 running: true, favorite: true, order: 1, shortcut: PairbarShortcut(keyCode: 19, modifiers: 2304), canOpen: true),
             PairbarProfileRow(id: "preview-work", providerID: "codex", name: model.text("Work and research", "Trabajo e investigación"),
-                status: model.text("Closed", "Cerrado"), order: 2, canOpen: true, canArchive: true, canReset: true),
+                status: model.text("Closed", "Cerrado"), order: 2, canOpen: true, canArchive: true, canDelete: true, canReset: true),
             PairbarProfileRow(id: "current:claude", providerID: "claude", name: "Current Account", isCurrent: true,
                 status: model.text("Closed", "Cerrado"), order: 3, canOpen: true)
         ]
