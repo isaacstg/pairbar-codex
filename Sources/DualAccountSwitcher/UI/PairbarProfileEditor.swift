@@ -35,20 +35,20 @@ struct PairbarProfileEditor: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 12) {
             if let row {
                 Label(model.providerName(row.providerID) + " · " + (row.isCurrent ? "Current" : t("Managed profile", "Perfil administrado")),
                       systemImage: row.isCurrent ? "person.crop.circle" : "person.crop.circle.badge.plus")
                     .font(.caption).foregroundStyle(.secondary)
             } else {
-                Label("ChatGPT/Codex", systemImage: "person.crop.circle.badge.plus")
+                Text(t("A separate place for each account.", "Un espacio para cada cuenta."))
                     .font(.caption).foregroundStyle(.secondary)
             }
             VStack(alignment: .leading, spacing: 8) {
                 Text(t("Profile name", "Nombre del perfil")).font(.callout.weight(.semibold))
                 TextField(t("For example, Work", "Por ejemplo, Trabajo"), text: $draft.name)
                     .textFieldStyle(.roundedBorder)
-                    .controlSize(.large)
+                    .controlSize(.regular)
                     .focused($nameFocused)
                     .accessibilityLabel(t("Profile name", "Nombre del perfil"))
                 if !draft.name.isEmpty {
@@ -61,7 +61,7 @@ struct PairbarProfileEditor: View {
                     .font(.caption).foregroundStyle(.secondary)
             } else {
                 Divider()
-                Toggle(t("Favorite", "Favorito"), isOn: $draft.favorite)
+                Toggle(t("Pin", "Fijar"), isOn: $draft.favorite)
                 VStack(alignment: .leading, spacing: 8) {
                     Text(t("Global shortcut", "Atajo global")).font(.callout.weight(.semibold))
                     PairbarShortcutRecorder(shortcut: $draft.shortcut, language: model.language).frame(height: 28)
@@ -80,7 +80,7 @@ struct PairbarProfileEditor: View {
             HStack {
                 Button(t("Cancel", "Cancelar")) { model.showAccounts() }
                 Spacer()
-                Button(row == nil ? t("Create profile", "Crear perfil") : t("Save changes", "Guardar cambios")) {
+                Button(row == nil ? t("Create", "Crear") : t("Save changes", "Guardar cambios")) {
                     var submitted = draft
                     submitted.name = normalizedName
                     if let row { model.send(.update(row.id, submitted)) }

@@ -155,7 +155,7 @@ final class PanelTests: XCTestCase {
         }
     }
 
-    func testWholeRowActionDispatchAndOnlyOneInlineDrawer() async {
+    func testWholeRowActionDispatchAndOnlyOneOverlay() async {
         await MainActor.run {
             let model = PairbarPanelModel()
             model.rows = [
@@ -180,7 +180,7 @@ final class PanelTests: XCTestCase {
         }
     }
 
-    func testDesiredPopoverSizeTracksProfilesDrawerAndPages() async {
+    func testDesiredPopoverSizeTracksProfilesOverlayAndPages() async {
         await MainActor.run {
             let model = PairbarPanelModel()
             model.rows = [
@@ -188,24 +188,69 @@ final class PanelTests: XCTestCase {
                 Self.row("work", provider: "codex")
             ]
 
-            XCTAssertEqual(model.desiredContentSize, CGSize(width: 400, height: 208), "Two profile rows use compact height")
+            XCTAssertEqual(model.desiredContentSize, CGSize(width: 326, height: 208), "Two profile rows use compact height")
 
             model.toggleActions(for: "personal")
-            XCTAssertEqual(model.desiredContentSize.height, 326, "Opening the inline action drawer adds its height")
+            XCTAssertEqual(model.desiredContentSize.height, 208, "The overlay does not resize the popover")
 
             model.closeActions()
-            XCTAssertEqual(model.desiredContentSize.height, 208, "Closing the drawer returns to compact height")
+            XCTAssertEqual(model.desiredContentSize.height, 208)
 
             model.searchExpanded = true
             XCTAssertEqual(model.desiredContentSize.height, 250, "Expanded Search is included in the desired native size")
             model.searchExpanded = false
 
             model.page = .settings
-            XCTAssertEqual(model.desiredContentSize.height, 520, "Settings uses the full panel height")
+            XCTAssertEqual(model.desiredContentSize.height, 272, "Settings follows compact content")
+            model.advancedExpanded = true
+            XCTAssertEqual(model.desiredContentSize.height, 520, "Advanced grows down from the anchor")
             model.page = .create
-            XCTAssertEqual(model.desiredContentSize.height, 340, "Add Profile uses its form height")
+            XCTAssertEqual(model.desiredContentSize.height, 280, "Add Profile uses its form height")
             model.showAccounts()
             XCTAssertEqual(model.desiredContentSize.height, 208, "Returning to Profiles restores compact height")
+        }
+    }
+
+    func testEscapeConsumesOneOverlayBeforePopover() async {
+        await MainActor.run {
+            let model = PairbarPanelModel.preview()
+            model.toggleActions(for: "preview-work")
+            XCTAssertTrue(model.consumeEscape())
+            XCTAssertNil(model.expandedActionsID)
+            XCTAssertFalse(model.consumeEscape())
+        }
+    }
+
+    func testPinUsesFavoriteActionModelAndRemoveNeverOfferedForCurrent() async {
+        await MainActor.run {
+            let model = PairbarPanelModel()
+            model.rows = [
+                PairbarProfileRow(id: "current", providerID: "codex", name: "Personal", isCurrent: true,
+                                  favorite: true, canDelete: true),
+                PairbarProfileRow(id: "work", providerID: "codex", name: "Work", canDelete: true)
+            ]
+            var actions: [String] = []
+            model.onAction = { actions.append(Self.describe($0)) }
+            XCTAssertFalse(model.canOfferDelete(model.rows[0]))
+            XCTAssertTrue(model.canOfferDelete(model.rows[1]))
+            model.pin(model.rows[0])
+            model.pin(model.rows[1])
+            XCTAssertEqual(actions, ["favorite:current:false", "favorite:work:true"])
+            model.send(.delete("current"))
+            XCTAssertEqual(actions.count, 2)
+        }
+    }
+
+    func testRemoveConfirmationUsesHonestEnglishAndSpanishWording() async {
+        await MainActor.run {
+            let row = PairbarProfileRow(id: "work", providerID: "codex", name: "Work", canDelete: true)
+            let confirmation = PairbarConfirmation.delete(row)
+            XCTAssertEqual(confirmation.button(language: .english), "Remove from Pairbar")
+            XCTAssertEqual(confirmation.button(language: .spanish), "Quitar de Pairbar")
+            XCTAssertEqual(confirmation.message(language: .english),
+                           "This removes the profile from Pairbar. Its local data is kept.")
+            XCTAssertEqual(confirmation.message(language: .spanish),
+                           "Esto quita el perfil de Pairbar. Sus datos locales se conservan.")
         }
     }
 
@@ -232,9 +277,9 @@ final class PanelTests: XCTestCase {
             model.openRow(model.rows[1])
             model.send(.delete("preview-work"))
             XCTAssertTrue(actions.isEmpty)
-            XCTAssertEqual(model.text("Delete profile…", "Eliminar perfil…"), "Eliminar perfil…")
+            XCTAssertEqual(model.text("Remove from Pairbar…", "Quitar de Pairbar…"), "Quitar de Pairbar…")
             model.send(.setLanguage(.english))
-            XCTAssertEqual(model.text("Delete profile…", "Eliminar perfil…"), "Delete profile…")
+            XCTAssertEqual(model.text("Remove from Pairbar…", "Quitar de Pairbar…"), "Remove from Pairbar…")
         }
     }
 
