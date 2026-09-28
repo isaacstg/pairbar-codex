@@ -1,8 +1,8 @@
 # Pairbar release gates
 
-## Current main and release-candidate status (2026-09-28)
+## Current release-candidate source status (2026-09-28)
 
-`main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada` includes PR #7. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
+The PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
 
 This source declares Pairbar **2.0.0 (18)** as a release candidate. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
 

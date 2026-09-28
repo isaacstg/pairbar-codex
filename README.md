@@ -6,9 +6,9 @@
 
 # Pairbar · account profiles for ChatGPT/Codex on macOS
 
-## Current main and release-candidate status (2026-09-28)
+## Current release-candidate source status (2026-09-28)
 
-`main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada` includes PR #7. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
+The PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
 
 This source declares Pairbar **2.0.0 (18)** as a release candidate. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
 
@@ -112,7 +112,7 @@ Read the [security model](SECURITY.md) and [Claude acceptance protocol](docs/CLA
 | Runtime controller | LaunchServices, process observations, ownership checks, memory pressure, and lifecycle orchestration |
 | Tests and audit | Pure state/storage/compatibility tests, fake-runtime integration checks, source-policy guard, and packaging checks |
 
-At current main `55b704c`, the source passed 168 Swift tests, including Restart approval/cancellation, ownership and persistence failures, one-prompt Open Selected behavior, and inert preview settings. The source-policy audit, diff/plist/shell checks, universal release compilation, ZIP extraction, and strict all-architectures signature verification also passed. The historical PR #4 Pairbar 2.0.0 (17) archive contained `x86_64` and `arm64` and was ad-hoc signed with hardened runtime. It was not Developer ID signed or notarized.
+At the post-PR #7 baseline (`55b704c`), the source passed 168 Swift tests, including Restart approval/cancellation, ownership and persistence failures, one-prompt Open Selected behavior, and inert preview settings. The source-policy audit, diff/plist/shell checks, universal release compilation, ZIP extraction, and strict all-architectures signature verification also passed. The historical PR #4 Pairbar 2.0.0 (17) archive contained `x86_64` and `arm64` and was ad-hoc signed with hardened runtime. It was not Developer ID signed or notarized.
 
 The inert native preview was inspected in English and Spanish without constructing a controller, registering shortcuts, changing system login items, or touching provider apps. The first Search click and Command-F from collapsed search focused the field and accepted immediate typing. Profiles, Add/Edit profile, Filter, Select/Done, Settings, Advanced, Help, and Welcome were checked in the native UI. The screenshots above were refreshed with synthetic names in light and dark appearance; the Mac's original dark setting was restored. An earlier installed-app pass exercised full keyboard traversal and exposed labeled controls through VoiceOver. Human confirmation of VoiceOver announcements is still required.
 

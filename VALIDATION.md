@@ -1,12 +1,12 @@
 # Pairbar validation and release status
 
-## Current main and release-candidate status (2026-09-28)
+## Current release-candidate source status (2026-09-28)
 
-`main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada` includes PR #7. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
+The PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
 
 This source declares Pairbar **2.0.0 (18)** as a release candidate. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
 
-PR #7 automated validation integrated in current main: `swift test` passes 168 tests, including standard-path selection, local absent-receipt cleanup with Current open, the 60-second pending window, Open during fresh and stale pending, process appearance during pause, and a partial two-record save failure. `python3 scripts/audit.py`, `git diff --check`, shell/plist checks and `bash scripts/build.sh` are run before publication. That automated pass did not open or close a live ChatGPT account; the separate post-merge installed pass is summarized above.
+PR #7 automated validation at the post-PR #7 baseline: `swift test` passes 168 tests, including standard-path selection, local absent-receipt cleanup with Current open, the 60-second pending window, Open during fresh and stale pending, process appearance during pause, and a partial two-record save failure. `python3 scripts/audit.py`, `git diff --check`, shell/plist checks and `bash scripts/build.sh` are run before publication. That automated pass did not open or close a live ChatGPT account; the separate post-merge installed pass is summarized above.
 
 Historical sections last reconciled on 2026-09-25. This record separates the frozen 1.3.3 baseline, historical Pairbar validation, the PR #4 remediation, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
 
