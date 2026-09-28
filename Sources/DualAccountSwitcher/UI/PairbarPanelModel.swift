@@ -81,8 +81,8 @@ enum PairbarPanelAction {
 /// No storage, provider inspection or process operations occur in this model or its previews.
 @MainActor
 final class PairbarPanelModel: ObservableObject {
-    static let width: CGFloat = 430
-    static let height: CGFloat = 610
+    static let width: CGFloat = 400
+    static let height: CGFloat = 520
     @Published var rows: [PairbarProfileRow] = []
     @Published var providers: [PairbarProviderRow] = []
     @Published var errorMessage: String?
@@ -96,11 +96,14 @@ final class PairbarPanelModel: ObservableObject {
     @Published var busy = false
     @Published var previewOnly = false
     @Published var diagnosticText = ""
-    @Published var page: PairbarPanelPage = .accounts
+    @Published var page: PairbarPanelPage = .accounts {
+        didSet { if page != oldValue { closeActions() } }
+    }
     @Published var search = ""
     @Published var providerFilter = "all"
     @Published var selectedIDs: Set<String> = []
     @Published var selecting = false
+    @Published private(set) var expandedActionsID: String?
     var onAction: ((PairbarPanelAction) -> Void)?
 
     func text(_ english: String, _ spanish: String) -> String { language.text(english, spanish) }
@@ -109,10 +112,37 @@ final class PairbarPanelModel: ObservableObject {
     }
     var visibleRows: [PairbarProfileRow] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        return orderedRows.filter { row in
-            (providerFilter == "all" || providerFilter == row.providerID) &&
+        return normalRows.filter { row in
+            (providerFilter == "all" || !visibleProviderIDs.contains(providerFilter) || providerFilter == row.providerID) &&
             (query.isEmpty || row.name.localizedStandardContains(query))
         }
+    }
+    // A Claude Current row becomes relevant when its app is running. The provider
+    // remains available in Advanced even when it is absent from this list.
+    var normalRows: [PairbarProfileRow] {
+        orderedRows.filter { $0.providerID != "claude" || !$0.isCurrent || $0.running }
+    }
+    var visibleProviderIDs: [String] { Array(Set(normalRows.map(\.providerID))).sorted() }
+    var showsProviderFilter: Bool { visibleProviderIDs.count > 1 }
+    var showsSelectionControl: Bool { normalRows.count > 3 || selecting }
+    func canOfferDelete(_ row: PairbarProfileRow) -> Bool { !row.isCurrent && row.canDelete }
+    var panelHeight: CGFloat {
+        switch page {
+        case .accounts:
+            let rowHeight = CGFloat(min(max(visibleRows.count, 1), 5)) * 68
+            return min(520, max(180, 72 + rowHeight + (expandedActionsID == nil ? 0 : 118)))
+        case .create: return 340
+        case .welcome, .settings, .help, .edit: return Self.height
+        }
+    }
+    func toggleActions(for id: String) {
+        guard normalRows.contains(where: { $0.id == id }) else { return }
+        expandedActionsID = expandedActionsID == id ? nil : id
+    }
+    func closeActions() { expandedActionsID = nil }
+    func openRow(_ row: PairbarProfileRow) {
+        closeActions()
+        send(.open(row.id))
     }
     var orderedRows: [PairbarProfileRow] {
         rows.sorted {
@@ -174,14 +204,17 @@ final class PairbarPanelModel: ObservableObject {
         }
         onAction?(action)
     }
-    func profileSaved() { page = .accounts }
+    func profileSaved() { showAccounts() }
     func completeWelcome() {
         if !previewOnly { onAction?(.completeWelcome) }
         welcomeCompleted = true
         page = .accounts
     }
-    func showAccounts() { page = .accounts }
-    func pruneSelection() { selectedIDs.formIntersection(Set(rows.map(\.id))) }
+    func showAccounts() { closeActions(); page = .accounts }
+    func pruneSelection() {
+        selectedIDs.formIntersection(Set(rows.map(\.id)))
+        if let id = expandedActionsID, !normalRows.contains(where: { $0.id == id }) { closeActions() }
+    }
 }
 
 extension PairbarPanelModel {
@@ -196,15 +229,15 @@ extension PairbarPanelModel {
                 detail: model.text("Additional Claude profiles are unavailable until Chat and Code session separation passes real acceptance tests.", "Los perfiles adicionales de Claude no están disponibles hasta verificar la separación real de sesiones de Chat y Code."))
         ]
         model.rows = [
-            PairbarProfileRow(id: "current:codex", providerID: "codex", name: "Current Account", isCurrent: true,
+            PairbarProfileRow(id: "current:codex", providerID: "codex", name: "Personal", isCurrent: true,
                 status: model.text("Running", "En ejecución"), running: true, favorite: true,
                 shortcut: PairbarShortcut(keyCode: 18, modifiers: 2304), canOpen: true),
-            PairbarProfileRow(id: "preview-second", providerID: "codex", name: "Second Account", status: model.text("Running · protected session", "En ejecución · sesión protegida"),
-                running: true, favorite: true, order: 1, shortcut: PairbarShortcut(keyCode: 19, modifiers: 2304), canOpen: true),
-            PairbarProfileRow(id: "preview-work", providerID: "codex", name: model.text("Work and research", "Trabajo e investigación"),
-                status: model.text("Closed", "Cerrado"), order: 2, canOpen: true, canArchive: true, canDelete: true, canReset: true),
+            PairbarProfileRow(id: "preview-work", providerID: "codex", name: "Work",
+                status: model.text("Running", "En ejecución"), running: true, order: 1,
+                shortcut: PairbarShortcut(keyCode: 19, modifiers: 2304),
+                canOpen: true, canClose: true, canRestart: true, canArchive: true, canDelete: true, canReset: true),
             PairbarProfileRow(id: "current:claude", providerID: "claude", name: "Current Account", isCurrent: true,
-                status: model.text("Closed", "Cerrado"), order: 3, canOpen: true)
+                status: model.text("Closed", "Cerrado"), order: 2, canOpen: true)
         ]
         model.diagnosticText = "Pairbar · preview\nprovider codex: ready\nprovider claude: managed-unavailable\nprofiles: 2"
         return model

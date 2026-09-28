@@ -6,6 +6,7 @@ import SwitcherCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let previewModel: PairbarPanelModel?
+    private let previewColorScheme: ColorScheme?
     private var controller: PairbarController?
     private var model: PairbarPanelModel?
     private var keys: HotKeys?
@@ -14,7 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var memorySource: DispatchSourceMemoryPressure?
     private let popover = NSPopover()
 
-    init(previewModel: PairbarPanelModel? = nil) { self.previewModel = previewModel }
+    init(previewModel: PairbarPanelModel? = nil, previewColorScheme: ColorScheme? = nil) {
+        self.previewModel = previewModel
+        self.previewColorScheme = previewColorScheme
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configureMainMenu()
@@ -80,9 +84,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             configureStatusItem(model: model)
             popover.behavior = .transient
             popover.contentSize = NSSize(width: PairbarPanelModel.width, height: PairbarPanelModel.height)
-            popover.contentViewController = NSHostingController(rootView: PairbarPanelView(
+            let hosting = NSHostingController(rootView: PairbarPanelView(
                 model: model, dismiss: { [weak self] in self?.popover.performClose(nil) }
-            ))
+            ).preferredColorScheme(previewColorScheme))
+            if let previewColorScheme {
+                hosting.view.appearance = NSAppearance(named: previewColorScheme == .light ? .aqua : .darkAqua)
+            }
+            popover.contentViewController = hosting
             if previewModel != nil || (!launchedAtLogin && !model.welcomeCompleted) { showPopover() }
         } catch {
             let alert = NSAlert()
@@ -97,6 +105,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         refreshTimer?.invalidate()
         memorySource?.cancel()
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        // Keep the transient popover dismissible when another app takes focus.
+        // Inline row actions no longer start a nested NSMenu tracking session.
+        if popover.isShown { popover.performClose(nil) }
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -146,6 +160,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.refreshLogin()
         NSApp.activate(ignoringOtherApps: true)
         if !popover.isShown { popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY) }
+        if let previewColorScheme {
+            popover.contentViewController?.view.window?.appearance = NSAppearance(named: previewColorScheme == .light ? .aqua : .darkAqua)
+        }
         popover.contentViewController?.view.window?.makeKey()
     }
 
@@ -184,17 +201,24 @@ struct SwitcherMain {
         let preview: PairbarPanelModel?
         if arguments.count == 2 && arguments[1] == "--preview-ui" {
             preview = .preview()
-        } else if arguments.count == 3 && arguments[1] == "--preview-ui" {
+        } else if (arguments.count == 3 || arguments.count == 4) && arguments[1] == "--preview-ui" &&
+                    ["english", "spanish"].contains(arguments[2]) &&
+                    (arguments.count == 3 || ["light", "dark"].contains(arguments[3])) {
             preview = .preview(language: arguments[2] == "spanish" ? .spanish : .english)
         } else if arguments.count == 1 {
             preview = nil
         } else {
-            fputs("Usage: DualAccountSwitcher [--check-app /path/to/ChatGPT.app | --check-claude /path/to/Claude.app | --preview-ui [english|spanish]]\n", stderr)
+            fputs("Usage: DualAccountSwitcher [--check-app /path/to/ChatGPT.app | --check-claude /path/to/Claude.app | --preview-ui [english|spanish [light|dark]]]\n", stderr)
             exit(2)
         }
         let app = NSApplication.shared
+        if preview != nil && arguments.count == 4 {
+            app.appearance = NSAppearance(named: arguments[3] == "light" ? .aqua : .darkAqua)
+        }
         app.setActivationPolicy(.accessory)
-        let delegate = AppDelegate(previewModel: preview)
+        let previewColorScheme: ColorScheme? = preview != nil && arguments.count == 4
+            ? (arguments[3] == "light" ? .light : .dark) : nil
+        let delegate = AppDelegate(previewModel: preview, previewColorScheme: previewColorScheme)
         app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }
