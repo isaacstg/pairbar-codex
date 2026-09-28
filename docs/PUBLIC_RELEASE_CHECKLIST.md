@@ -17,7 +17,7 @@ The repository became public on September 18, 2026. Private vulnerability report
 
 ## Pairbar 2.0.0 public binary release checklist
 
-This is the single authoritative checklist for public binary release. This UI change starts from post-PR #9 `main` at `4baf8a990ac5597ca99affc602a1ed15518aa90d`. The current release candidate source declares `2.0.0 (20)`; build 19 was the preceding candidate; CI and local ZIPs are ad-hoc development artifacts. Record evidence and exact artifact identifiers before checking a box. Historical source-publication checks above do not satisfy binary gates.
+This is the single authoritative checklist for public binary release. The popover positioning change starts from `main` at `d388a1dbb1ca3de67aa48277ec9f1c2c8332f7bc`. The current release candidate source declares `2.0.0 (21)`; build 20 was the preceding candidate; CI and local ZIPs are ad-hoc development artifacts. Record evidence and exact artifact identifiers before checking a box. Historical source-publication checks above do not satisfy binary gates.
 
 ### Source gate
 

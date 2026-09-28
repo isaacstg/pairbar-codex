@@ -100,11 +100,13 @@ final class PairbarPanelModel: ObservableObject {
         didSet { if page != oldValue { closeActions() } }
     }
     @Published var search = ""
+    @Published var searchExpanded = false
     @Published var providerFilter = "all"
     @Published var selectedIDs: Set<String> = []
     @Published var selecting = false
     @Published private(set) var expandedActionsID: String?
     var onAction: ((PairbarPanelAction) -> Void)?
+    var onDesiredContentSizeChange: ((CGSize) -> Void)?
 
     func text(_ english: String, _ spanish: String) -> String { language.text(english, spanish) }
     func providerName(_ id: String) -> String {
@@ -134,6 +136,10 @@ final class PairbarPanelModel: ObservableObject {
         case .create: return 340
         case .welcome, .settings, .help, .edit: return Self.height
         }
+    }
+    /// The single desired size used by both SwiftUI layout and the native popover.
+    var desiredContentSize: CGSize {
+        CGSize(width: Self.width, height: panelHeight + (searchExpanded && page == .accounts ? 42 : 0))
     }
     func toggleActions(for id: String) {
         guard normalRows.contains(where: { $0.id == id }) else { return }

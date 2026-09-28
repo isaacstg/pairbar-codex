@@ -180,6 +180,35 @@ final class PanelTests: XCTestCase {
         }
     }
 
+    func testDesiredPopoverSizeTracksProfilesDrawerAndPages() async {
+        await MainActor.run {
+            let model = PairbarPanelModel()
+            model.rows = [
+                Self.row("personal", provider: "codex"),
+                Self.row("work", provider: "codex")
+            ]
+
+            XCTAssertEqual(model.desiredContentSize, CGSize(width: 400, height: 208), "Two profile rows use compact height")
+
+            model.toggleActions(for: "personal")
+            XCTAssertEqual(model.desiredContentSize.height, 326, "Opening the inline action drawer adds its height")
+
+            model.closeActions()
+            XCTAssertEqual(model.desiredContentSize.height, 208, "Closing the drawer returns to compact height")
+
+            model.searchExpanded = true
+            XCTAssertEqual(model.desiredContentSize.height, 250, "Expanded Search is included in the desired native size")
+            model.searchExpanded = false
+
+            model.page = .settings
+            XCTAssertEqual(model.desiredContentSize.height, 520, "Settings uses the full panel height")
+            model.page = .create
+            XCTAssertEqual(model.desiredContentSize.height, 340, "Add Profile uses its form height")
+            model.showAccounts()
+            XCTAssertEqual(model.desiredContentSize.height, 208, "Returning to Profiles restores compact height")
+        }
+    }
+
     func testUnusedClaudeIsHiddenFromProfilesButRemainsInAdvancedProviders() async {
         await MainActor.run {
             let model = PairbarPanelModel.preview()
