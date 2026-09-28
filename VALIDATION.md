@@ -8,7 +8,7 @@ Last reconciled on 2026-09-25. This record separates the frozen 1.3.3 baseline, 
 
 On 2026-09-25, the `codex/pairbar-simplify-ux-v1` remediation passed:
 
-- `swift test`: **158 tests, 0 failures**. New cases cover Restart approval and cancellation for a changed build, build change and ownership change during approval, an old live process that cannot match the installed code, one-prompt Open Selected approval/cancellation, failed approval persistence, approval persisted before a later ownership abort, and exact shortcut-binding rollback after profile persistence fails. The prior approval regression now opens a second stopped profile rather than refocusing the first.
+- `swift test`: **161 tests, 0 failures**. New cases cover Restart approval and cancellation for a changed build, build change and ownership change during approval, an old live process that cannot match the installed code, one-prompt Open Selected approval/cancellation, failed approval persistence, approval persisted before a later ownership abort, and exact shortcut-binding rollback after profile persistence fails. The prior approval regression now opens a second stopped profile rather than refocusing the first.
 - `python3 scripts/audit.py`, `git diff --check`, `bash -n scripts/build.sh`, and `plutil -lint Resources/Info.plist`: passed.
 - `bash scripts/build.sh`: built Pairbar **2.0.0 (17)** with `x86_64 arm64`; `dist/Pairbar.zip` SHA-256 is `f82b511e061d77ae5630ac17854ff8fb053f34314e974e66f0b50d61af873244`.
 - Fresh ZIP extraction, `unzip -tq`, `lipo -archs`, and `codesign --verify --strict --all-architectures`: passed. This is still an ad-hoc development artifact.

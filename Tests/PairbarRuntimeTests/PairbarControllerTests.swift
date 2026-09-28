@@ -901,6 +901,59 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertEqual(controller.states[.codex]?.needsRecovery, true)
     }
 
+    func testAutomaticRecoveryDoesNotWriteCorruptDurableMetadata() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        var profile = try fixture.addProfile(provider: .codex, name: "Second")
+        profile.pending = PendingLaunch2(fingerprint: fingerprint)
+        try fixture.store.saveProfile(profile)
+        let runtime = FakeRuntime()
+        let controller = try fixture.controller(runtime: runtime, inspector: FakeInspector())
+        let file = fixture.root.appendingPathComponent("Metadata/profiles/codex/" + profile.id.description + ".json")
+        let corrupt = Data("{corrupt".utf8)
+        try corrupt.write(to: file)
+        await controller.check(.codex, presentErrors: false)
+        XCTAssertEqual(try Data(contentsOf: file), corrupt)
+        XCTAssertEqual(controller.states[.codex]?.needsRecovery, true)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+    }
+
+    func testOpenWithLiveUnownedProcessKeepsMetadataAndExplainsRepair() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        var profile = try fixture.addProfile(provider: .codex, name: "Second")
+        profile.pending = PendingLaunch2(fingerprint: fingerprint)
+        try fixture.store.saveProfile(profile)
+        let inspector = FakeInspector()
+        let runtime = FakeRuntime()
+        let stamp = inspector.stamp(provider: .codex, pid: 706, seconds: 101)
+        runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        let opened = await controller.open(.managed(profile.id))
+        XCTAssertFalse(opened)
+        XCTAssertNotNil(try fixture.store.listProfiles(provider: .codex).first?.pending)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertTrue(controller.model.errorMessage?.contains("Repair") == true ||
+                      controller.model.errorMessage?.contains("Reparar") == true)
+        XCTAssertEqual(controller.model.providers.first { $0.id == "codex" }?.canRecover, true)
+    }
+
+    func testIneligibleAutomaticRecoveryIsNotRetriedEachRefresh() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        var profile = try fixture.addProfile(provider: .codex, name: "Second")
+        profile.pending = PendingLaunch2(fingerprint: fingerprint)
+        try fixture.store.saveProfile(profile)
+        let orphan = fixture.root.appendingPathComponent("Profiles/codex/orphan")
+        try FileManager.default.createDirectory(at: orphan, withIntermediateDirectories: true)
+        let runtime = FakeRuntime()
+        let controller = try fixture.controller(runtime: runtime, inspector: FakeInspector())
+        await controller.check(.codex, presentErrors: false)
+        let attempts = runtime.pauseCount
+        for _ in 0..<10 { controller.refresh() }
+        await Task.yield()
+        XCTAssertEqual(runtime.pauseCount, attempts)
+        XCTAssertNotNil(try fixture.store.listProfiles(provider: .codex).first?.pending)
+    }
+
     func testOpenRecoversStalePendingThenLaunches() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         try fixture.approveCodex(fingerprint: fingerprint)
