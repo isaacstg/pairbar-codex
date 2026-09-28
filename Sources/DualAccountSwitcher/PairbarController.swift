@@ -10,6 +10,7 @@ final class PairbarController {
     let store: DynamicStore
     private let runtime: ApplicationRuntime
     private let inspector: ProviderInspecting
+    private let standardCandidates: (URL?) -> [URL]
     private(set) var preferences: Preferences2
     private(set) var providers: [ProviderID2: ProviderSettings2] = [:]
     private(set) var records: [ProfileRecord2]
@@ -21,6 +22,8 @@ final class PairbarController {
     private var quitting = Set<ManagedProfileID>()
     private var currentLaunching = Set<ProviderID2>()
     private var events: [String] = []
+    private var autoRecoveryAttempted = Set<ProviderID2>()
+    private var hasRefreshed = false
     private var batchRunning = false
     private var loginHandled = false
     var onActivate: (() -> Void)?
@@ -30,8 +33,9 @@ final class PairbarController {
     var confirmNewBuild: ((ProviderInspection) -> Bool)?
 
     init(store: DynamicStore, runtime: ApplicationRuntime, inspector: ProviderInspecting,
-         model: PairbarPanelModel) throws {
+         model: PairbarPanelModel, standardCandidates: @escaping (URL?) -> [URL] = Compatibility.standardCandidates) throws {
         self.store = store; self.runtime = runtime; self.inspector = inspector; self.model = model
+        self.standardCandidates = standardCandidates
         preferences = try store.loadPreferences()
         records = try store.listProfiles()
         for provider in ProviderID2.allCases { providers[provider] = try store.loadProvider(provider) }
@@ -48,13 +52,13 @@ final class PairbarController {
         switch code {
         case "compatibility": model.errorMessage = text("This official app build could not be verified or approved. See Advanced in Settings.", "No se pudo verificar o aprobar esta versión oficial. Consulta Avanzado en Ajustes.")
         case "claude-unvalidated": model.errorMessage = text("Additional Claude profiles are unavailable until real Chat and Code separation is validated.", "Los perfiles adicionales de Claude no están disponibles hasta validar la separación real de Chat y Code.")
-        case "ownership": model.errorMessage = text("Ownership is uncertain. Use safe recovery; no process was controlled.", "La propiedad es incierta. Usa la recuperación segura; no se ha controlado ningún proceso.")
+        case "ownership": model.errorMessage = text("Pairbar needs to verify this account before it can be opened. Close ChatGPT, then use Repair… or check Advanced.", "Pairbar necesita verificar esta cuenta antes de abrirla. Cierra ChatGPT y usa Reparar… o revisa Avanzado.")
         case "updated-running-app": model.errorMessage = text("ChatGPT may have been updated while this profile was open. Close that ChatGPT app normally, then open the profile again.", "Es posible que ChatGPT se haya actualizado mientras este perfil estaba abierto. Cierra esa app de ChatGPT de forma normal y vuelve a abrir el perfil.")
         case "shortcut": model.errorMessage = text("That shortcut is invalid or unavailable. The previous shortcut was retained.", "El atajo no es válido o no está disponible. Se conserva el anterior.")
         case "name": model.errorMessage = text("Use a unique name of 1–40 characters without line breaks or control characters.", "Usa un nombre único de 1–40 caracteres, sin saltos de línea ni caracteres de control.")
         case "memory": model.errorMessage = text("Memory pressure paused new openings. Existing instances were preserved.", "La presión de memoria ha pausado las aperturas. Se conservan las instancias abiertas.")
         case "quit-timeout": model.errorMessage = text("The app did not finish quitting. Restart was cancelled; no forced close was sent.", "La app no terminó de cerrarse. Se canceló el reinicio; no se forzó el cierre.")
-        default: model.errorMessage = text("The operation could not be completed safely. Your data and existing instances were preserved. Check app details or safe recovery.", "La operación no pudo completarse de forma segura. Se conservan los datos y las instancias existentes. Revisa los detalles de la app o la recuperación segura.")
+        default: model.errorMessage = text("Pairbar could not open this account safely. Your data is preserved. Use Repair… if the issue continues.", "Pairbar no pudo abrir esta cuenta con seguridad. Se conservan tus datos. Usa Reparar… si el problema continúa.")
         }
         onPresent?()
     }
@@ -96,23 +100,38 @@ final class PairbarController {
         do { return try store.hasPendingOperations(provider: provider) || store.hasOrphanStorage(provider: provider, records: records) }
         catch { return true }
     }
+    private func staleReceiptNeedsRecovery(_ provider: ProviderID2, apps: [RunningInstance]) -> Bool {
+        records.contains { record in
+            guard record.provider == provider, let receipt = record.receipt,
+                  !apps.contains(where: { $0.pid == receipt.stamp.pid }) else { return false }
+            if case .absent = runtime.observe(pid: receipt.stamp.pid) { return true }
+            return false
+        }
+    }
     func refresh() {
+        var candidates: [ProviderID2] = []
         for provider in ProviderID2.allCases {
             let apps = runtime.running(provider: provider)
-            for var record in records where record.provider == provider && record.pending == nil && record.receipt != nil &&
-                !launching.contains(record.id) && !quitting.contains(record.id) {
-                if let receipt = record.receipt, !apps.contains(where: { $0.pid == receipt.stamp.pid }),
-                   case .absent = runtime.observe(pid: receipt.stamp.pid) {
-                    record.receipt = nil
-                    do { try replaceRecord(record) } catch { event("stale-receipt-save-failed") }
-                }
-            }
             states[provider] = DynamicStateResolver.resolve(provider: provider, records: records, root: store.root,
                 officialPIDs: apps.map(\.pid), observations: observations(provider: provider, apps: apps), uid: runtime.uid,
                 launching: launching, quitting: quitting, currentLaunching: currentLaunching.contains(provider),
-                metadataUncertain: providerHasMetadataIssue(provider))
+                metadataUncertain: providerHasMetadataIssue(provider) || staleReceiptNeedsRecovery(provider, apps: apps))
+            if states[provider]?.needsRecovery != true || !apps.isEmpty { autoRecoveryAttempted.remove(provider) }
+            else if hasRefreshed && provider.managedProfilesEnabled && !busy.contains(provider) &&
+                        autoRecoveryAttempted.insert(provider).inserted { candidates.append(provider) }
         }
+        hasRefreshed = true
         present()
+        for provider in candidates {
+            Task { [weak self] in
+                guard let self, !self.busy.contains(provider) else { return }
+                self.busy.insert(provider)
+                self.refresh()
+                _ = await self.recoverQuiescentProvider(provider, automatic: true)
+                self.busy.remove(provider)
+                self.refresh()
+            }
+        }
     }
     private func present() {
         var rows: [PairbarProfileRow] = []
@@ -130,7 +149,7 @@ final class PairbarController {
             case .stopped: row.status = text("Closed", "Cerrado"); row.canOpen = !isBusy
             case .launching: row.status = text("Opening…", "Abriendo…"); row.isBusy = true
             case .ambiguous: row.status = text("Multiple normal instances", "Varias instancias normales"); row.needsAttention = true
-            case .blockedByRecovery: row.status = text("Needs verification or recovery", "Necesita verificación o recuperación"); row.needsAttention = true
+            case .blockedByRecovery: row.status = text("Needs a quick check", "Necesita una comprobación"); row.needsAttention = true
             }
             rows.append(row)
             for record in records where record.provider == provider && !record.archived {
@@ -152,7 +171,7 @@ final class PairbarController {
                     row.canOpen = managedProfilesEnabled && !isBusy && !state.needsRecovery
                 case .launching: row.status = text("Opening…", "Abriendo…"); row.isBusy = true
                 case .quitting: row.status = text("Closing…", "Cerrando…"); row.isBusy = true
-                default: row.status = text("Ownership needs recovery", "La propiedad requiere recuperación"); row.needsAttention = true
+                default: row.status = text("Needs a quick check", "Necesita una comprobación"); row.needsAttention = true
                 }
                 rows.append(row)
             }
@@ -186,7 +205,8 @@ final class PairbarController {
         defer { busy.remove(provider); refresh() }
         do {
             guard let settings = providers[provider] else { return }
-            let result = try await inspector.inspect(provider: provider, at: URL(fileURLWithPath: settings.appPath))
+            let identity = try await officialIdentity(provider, settings: settings)
+            let result = try await inspector.inspect(provider: provider, at: identity.app)
             identities[provider] = result.identity; reports[provider] = result; model.errorMessage = nil
         } catch {
             reports[provider] = nil
@@ -196,13 +216,39 @@ final class PairbarController {
             }
             if presentErrors { caught(error) } else { event("provider-check-unavailable") }
         }
+        refresh()
+        if provider.managedProfilesEnabled, states[provider]?.needsRecovery == true {
+            autoRecoveryAttempted.insert(provider)
+            _ = await recoverQuiescentProvider(provider, automatic: true)
+        }
+    }
+    private func officialIdentity(_ provider: ProviderID2, settings: ProviderSettings2) async throws -> OfficialAppIdentity {
+        let stored = URL(fileURLWithPath: settings.appPath)
+        do { return try await inspector.identity(provider: provider, at: stored) }
+        catch {
+            guard provider == .codex else { throw error }
+            var valid: [OfficialAppIdentity] = []
+            for candidate in standardCandidates(stored) where candidate.standardizedFileURL != stored.standardizedFileURL {
+                if let identity = try? await inspector.identity(provider: provider, at: candidate),
+                   !valid.contains(where: { $0.app == identity.app }) { valid.append(identity) }
+            }
+            guard valid.count == 1, let identity = valid.first else {
+                event(valid.isEmpty ? "provider-standard-path-unavailable" : "provider-standard-path-ambiguous")
+                throw error
+            }
+            var updated = settings; updated.appPath = identity.app.path
+            try store.saveProvider(updated)
+            providers[provider] = updated; reports[provider] = nil; identities[provider] = identity
+            event("provider-standard-path-rediscovered")
+            return identity
+        }
     }
     func identify(_ provider: ProviderID2) async {
         guard !busy.contains(provider), let settings = providers[provider] else { return }
         busy.insert(provider); refresh()
         defer { busy.remove(provider); refresh() }
         do {
-            identities[provider] = try await inspector.identity(provider: provider, at: URL(fileURLWithPath: settings.appPath))
+            identities[provider] = try await officialIdentity(provider, settings: settings)
         } catch {
             event("provider-identity-unavailable")
         }
@@ -242,8 +288,13 @@ final class PairbarController {
         if ownsProviderLock { busy.insert(provider); refresh() }
         defer { if ownsProviderLock { busy.remove(provider); refresh() } }
         do {
-            let identity = try await inspector.identity(provider: provider, at: URL(fileURLWithPath: settings.appPath))
+            let identity = try await officialIdentity(provider, settings: settings)
             identities[provider] = identity; refresh()
+            if provider.managedProfilesEnabled, states[provider]?.needsRecovery == true {
+                autoRecoveryAttempted.insert(provider)
+                guard await recoverQuiescentProvider(provider, automatic: true) else { fail("ownership"); return false }
+                refresh()
+            }
             switch target {
             case .current:
                 guard let state = states[provider] else { return false }
@@ -274,7 +325,8 @@ final class PairbarController {
                    runtime.activate(stamp, provider: provider) { onActivate?(); return true }
                 guard state == .stopped, states[provider]?.needsRecovery == false else { fail("ownership"); return false }
                 guard model.memoryPressure != .critical || allowCriticalMemory else { fail("memory"); return false }
-                guard let report = try await approvedManagedBuild(provider, settings: settings,
+                guard let currentSettings = providers[provider],
+                      let report = try await approvedManagedBuild(provider, settings: currentSettings,
                     allowApproval: allowBuildApproval, onDecline: onBuildApprovalDeclined),
                     let fingerprint = report.fingerprint else { return false }
                 // Inspection suspends this MainActor method. Re-resolve live ownership before
@@ -371,6 +423,58 @@ final class PairbarController {
             }
         } catch { caught(error) }
     }
+    /// Caller owns the provider lock. No process is adopted or controlled here.
+    @discardableResult
+    private func recoverQuiescentProvider(_ provider: ProviderID2, automatic: Bool) async -> Bool {
+        func ineligible(_ reason: String) -> Bool {
+            if automatic { event("automatic-recovery-not-eligible:" + reason) }
+            return false
+        }
+        guard provider.managedProfilesEnabled, busy.contains(provider),
+              states[provider]?.needsRecovery == true,
+              launching.isDisjoint(with: Set(records.filter { $0.provider == provider }.map(\.id))),
+              quitting.isDisjoint(with: Set(records.filter { $0.provider == provider }.map(\.id))),
+              !currentLaunching.contains(provider) else { return ineligible("state") }
+        guard runtime.running(provider: provider).isEmpty else { return ineligible("process-running") }
+        await runtime.pause()
+        guard runtime.running(provider: provider).isEmpty else { return ineligible("process-after-pause") }
+        do {
+            guard try store.listProfiles() == records,
+                  !(try store.hasPendingOperations(provider: provider)),
+                  !(try store.hasOrphanStorage(provider: provider, records: records)) else { return ineligible("metadata") }
+            var hypothetical = records
+            var changed = false
+            for index in hypothetical.indices where hypothetical[index].provider == provider {
+                if let receipt = hypothetical[index].receipt {
+                    guard case .absent = runtime.observe(pid: receipt.stamp.pid) else { return ineligible("receipt-unverified") }
+                    hypothetical[index].receipt = nil; changed = true
+                }
+                if hypothetical[index].pending != nil { hypothetical[index].pending = nil; changed = true }
+            }
+            guard changed else { return ineligible("no-stale-metadata") }
+            let resolved = DynamicStateResolver.resolve(provider: provider, records: hypothetical, root: store.root,
+                officialPIDs: [], observations: [:], uid: runtime.uid)
+            guard !resolved.needsRecovery else { return ineligible("hypothetical-uncertain") }
+            for record in hypothetical where record.provider == provider {
+                guard runtime.running(provider: provider).isEmpty,
+                      try store.listProfiles() == records else { return ineligible("process-or-metadata-changed") }
+                if let original = records.first(where: { $0.id == record.id }), original != record {
+                    if let receipt = original.receipt {
+                        guard case .absent = runtime.observe(pid: receipt.stamp.pid) else { return ineligible("receipt-changed") }
+                    }
+                    guard runtime.running(provider: provider).isEmpty else { return ineligible("process-before-write") }
+                    try replaceRecord(record)
+                }
+            }
+            guard runtime.running(provider: provider).isEmpty else { return ineligible("process-after-write") }
+            refresh()
+            if automatic { event("automatic-safe-recovery-completed") }
+            return true
+        } catch {
+            event(automatic ? "automatic-recovery-not-eligible:persistence" : "safe-recovery-save-failed")
+            return false
+        }
+    }
     func recover(_ provider: ProviderID2) async {
         guard provider.managedProfilesEnabled else { fail("claude-unvalidated"); return }
         guard !busy.contains(provider), let settings = providers[provider] else { return }
@@ -396,17 +500,14 @@ final class PairbarController {
                 }
                 for var record in pending { record.pending = nil; try replaceRecord(record) }
             } else {
-                await runtime.pause()
-                guard runtime.running(provider: provider).isEmpty,
-                      try !store.hasOrphanStorage(provider: provider, records: records) else { fail("ownership"); return }
-                for record in records where record.provider == provider {
-                    if let receipt = record.receipt {
-                        guard case .absent = runtime.observe(pid: receipt.stamp.pid) else { fail("ownership"); return }
-                    }
+                refresh()
+                let hasStaleLaunchMetadata = records.contains {
+                    $0.provider == provider && ($0.pending != nil || $0.receipt != nil)
                 }
-                for var record in records where record.provider == provider && (record.receipt != nil || record.pending != nil) {
-                    guard runtime.running(provider: provider).isEmpty else { fail("ownership"); return }
-                    record.receipt = nil; record.pending = nil; try replaceRecord(record)
+                if hasStaleLaunchMetadata {
+                    guard await recoverQuiescentProvider(provider, automatic: false) else { fail("ownership"); return }
+                } else {
+                    await runtime.pause()
                 }
                 guard runtime.running(provider: provider).isEmpty else { fail("ownership"); return }
                 try store.recoverArchives(evidence: ProviderQuiescence2(provider: provider, officialProcessCount: 0, hasUnverifiableProcesses: false))

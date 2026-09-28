@@ -1,5 +1,7 @@
 # Pairbar security model
 
+Routine maintenance is automatic only for a uniquely identified official ChatGPT app at an allowed standard path and for quiescent managed Codex metadata. Standard-path rediscovery uses the existing signature and bundle-ID validation and preserves the approved fingerprint. Automatic recovery requires provider recovery state, no running official processes before and after a pause, no orphan storage or archive operation, valid durable metadata, absent receipt PIDs, no launch/quit operation, and a clean hypothetical state after clearing pending and absent receipts. It rechecks quiescence immediately before each metadata write. It never adopts a PID, controls a process, changes storage or storage generation, or approves a build. Uncertainty remains for manual Repair.
+
 ## Scope
 
 Pairbar provides profile separation inside one macOS user. It is not an operating-system security sandbox and does not claim to protect one account from malicious software running as the same user.

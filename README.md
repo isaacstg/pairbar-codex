@@ -1,4 +1,6 @@
 <p align="center">
+
+**Normal use is automatic:** open Pairbar, choose an account, and continue. Pairbar rechecks the saved ChatGPT location against the project's standard install paths when needed and clears only demonstrably stale launch metadata while ChatGPT is fully closed. Settings → Advanced retains Choose app…, Check again, and safe recovery for exceptional installations or unresolved issues. A newly installed build still asks for explicit approval.
   <img src="docs/brand/banner.svg" alt="Pairbar — perfiles de ChatGPT y Codex desde la barra de menús de macOS." width="100%">
 </p>
 
@@ -104,7 +106,7 @@ Read the [security model](SECURITY.md) and [Claude acceptance protocol](docs/CLA
 | Runtime controller | LaunchServices, process observations, ownership checks, memory pressure, and lifecycle orchestration |
 | Tests and audit | Pure state/storage/compatibility tests, fake-runtime integration checks, source-policy guard, and packaging checks |
 
-The current source passes 150 Swift tests, including Restart approval/cancellation, ownership and persistence failures, one-prompt Open Selected behavior, and inert preview settings. The source-policy audit, diff/plist/shell checks, universal release compilation, ZIP extraction, and strict all-architectures signature verification also passed. The local Pairbar 2.0.0 (17) archive contains `x86_64` and `arm64` and is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
+The current source passes 158 Swift tests, including Restart approval/cancellation, ownership and persistence failures, one-prompt Open Selected behavior, and inert preview settings. The source-policy audit, diff/plist/shell checks, universal release compilation, ZIP extraction, and strict all-architectures signature verification also passed. The local Pairbar 2.0.0 (17) archive contains `x86_64` and `arm64` and is ad-hoc signed with hardened runtime. It is not Developer ID signed or notarized.
 
 The inert native preview was inspected in English and Spanish without constructing a controller, registering shortcuts, changing system login items, or touching provider apps. The first Search click and Command-F from collapsed search focused the field and accepted immediate typing. Profiles, Add/Edit profile, Filter, Select/Done, Settings, Advanced, Help, and Welcome were checked in the native UI. The screenshots above were refreshed with synthetic names in light and dark appearance; the Mac's original dark setting was restored. An earlier installed-app pass exercised full keyboard traversal and exposed labeled controls through VoiceOver. Human confirmation of VoiceOver announcements is still required.
 
