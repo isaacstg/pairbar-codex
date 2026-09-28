@@ -221,6 +221,41 @@ final class PanelTests: XCTestCase {
         }
     }
 
+    func testFourProfilePreviewStaysInertAndOverlayDoesNotResize() async {
+        await MainActor.run {
+            let model = PairbarPanelModel.preview(fourProfiles: true)
+            XCTAssertEqual(model.visibleRows.map(\.name), ["Personal", "Work", "Studio", "Testing"])
+            XCTAssertTrue(model.previewOnly)
+            let size = model.desiredContentSize
+            model.toggleActions(for: "preview-testing")
+            XCTAssertEqual(model.desiredContentSize, size)
+            var dispatched = false
+            model.onAction = { _ in dispatched = true }
+            model.openRow(model.rows[3])
+            XCTAssertFalse(dispatched)
+        }
+    }
+
+    func testActionOverlayTracksAnchorAndClampsWithinPopover() {
+        let panel = CGSize(width: 190, height: 146)
+        let two = CGRect(x: 0, y: 0, width: 326, height: 208)
+        let work = PairbarActionPlacement.origin(anchor: CGRect(x: 286, y: 154, width: 34, height: 36),
+                                                panel: panel, bounds: two)
+        XCTAssertEqual(work, CGPoint(x: 96, y: 54), "Two-profile Work keeps its existing visual placement")
+
+        let four = CGRect(x: 0, y: 0, width: 326, height: 344)
+        let personal = PairbarActionPlacement.origin(anchor: CGRect(x: 286, y: 88, width: 34, height: 36),
+                                                    panel: panel, bounds: four)
+        let studio = PairbarActionPlacement.origin(anchor: CGRect(x: 286, y: 224, width: 34, height: 36),
+                                                  panel: panel, bounds: four)
+        let testing = PairbarActionPlacement.origin(anchor: CGRect(x: 286, y: 292, width: 34, height: 36),
+                                                   panel: panel, bounds: four)
+        XCTAssertLessThan(personal.y, studio.y)
+        XCTAssertEqual(studio.y, 190)
+        XCTAssertEqual(testing.y, 190, "The last row flips above its ellipsis instead of clipping")
+        XCTAssertLessThanOrEqual(testing.y + panel.height, four.maxY - 8)
+    }
+
     func testPinUsesFavoriteActionModelAndRemoveNeverOfferedForCurrent() async {
         await MainActor.run {
             let model = PairbarPanelModel()

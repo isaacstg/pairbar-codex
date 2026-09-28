@@ -42,13 +42,16 @@ struct PairbarPanelView: View {
             if model.page == .welcome || (model.page == .accounts && model.selecting) { footer }
         }
         .frame(width: model.desiredContentSize.width, height: model.desiredContentSize.height)
-        .overlay(alignment: .topTrailing) {
-            if model.page == .accounts,
-               let id = model.expandedActionsID,
-               let row = model.visibleRows.first(where: { $0.id == id }) {
-                rowActions(row)
-                    .padding(.top, 54)
-                    .padding(.trailing, 48)
+        .overlayPreferenceValue(PairbarActionAnchorKey.self) { anchors in
+            GeometryReader { geometry in
+                if model.page == .accounts,
+                   let id = model.expandedActionsID,
+                   let row = model.visibleRows.first(where: { $0.id == id }),
+                   let anchor = anchors[id] {
+                    PairbarActionOverlayLayout(anchor: geometry[anchor]) {
+                        rowActions(row)
+                    }
+                }
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
@@ -258,6 +261,7 @@ struct PairbarPanelView: View {
                         in: RoundedRectangle(cornerRadius: 8))
             .accessibilityLabel(t("Actions for", "Acciones de") + " " + row.name)
             .accessibilityValue(model.expandedActionsID == row.id ? t("Expanded", "Expandido") : t("Collapsed", "Contraído"))
+            .anchorPreference(key: PairbarActionAnchorKey.self, value: .bounds) { [row.id: $0] }
         }
         .frame(height: 64)
         .accessibilityElement(children: .contain)
@@ -492,6 +496,39 @@ struct PairbarPanelView: View {
             }
             Text(message).font(.caption).fixedSize(horizontal: false, vertical: true)
         }.padding(12).background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct PairbarActionAnchorKey: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] = [:]
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
+    }
+}
+
+/// Places the measured panel beside its ellipsis, then keeps it inside the native popover.
+struct PairbarActionPlacement {
+    static func origin(anchor: CGRect, panel: CGSize, bounds: CGRect) -> CGPoint {
+        let inset: CGFloat = 8
+        let preferredX = anchor.minX - panel.width
+        let preferredY = anchor.midY - 40
+        return CGPoint(
+            x: min(max(preferredX, bounds.minX + inset), max(bounds.minX + inset, bounds.maxX - panel.width - inset)),
+            y: min(max(preferredY, bounds.minY + inset), max(bounds.minY + inset, bounds.maxY - panel.height - inset))
+        )
+    }
+}
+
+private struct PairbarActionOverlayLayout: Layout {
+    let anchor: CGRect
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions()
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let panel = subviews.first else { return }
+        let size = panel.sizeThatFits(.unspecified)
+        panel.place(at: PairbarActionPlacement.origin(anchor: anchor, panel: size, bounds: bounds),
+                    proposal: ProposedViewSize(size))
     }
 }
 

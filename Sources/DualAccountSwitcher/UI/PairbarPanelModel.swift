@@ -235,7 +235,7 @@ final class PairbarPanelModel: ObservableObject {
 }
 
 extension PairbarPanelModel {
-    static func preview(language: PairbarLanguage = .english) -> PairbarPanelModel {
+    static func preview(language: PairbarLanguage = .english, fourProfiles: Bool = false) -> PairbarPanelModel {
         let model = PairbarPanelModel()
         model.previewOnly = true
         model.language = language
@@ -256,6 +256,18 @@ extension PairbarPanelModel {
             PairbarProfileRow(id: "current:claude", providerID: "claude", name: "Current Account", isCurrent: true,
                 status: model.text("Closed", "Cerrado"), order: 2, canOpen: true)
         ]
+        if fourProfiles {
+            model.rows.insert(contentsOf: [
+                PairbarProfileRow(id: "preview-studio", providerID: "codex", name: "Studio",
+                    status: model.text("Running", "En ejecución"), running: true, order: 2,
+                    shortcut: PairbarShortcut(keyCode: 20, modifiers: 2304),
+                    canOpen: true, canClose: true, canRestart: true, canDelete: true),
+                PairbarProfileRow(id: "preview-testing", providerID: "codex", name: "Testing",
+                    status: model.text("Running", "En ejecución"), running: true, order: 3,
+                    shortcut: PairbarShortcut(keyCode: 21, modifiers: 2304),
+                    canOpen: true, canClose: true, canRestart: true, canDelete: true)
+            ], at: 2)
+        }
         model.diagnosticText = "Pairbar · preview\nprovider codex: ready\nprovider claude: managed-unavailable\nprofiles: 2"
         return model
     }
