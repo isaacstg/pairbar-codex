@@ -6,6 +6,7 @@ struct PairbarProfileEditor: View {
     @ObservedObject var model: PairbarPanelModel
     let row: PairbarProfileRow?
     @State private var draft: PairbarProfileDraft
+    @FocusState private var nameFocused: Bool
 
     init(model: PairbarPanelModel, row: PairbarProfileRow?) {
         self.model = model
@@ -34,27 +35,35 @@ struct PairbarProfileEditor: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 18) {
             if let row {
                 Label(model.providerName(row.providerID) + " · " + (row.isCurrent ? "Current" : t("Managed profile", "Perfil administrado")),
                       systemImage: row.isCurrent ? "person.crop.circle" : "person.crop.circle.badge.plus")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.caption).foregroundStyle(.secondary)
             } else {
-                Text("ChatGPT/Codex").font(.callout).foregroundStyle(.secondary)
+                Label("ChatGPT/Codex", systemImage: "person.crop.circle.badge.plus")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            VStack(alignment: .leading, spacing: 6) {
-                Text(t("Profile name", "Nombre del perfil")).font(.callout.bold())
+            VStack(alignment: .leading, spacing: 8) {
+                Text(t("Profile name", "Nombre del perfil")).font(.callout.weight(.semibold))
                 TextField(t("For example, Work", "Por ejemplo, Trabajo"), text: $draft.name)
-                    .textFieldStyle(.roundedBorder).accessibilityLabel(t("Profile name", "Nombre del perfil"))
-                Text("\(normalizedName.count)/40").font(.caption2).foregroundStyle(.secondary)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.large)
+                    .focused($nameFocused)
+                    .accessibilityLabel(t("Profile name", "Nombre del perfil"))
+                if !draft.name.isEmpty {
+                    Text("\(normalizedName.count)/40").font(.caption2).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
             if row == nil {
                 Text(t("A free ⌥⌘ number shortcut is assigned automatically when available. You can change it later.", "Se asigna automáticamente un atajo numérico ⌥⌘ libre cuando haya uno disponible. Puedes cambiarlo después."))
                     .font(.caption).foregroundStyle(.secondary)
             } else {
+                Divider()
                 Toggle(t("Favorite", "Favorito"), isOn: $draft.favorite)
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(t("Global shortcut", "Atajo global")).font(.callout.bold())
+                    Text(t("Global shortcut", "Atajo global")).font(.callout.weight(.semibold))
                     PairbarShortcutRecorder(shortcut: $draft.shortcut, language: model.language).frame(height: 28)
                     Text(t("Press a key with Command, Option or Control. Delete clears the shortcut.", "Pulsa una tecla con Comando, Opción o Control. Suprimir borra el atajo."))
                         .font(.caption).foregroundStyle(.secondary)
@@ -78,6 +87,11 @@ struct PairbarProfileEditor: View {
                     else { model.send(.create(submitted)) }
                 }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
                     .disabled(model.previewOnly || model.busy || !permitted || validation != nil)
+            }
+        }
+        .onAppear {
+            if row == nil {
+                DispatchQueue.main.async { nameFocused = true }
             }
         }
     }

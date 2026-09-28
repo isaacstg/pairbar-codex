@@ -125,7 +125,19 @@ final class PairbarPanelModel: ObservableObject {
     }
     var canCreate: Bool { providers.contains { $0.canCreate && !$0.busy } }
     func send(_ action: PairbarPanelAction) {
-        guard !previewOnly else { return }
+        if previewOnly {
+            // The inert preview can exercise settings presentation without
+            // forwarding any action to the controller or the operating system.
+            switch action {
+            case .setLanguage(let value): language = value
+            case .setStartAtLogin(let value): startAtLogin = value
+            case .setOpenProfilesAtLogin(let value): openProfilesAtLogin = value
+            case .setProfileAtLogin(let id, let value):
+                if let index = rows.firstIndex(where: { $0.id == id }) { rows[index].openAtLogin = value }
+            default: break
+            }
+            return
+        }
         // A confirmation may outlive the row it was opened from. Recheck current
         // presentation capabilities here; the controller separately checks ownership.
         switch action {

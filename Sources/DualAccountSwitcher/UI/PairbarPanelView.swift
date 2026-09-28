@@ -5,6 +5,7 @@ struct PairbarPanelView: View {
     @ObservedObject var model: PairbarPanelModel
     let dismiss: () -> Void
     @FocusState private var searchFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var searchExpanded = false
     @State private var confirmation: PairbarConfirmation?
 
@@ -17,6 +18,12 @@ struct PairbarPanelView: View {
         case .help: return t("Help", "Ayuda")
         case .create: return t("Add profile", "Añadir perfil")
         case .edit: return t("Edit profile", "Editar perfil")
+        }
+    }
+    private var showsFooter: Bool {
+        switch model.page {
+        case .create, .edit: return false
+        default: return true
         }
     }
 
@@ -36,11 +43,14 @@ struct PairbarPanelView: View {
                     }
                     pageContent
                 }
-                .padding(16)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Divider()
-            footer
+            if showsFooter {
+                Divider()
+                footer
+            }
         }
         .frame(width: PairbarPanelModel.width, height: PairbarPanelModel.height)
         .background(Color(nsColor: .windowBackgroundColor))
@@ -67,14 +77,22 @@ struct PairbarPanelView: View {
                     .accessibilityLabel(t("Back to profiles", "Volver a perfiles"))
                     .help(t("Back to profiles · Shift-Command-B", "Volver a perfiles · Mayús-Comando-B"))
             }
+            if model.page == .accounts {
+                Image(systemName: "person.2.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 27, height: 27)
+                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 7))
+                    .accessibilityHidden(true)
+            }
             Text(title).font(.headline).lineLimit(2)
             Spacer(minLength: 4)
-            Button(action: dismiss) { Image(systemName: "xmark") }
+            Button(action: dismiss) { Image(systemName: "xmark").font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
                 .buttonStyle(.plain)
                 .keyboardShortcut(.cancelAction)
                 .accessibilityLabel(t("Close popover", "Cerrar panel"))
                 .help(t("Close · Escape", "Cerrar · Escape"))
-        }.padding(16)
+        }.padding(.horizontal, 16).padding(.vertical, 13)
     }
 
     private var keyboardCommands: some View {
@@ -88,19 +106,21 @@ struct PairbarPanelView: View {
     }
 
     private func revealSearch() {
-        if searchExpanded { searchFocused = true }
-        else { searchExpanded = true }
+        searchExpanded = true
+        DispatchQueue.main.async { searchFocused = true }
     }
 
     private var searchAndFilters: some View {
-        VStack(spacing: 8) {
-            HStack {
+        VStack(spacing: 9) {
+            HStack(spacing: 14) {
                 Button {
                     if searchExpanded { searchExpanded = false; model.search = ""; searchFocused = false }
                     else { revealSearch() }
                 } label: {
                     Label(t("Search", "Buscar"), systemImage: "magnifyingglass")
-                }.buttonStyle(.borderless)
+                }.buttonStyle(.plain)
+                    .foregroundStyle(searchExpanded ? Color.accentColor : Color.primary)
+                    .accessibilityLabel(t("Search profiles", "Buscar perfiles"))
                 Spacer()
                 Menu {
                     Picker(t("Provider", "Proveedor"), selection: $model.providerFilter) {
@@ -110,10 +130,11 @@ struct PairbarPanelView: View {
                     }
                 } label: { Label(t("Filter", "Filtrar"), systemImage: "line.3.horizontal.decrease") }
                     .menuStyle(.borderlessButton)
+                    .accessibilityLabel(t("Filter profiles by provider", "Filtrar perfiles por proveedor"))
                 Button(model.selecting ? t("Done", "Listo") : t("Select", "Elegir")) {
                     model.selecting.toggle()
                     if !model.selecting { model.selectedIDs = [] }
-                }.buttonStyle(.borderless)
+                }.buttonStyle(.plain)
                     .accessibilityLabel(model.selecting ? t("Finish selecting profiles", "Terminar de elegir perfiles") :
                         t("Choose profiles to open", "Elegir perfiles para abrir"))
             }
@@ -133,9 +154,12 @@ struct PairbarPanelView: View {
                         .buttonStyle(.plain).foregroundStyle(.secondary)
                         .accessibilityLabel(t("Clear search", "Borrar búsqueda"))
                 }
-            }.padding(9).background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+            }.padding(.horizontal, 10).frame(height: 31)
+                .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 7))
+                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.primary.opacity(0.07)))
             }
         }.padding(.horizontal, 16).padding(.bottom, 12)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: searchExpanded)
     }
 
     @ViewBuilder private var pageContent: some View {
@@ -172,7 +196,13 @@ struct PairbarPanelView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }.padding(.vertical, 16)
             }
-            ForEach(model.visibleRows) { row in profileRow(row) }
+            LazyVStack(spacing: 0) {
+                ForEach(Array(model.visibleRows.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 { Divider().padding(.leading, model.selecting ? 41 : 12) }
+                    profileRow(row)
+                }
+            }
+            .background(Color(nsColor: .controlBackgroundColor).opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
             ForEach(model.providers.filter(\.canRecover)) { provider in
                 Button(t("Recover " + provider.name + "…", "Recuperar " + provider.name + "…")) {
                     confirmation = .recover(provider)
@@ -195,14 +225,24 @@ struct PairbarPanelView: View {
             }
             VStack(alignment: .leading, spacing: 5) {
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(row.name).font(.headline).lineLimit(2).help(row.name)
-                    if row.favorite { Image(systemName: "star.fill").font(.caption2).foregroundStyle(.secondary).accessibilityLabel(t("Favorite", "Favorito")) }
+                    Text(row.name).font(.callout.weight(.semibold)).lineLimit(2).help(row.name)
+                    if row.favorite { Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(.secondary).accessibilityLabel(t("Favorite", "Favorito")) }
                 }
-                Text(model.providerName(row.providerID) + " · " + (row.isCurrent ? "Current" : t("Profile", "Perfil")))
-                    .font(.caption2).foregroundStyle(.secondary)
-                if row.needsAttention || row.running || row.isBusy {
-                    Label(row.status, systemImage: row.needsAttention ? "exclamationmark.circle" : (row.running ? "checkmark.circle.fill" : "circle"))
-                        .font(.caption).foregroundStyle(row.needsAttention ? Color.orange : (row.running ? Color.green : Color.secondary))
+                HStack(spacing: 5) {
+                    if row.running && !row.needsAttention {
+                        Image(systemName: "circle.fill").font(.system(size: 6)).foregroundStyle(.green).accessibilityHidden(true)
+                        Text(t("Running", "En ejecución"))
+                        Text("·")
+                    }
+                    Text(model.providerName(row.providerID))
+                    if row.isCurrent {
+                        Text("·")
+                        Text("Current")
+                    }
+                }.font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                if row.needsAttention || row.isBusy {
+                    Label(row.status, systemImage: row.needsAttention ? "exclamationmark.circle" : "clock")
+                        .font(.caption).foregroundStyle(row.needsAttention ? Color.orange : Color.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
@@ -211,20 +251,26 @@ struct PairbarPanelView: View {
                     HStack(spacing: 4) {
                         if row.isBusy { ProgressView().controlSize(.mini) }
                         Text(row.running ? t("Switch", "Cambiar") : t("Open", "Abrir"))
-                    }.frame(minWidth: 62)
+                    }.frame(minWidth: 55)
                 }
+                .controlSize(.small)
                 .disabled(model.previewOnly || !row.canOpen || row.isBusy)
                 .accessibilityLabel((row.running ? t("Switch to", "Cambiar a") : t("Open", "Abrir")) + " " + row.name)
                 .help(row.unavailableReason ?? row.shortcut?.display ?? "")
-                HStack(spacing: 5) {
-                    Text(row.shortcut?.display ?? "").font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 7) {
+                    if let shortcut = row.shortcut {
+                        Text(shortcut.display).font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary).lineLimit(1)
+                            .padding(.horizontal, 5).padding(.vertical, 2)
+                            .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 4))
+                            .accessibilityLabel(t("Shortcut", "Atajo") + " " + shortcut.display)
+                    }
                     rowMenu(row)
-                }.frame(height: 16)
-            }.frame(width: 92, alignment: .trailing)
+                }.frame(height: 19)
+            }.frame(minWidth: 78, alignment: .trailing)
         }
-        .padding(12)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 12).padding(.vertical, 10)
+        .frame(minHeight: 72)
         .accessibilityElement(children: .contain)
     }
 
@@ -277,38 +323,41 @@ struct PairbarPanelView: View {
 
     private var settings: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Picker(t("Language", "Idioma"), selection: Binding(get: { model.language }, set: { model.send(.setLanguage($0)) })) {
-                Text(t("System", "Sistema")).tag(PairbarLanguage.system)
-                Text("English").tag(PairbarLanguage.english)
-                Text("Español").tag(PairbarLanguage.spanish)
-            }.disabled(model.previewOnly)
-            Divider()
+            VStack(alignment: .leading, spacing: 9) {
+                Text(t("General", "General")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Picker(t("Language", "Idioma"), selection: Binding(get: { model.language }, set: { model.send(.setLanguage($0)) })) {
+                    Text(t("System", "Sistema")).tag(PairbarLanguage.system)
+                    Text("English").tag(PairbarLanguage.english)
+                    Text("Español").tag(PairbarLanguage.spanish)
+                }
+            }
             VStack(alignment: .leading, spacing: 10) {
-                Text(t("At login", "Al iniciar sesión")).font(.headline)
+                Text(t("At login", "Al iniciar sesión")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 Toggle(t("Start Pairbar at login", "Iniciar Pairbar al iniciar sesión"), isOn: Binding(
                     get: { model.startAtLogin }, set: { model.send(.setStartAtLogin($0)) }
-                )).disabled(model.previewOnly || model.busy)
+                )).disabled(model.busy)
                 if model.loginStatus == t("Approve in System Settings", "Requiere aprobación en Ajustes del Sistema") ||
                     model.loginStatus == t("Install Pairbar in Applications first", "Instala Pairbar en Aplicaciones primero") {
                     Text(model.loginStatus).font(.caption).foregroundStyle(.secondary)
                 }
                 Toggle(t("Open chosen profiles at login", "Abrir perfiles elegidos al iniciar sesión"), isOn: Binding(
                     get: { model.openProfilesAtLogin }, set: { model.send(.setOpenProfilesAtLogin($0)) }
-                )).disabled(model.previewOnly || model.busy)
+                )).disabled(model.busy)
                 if model.openProfilesAtLogin {
                     if !model.startAtLogin {
                         Label(t("Enable Start Pairbar at login to use this selection.", "Activa el inicio de Pairbar para usar esta selección."), systemImage: "info.circle")
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                    LazyVStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 8) {
                         ForEach(model.orderedRows) { row in
                             Toggle(row.name + " · " + model.providerName(row.providerID), isOn: Binding(
                                 get: { row.openAtLogin }, set: { model.send(.setProfileAtLogin(row.id, $0)) }
-                            )).disabled(model.previewOnly || !row.canEdit)
+                            )).disabled(!row.canEdit)
                         }
                     }
                 }
-            }
+            }.padding(.top, 2)
+            Divider()
             DisclosureGroup(t("Advanced", "Avanzado")) {
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(model.providers) { provider in providerSettings(provider) }
@@ -398,16 +447,19 @@ struct PairbarPanelView: View {
                     .disabled(model.previewOnly || model.selectedOpenableIDs.isEmpty || model.busy)
             }.padding(16)
         } else {
-            HStack {
-                Button { model.page = .settings } label: { Label(t("Settings", "Ajustes"), systemImage: "gearshape") }
+            HStack(spacing: 14) {
+                Button { model.page = .settings } label: { Image(systemName: "gearshape") }
                     .buttonStyle(.plain).disabled(model.page == .settings)
+                    .accessibilityLabel(t("Settings", "Ajustes"))
+                    .help(t("Settings", "Ajustes"))
+                Button { model.page = .help } label: { Image(systemName: "questionmark.circle") }
+                    .buttonStyle(.plain).disabled(model.page == .help)
+                    .accessibilityLabel(t("Help", "Ayuda"))
+                    .help(t("Help", "Ayuda"))
                 Spacer()
                 Button { model.page = .create } label: { Label(t("Add profile", "Añadir perfil"), systemImage: "plus") }
                     .buttonStyle(.borderedProminent).disabled(!model.canCreate || model.page == .create)
-                Spacer()
-                Button { model.page = .help } label: { Label(t("Help", "Ayuda"), systemImage: "questionmark.circle") }
-                    .buttonStyle(.plain).disabled(model.page == .help)
-            }.font(.callout).padding(16)
+            }.font(.callout).padding(.horizontal, 16).padding(.vertical, 12)
         }
     }
 
