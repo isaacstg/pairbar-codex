@@ -459,6 +459,46 @@ final class DynamicStoreTests: XCTestCase {
         XCTAssertEqual(try store.listProfiles(), [result.profile])
     }
 
+    func testMetadataOnlyRemovalRetainsStorageAcrossReloadAndRejectsUnknownDirectories() throws {
+        let store = try openStore()
+        var profile = try store.createProfile(provider: .codex, name: "Unused")
+        profile.shortcut = .legacySecond; profile.launchAtLogin = true
+        try store.saveProfile(profile)
+        let paths = try store.prepareStorage(for: profile)
+        let marker = paths.codexHome.appendingPathComponent("opaque-marker")
+        try Data("keep".utf8).write(to: marker)
+        let removed = try store.removeProfile(profile)
+        XCTAssertTrue(removed.archived)
+        XCTAssertEqual(removed.storageRetainedInPlace, true)
+        XCTAssertNil(removed.shortcut)
+        XCTAssertFalse(removed.launchAtLogin)
+        XCTAssertEqual(try String(contentsOf: marker, encoding: .utf8), "keep")
+        XCTAssertFalse(try store.hasOrphanStorage(provider: .codex, records: store.listProfiles()))
+        try store.migrateIfNeeded()
+        XCTAssertFalse(try store.hasOrphanStorage(provider: .codex, records: store.listProfiles()))
+        let unknown = scratch.appendingPathComponent("Profiles/codex/unknown")
+        try PrivateStore.prepareDirectory(unknown)
+        XCTAssertTrue(try store.hasOrphanStorage(provider: .codex, records: store.listProfiles()))
+        XCTAssertThrowsError(try store.removeProfile(profile))
+    }
+
+    func testMetadataOnlyRemovalRejectsPendingReceiptAndArchiveJournal() throws {
+        let store = try openStore()
+        let clean = try store.createProfile(provider: .codex, name: "Clean")
+        var pending = try store.createProfile(provider: .codex, name: "Pending")
+        pending.pending = PendingLaunch2(fingerprint: "test-fingerprint")
+        try store.saveProfile(pending)
+        XCTAssertThrowsError(try store.removeProfile(pending))
+        var owned = try store.createProfile(provider: .codex, name: "Owned")
+        owned.receipt = receipt(for: owned)
+        try store.saveProfile(owned)
+        XCTAssertThrowsError(try store.removeProfile(owned))
+        let journal = archiveJournal(before: clean, hadStorage: false)
+        try fixture(journal, at: journalPath(journal))
+        XCTAssertThrowsError(try store.removeProfile(clean))
+        XCTAssertFalse(try XCTUnwrap(store.listProfiles().first { $0.id == clean.id }).archived)
+    }
+
     private struct ArchiveFixture: Codable {
         let id: UUID
         let before: ProfileRecord2

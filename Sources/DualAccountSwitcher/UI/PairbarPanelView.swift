@@ -291,8 +291,10 @@ struct PairbarPanelView: View {
                 Button(t("Restart…", "Reiniciar…")) { confirmation = .restart(row) }.disabled(model.previewOnly || !row.canRestart)
                 Button(t("Close…", "Cerrar…")) { confirmation = .close(row) }.disabled(model.previewOnly || !row.canClose)
                 Divider()
-                Button(t("Archive & reset…", "Archivar y restablecer…")) { confirmation = .reset(row) }.disabled(model.previewOnly || !row.canReset)
-                Button(t("Archive profile…", "Archivar perfil…")) { confirmation = .archive(row) }.disabled(model.previewOnly || !row.canArchive)
+                Button(t("Delete profile…", "Eliminar perfil…")) { confirmation = .delete(row) }.disabled(!row.canDelete)
+                Menu(t("Advanced", "Avanzado")) {
+                    Button(t("Archive & reset…", "Archivar y restablecer…")) { confirmation = .reset(row) }.disabled(model.previewOnly || !row.canReset)
+                }
             }
         } label: { Image(systemName: "ellipsis") }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 18)
@@ -422,7 +424,7 @@ struct PairbarPanelView: View {
                 }.padding(.top, 8)
             }
             DisclosureGroup(t("Reset and archive", "Restablecer y archivar")) {
-                Text(t("Archive & reset keeps the old data in an archive and starts with fresh storage next time. Archive profile removes it from the active list and startup selection. Both require every instance of that provider to be closed and no uncertain operation. Pairbar never immediately deletes profile data.", "Archivar y restablecer conserva los datos anteriores en un archivo e inicia con almacenamiento nuevo la próxima vez. Archivar perfil lo retira de la lista activa y del inicio automático. Ambas acciones requieren cerrar todas las instancias del proveedor y resolver cualquier operación incierta. Pairbar nunca borra inmediatamente los datos."))
+                Text(t("Delete profile removes a managed profile from Pairbar and keeps its local data. If it is open, Pairbar closes only that verified profile first. Archive & reset keeps the old data in an archive and starts with fresh storage next time; it still requires every instance of that provider to be closed.", "Eliminar perfil quita un perfil administrado de Pairbar y conserva sus datos locales. Si está abierto, Pairbar cierra primero solo ese perfil verificado. Archivar y restablecer conserva los datos anteriores e inicia con almacenamiento nuevo; sigue exigiendo cerrar todas las instancias del proveedor."))
                     .font(.caption).foregroundStyle(.secondary).padding(.top, 8)
             }
             Divider()
@@ -487,11 +489,12 @@ struct PairbarPanelView: View {
 }
 
 private enum PairbarConfirmation: Identifiable {
-    case close(PairbarProfileRow), restart(PairbarProfileRow), archive(PairbarProfileRow), reset(PairbarProfileRow), recover(PairbarProviderRow)
+    case close(PairbarProfileRow), restart(PairbarProfileRow), delete(PairbarProfileRow), archive(PairbarProfileRow), reset(PairbarProfileRow), recover(PairbarProviderRow)
     var id: String {
         switch self {
         case .close(let row): return "close:" + row.id
         case .restart(let row): return "restart:" + row.id
+        case .delete(let row): return "delete:" + row.id
         case .archive(let row): return "archive:" + row.id
         case .reset(let row): return "reset:" + row.id
         case .recover(let provider): return "recover:" + provider.id
@@ -501,6 +504,7 @@ private enum PairbarConfirmation: Identifiable {
         switch self {
         case .close(let row): return .close(row.id)
         case .restart(let row): return .restart(row.id)
+        case .delete(let row): return .delete(row.id)
         case .archive(let row): return .archive(row.id)
         case .reset(let row): return .reset(row.id)
         case .recover(let provider): return .recover(provider.id)
@@ -509,7 +513,7 @@ private enum PairbarConfirmation: Identifiable {
     func title(language: PairbarLanguage) -> String {
         let name: String
         switch self {
-        case .close(let row), .restart(let row), .archive(let row), .reset(let row): name = row.name
+        case .close(let row), .restart(let row), .delete(let row), .archive(let row), .reset(let row): name = row.name
         case .recover(let provider): name = provider.name
         }
         return button(language: language) + " · " + name + "?"
@@ -518,6 +522,7 @@ private enum PairbarConfirmation: Identifiable {
         switch self {
         case .close: return language.text("Close profile", "Cerrar perfil")
         case .restart: return language.text("Restart profile", "Reiniciar perfil")
+        case .delete: return language.text("Delete profile", "Eliminar perfil")
         case .archive: return language.text("Archive profile", "Archivar perfil")
         case .reset: return language.text("Archive & reset", "Archivar y restablecer")
         case .recover: return language.text("Try safe recovery", "Intentar recuperación segura")
@@ -527,6 +532,11 @@ private enum PairbarConfirmation: Identifiable {
         switch self {
         case .close, .restart:
             return language.text("Save your work first. Pairbar rechecks ownership before requesting a normal close. Current is never closed by Pairbar.", "Guarda tu trabajo primero. Pairbar vuelve a comprobar la propiedad antes de solicitar un cierre normal. Pairbar nunca cierra Current.")
+        case .delete(let row):
+            if row.running {
+                return language.text("This profile is open. Pairbar will close this profile and remove it. Other accounts stay open. Its local data will be kept for safety.", "Este perfil está abierto. Pairbar cerrará este perfil y lo eliminará. Las demás cuentas seguirán abiertas. Sus datos locales se conservarán por seguridad.")
+            }
+            return language.text("This profile will be removed from Pairbar. Its local data will be kept for safety. Other accounts stay open.", "Este perfil se eliminará de Pairbar. Sus datos locales se conservarán por seguridad. Las demás cuentas seguirán abiertas.")
         case .archive:
             return language.text("This profile will leave the active list and startup selection. Its data will be archived, not deleted. Every instance of this provider must be closed first.", "Este perfil se retirará de la lista activa y del inicio automático. Sus datos se archivarán, sin borrarlos. Primero deben cerrarse todas las instancias de este proveedor.")
         case .reset:

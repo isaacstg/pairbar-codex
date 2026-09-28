@@ -55,6 +55,8 @@ final class PairbarController {
         case "compatibility": model.errorMessage = text("This official app build could not be verified or approved. See Advanced in Settings.", "No se pudo verificar o aprobar esta versión oficial. Consulta Avanzado en Ajustes.")
         case "claude-unvalidated": model.errorMessage = text("Additional Claude profiles are unavailable until real Chat and Code separation is validated.", "Los perfiles adicionales de Claude no están disponibles hasta validar la separación real de Chat y Code.")
         case "ownership": model.errorMessage = text("Pairbar needs to verify this account before it can be opened. Close ChatGPT, then use Repair… or check Advanced.", "Pairbar necesita verificar esta cuenta antes de abrirla. Cierra ChatGPT y usa Reparar… o revisa Avanzado.")
+        case "delete-ownership": model.errorMessage = text("Pairbar needs to verify this profile before it can be removed.", "Pairbar necesita verificar este perfil antes de eliminarlo.")
+        case "delete-close": model.errorMessage = text("Pairbar could not safely close this profile. It remains in your list with its data intact.", "Pairbar no pudo cerrar este perfil de forma segura. Sigue en la lista y conserva sus datos.")
         case "updated-running-app": model.errorMessage = text("ChatGPT may have been updated while this profile was open. Close that ChatGPT app normally, then open the profile again.", "Es posible que ChatGPT se haya actualizado mientras este perfil estaba abierto. Cierra esa app de ChatGPT de forma normal y vuelve a abrir el perfil.")
         case "shortcut": model.errorMessage = text("That shortcut is invalid or unavailable. The previous shortcut was retained.", "El atajo no es válido o no está disponible. Se conserva el anterior.")
         case "name": model.errorMessage = text("Use a unique name of 1–40 characters without line breaks or control characters.", "Usa un nombre único de 1–40 caracteres, sin saltos de línea ni caracteres de control.")
@@ -101,6 +103,9 @@ final class PairbarController {
     private func providerHasMetadataIssue(_ provider: ProviderID2) -> Bool {
         do { return try store.hasPendingOperations(provider: provider) || store.hasOrphanStorage(provider: provider, records: records) }
         catch { return true }
+    }
+    private func currentIsKnown(_ state: ProviderState2) -> Bool {
+        switch state.current { case .stopped, .running: return true; default: return false }
     }
     private func automaticPendingIsOldEnough(_ provider: ProviderID2) -> Bool {
         !records.contains { record in
@@ -169,12 +174,15 @@ final class PairbarController {
             rows.append(row)
             for record in records where record.provider == provider && !record.archived {
                 let profileState = state.profiles[record.id] ?? .ownershipUncertain
+                let canDelete = managedProfilesEnabled && !isBusy && !state.needsRecovery && currentIsKnown(state) &&
+                    record.pending == nil && (profileState == .stopped && record.receipt == nil ||
+                        profileState.verifiedPID != nil)
                 let archiveSafe = managedProfilesEnabled && !isBusy && !state.needsRecovery && runtime.running(provider: provider).isEmpty &&
                     !records.contains(where: { $0.provider == provider && ($0.receipt != nil || $0.pending != nil) })
                 var row = PairbarProfileRow(id: record.id.description, providerID: provider.rawValue, name: record.name,
                     favorite: record.favorite, order: record.order,
                     shortcut: record.shortcut.map { PairbarShortcut(keyCode: $0.keyCode, modifiers: $0.modifiers) },
-                    openAtLogin: record.launchAtLogin, canArchive: archiveSafe, canReset: archiveSafe, canEdit: !isBusy)
+                    openAtLogin: record.launchAtLogin, canArchive: archiveSafe, canDelete: canDelete, canReset: archiveSafe, canEdit: !isBusy)
                 switch profileState {
                 case .runningVerified:
                     row.status = text("Running", "En ejecución"); row.running = true
@@ -551,6 +559,52 @@ final class PairbarController {
         } catch { caught(error) }
         refresh()
     }
+    func delete(_ id: ManagedProfileID) async {
+        guard let initial = records.first(where: { $0.id == id && !$0.archived }),
+              initial.provider == .codex, !busy.contains(initial.provider) else { return }
+        let provider = initial.provider
+        busy.insert(provider); refresh()
+        defer { busy.remove(provider); refresh() }
+        guard !providerHasMetadataIssue(provider), let initialState = states[provider],
+              !initialState.needsRecovery, currentIsKnown(initialState),
+              initial.pending == nil else { fail("delete-ownership"); return }
+        switch states[provider]?.profiles[id] {
+        case .runningVerified:
+            guard await close(id, holdingProviderLock: true) else { fail("delete-close"); return }
+        case .stopped:
+            guard initial.receipt == nil else { fail("delete-ownership"); return }
+        default: fail("delete-ownership"); return
+        }
+        refresh()
+        guard !providerHasMetadataIssue(provider), let finalState = states[provider],
+              !finalState.needsRecovery, currentIsKnown(finalState),
+              states[provider]?.profiles[id] == .stopped,
+              let current = records.first(where: { $0.id == id && !$0.archived }),
+              current.pending == nil, current.receipt == nil else { fail("delete-ownership"); return }
+        let previous = shortcutBindings()
+        var removed = current
+        removed.archived = true; removed.favorite = false; removed.shortcut = nil; removed.launchAtLogin = false
+        guard acceptShortcuts(shortcutBindings(profiles: records.map { $0.id == id ? removed : $0 })) else {
+            fail("shortcut"); return
+        }
+        do {
+            let saved = try store.removeProfile(current)
+            if let index = records.firstIndex(where: { $0.id == id }) { records[index] = saved }
+            event("profile-removed")
+        } catch {
+            // A failed fsync can follow an atomic metadata rename. Read the durable
+            // record before deciding whether the old shortcut should be restored.
+            if let durable = try? store.listProfiles() {
+                records = durable
+                _ = replaceShortcuts?(shortcutBindings())
+                if durable.first(where: { $0.id == id })?.archived == true { event("profile-removed") }
+                else { fail("delete-ownership") }
+            } else {
+                _ = replaceShortcuts?(previous)
+                fail("delete-ownership")
+            }
+        }
+    }
     func shortcutBindings(profiles: [ProfileRecord2]? = nil, providerSettings: [ProviderID2: ProviderSettings2]? = nil) -> [HotKeys.Binding] {
         let currentProviders = providerSettings ?? providers
         var values = currentProviders.values.compactMap { settings in settings.currentShortcut.map {
@@ -667,6 +721,7 @@ final class PairbarController {
         case .close(let id): if let uuid = UUID(uuidString: id) { Task { _ = await close(ManagedProfileID(uuid)) } }
         case .restart(let id): if let uuid = UUID(uuidString: id) { Task { await restart(ManagedProfileID(uuid)) } }
         case .archive(let id): if let uuid = UUID(uuidString: id) { archive(ManagedProfileID(uuid), reset: false) }
+        case .delete(let id): if let uuid = UUID(uuidString: id) { Task { await delete(ManagedProfileID(uuid)) } }
         case .reset(let id): if let uuid = UUID(uuidString: id) { archive(ManagedProfileID(uuid), reset: true) }
         case .check(let id): if let provider = ProviderID2(rawValue: id) { Task { await check(provider) } }
         case .recover(let id): if let provider = ProviderID2(rawValue: id) { Task { await recover(provider) } }

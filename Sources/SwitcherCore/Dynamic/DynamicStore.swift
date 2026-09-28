@@ -261,7 +261,9 @@ public final class DynamicStore {
         var ids = Set<ManagedProfileID>(), paths = Set<String>(), pids = Set<Int32>()
         for record in records {
             guard ids.insert(record.id).inserted else { throw DynamicStoreError.duplicateProfile }
-            if !record.archived { guard paths.insert(pathsFor(record).base.path).inserted else { throw DynamicStoreError.duplicateProfile } }
+            if !record.archived || record.storageRetainedInPlace == true {
+                guard paths.insert(pathsFor(record).base.path).inserted else { throw DynamicStoreError.duplicateProfile }
+            }
             if let receipt = record.receipt { guard pids.insert(receipt.stamp.pid).inserted else { throw DynamicStoreError.duplicateProfile } }
         }
         var shortcuts = Set<Shortcut2>()
@@ -297,7 +299,7 @@ public final class DynamicStore {
             guard normalized(current.currentName) != normalized(record.name), !records.contains(where: {
                 $0.id != record.id && !$0.archived && $0.provider == record.provider && normalized($0.name) == normalized(record.name)
             }) else { throw DynamicStoreError.duplicateProfile }
-            guard !records.contains(where: { $0.id != record.id && !$0.archived && pathsFor($0).base == pathsFor(record).base }) else { throw DynamicStoreError.duplicateProfile }
+            guard !records.contains(where: { $0.id != record.id && (!$0.archived || $0.storageRetainedInPlace == true) && pathsFor($0).base == pathsFor(record).base }) else { throw DynamicStoreError.duplicateProfile }
         }
         if let receipt = record.receipt {
             guard !records.contains(where: { $0.id != record.id && $0.receipt?.stamp.pid == receipt.stamp.pid }) else { throw DynamicStoreError.duplicateProfile }
@@ -321,6 +323,7 @@ public final class DynamicStore {
         guard (-1_000_000_000...1_000_000_000).contains(profile.order),
               profile.shortcut?.isValid != false else { throw DynamicStoreError.invalidMetadata }
         guard profile.storage != .legacySecond || (profile.provider == .codex && profile.id == .legacySecond),
+              profile.storageRetainedInPlace != true || (profile.archived && profile.archiveID == nil),
               !profile.archived || (profile.receipt == nil && profile.pending == nil && !profile.launchAtLogin && profile.shortcut == nil) else { throw DynamicStoreError.invalidMetadata }
         if let receipt = profile.receipt {
             guard receipt.launchPolicyVersion == 1,
@@ -377,7 +380,8 @@ public final class DynamicStore {
         return true
     }
     public func hasOrphanStorage(provider: ProviderID2, records: [ProfileRecord2]) throws -> Bool {
-        let stored = Set(records.filter { $0.provider == provider && !$0.archived }.map { pathsFor($0).base.lastPathComponent })
+        let stored = Set(records.filter { $0.provider == provider && (!$0.archived || $0.storageRetainedInPlace == true) }
+            .map { pathsFor($0).base.lastPathComponent })
         let directoryNames = try names(["Profiles", provider.rawValue])
         if directoryNames.contains(where: { !stored.contains($0) }) { return true }
         guard provider == .codex else { return false }
@@ -398,6 +402,25 @@ public final class DynamicStore {
         }
     }
     public func hasPendingOperations(provider: ProviderID2) throws -> Bool { try operations().contains { $0.before.provider == provider } }
+    /// Metadata-only removal is a single atomic record replacement. No directory is moved.
+    /// The archived record retains explicit ownership of storage at its original path.
+    public func removeProfile(_ expected: ProfileRecord2) throws -> ProfileRecord2 {
+        try requireLock()
+        guard expected.provider.managedProfilesEnabled, !expected.archived,
+              expected.pending == nil, expected.receipt == nil,
+              let current = try listProfiles().first(where: { $0.id == expected.id }), current == expected,
+              !(try hasPendingOperations(provider: expected.provider)),
+              !(try hasOrphanStorage(provider: expected.provider, records: listProfiles())) else { throw DynamicStoreError.recoveryRequired }
+        var removed = expected
+        removed.archived = true
+        removed.favorite = false
+        removed.shortcut = nil
+        removed.launchAtLogin = false
+        removed.archiveID = nil
+        removed.storageRetainedInPlace = true
+        try saveProfile(removed)
+        return removed
+    }
     private func requireQuiescence(_ evidence: ProviderQuiescence2) throws {
         guard evidence.officialProcessCount == 0, !evidence.hasUnverifiableProcesses,
               Date().timeIntervalSince(evidence.observedAt) >= 0, Date().timeIntervalSince(evidence.observedAt) <= 2 else { throw DynamicStoreError.providerNotStopped }
