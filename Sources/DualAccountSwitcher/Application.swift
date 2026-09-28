@@ -83,7 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.model = model
             configureStatusItem(model: model)
             popover.behavior = .transient
-            popover.contentSize = NSSize(width: PairbarPanelModel.width, height: PairbarPanelModel.height)
+            model.onDesiredContentSizeChange = { [weak self] size in
+                self?.popover.contentSize = size
+            }
             let hosting = NSHostingController(rootView: PairbarPanelView(
                 model: model, dismiss: { [weak self] in self?.popover.performClose(nil) }
             ).preferredColorScheme(previewColorScheme))
@@ -159,7 +161,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.refresh()
         controller?.refreshLogin()
         NSApp.activate(ignoringOtherApps: true)
-        if !popover.isShown { popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY) }
+        if !popover.isShown {
+            // Seed AppKit with the current SwiftUI target size before it places the
+            // arrow. Later contentSize changes retain NSPopover's native anchor.
+            if let model { popover.contentSize = model.desiredContentSize }
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        }
         if let previewColorScheme {
             popover.contentViewController?.view.window?.appearance = NSAppearance(named: previewColorScheme == .light ? .aqua : .darkAqua)
         }

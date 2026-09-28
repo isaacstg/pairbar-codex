@@ -6,7 +6,6 @@ struct PairbarPanelView: View {
     let dismiss: () -> Void
     @FocusState private var searchFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var searchExpanded = false
     @State private var confirmation: PairbarConfirmation?
     @State private var hoveredRowID: String?
 
@@ -24,7 +23,7 @@ struct PairbarPanelView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            if model.page == .accounts && (searchExpanded || model.showsProviderFilter || model.showsSelectionControl) { searchAndFilters }
+            if model.page == .accounts && (model.searchExpanded || model.showsProviderFilter || model.showsSelectionControl) { searchAndFilters }
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let message = model.errorMessage { errorBanner(message) }
@@ -42,9 +41,10 @@ struct PairbarPanelView: View {
             }
             if model.page == .welcome || (model.page == .accounts && model.selecting) { footer }
         }
-        .frame(width: PairbarPanelModel.width, height: model.panelHeight + (searchExpanded && model.page == .accounts ? 42 : 0))
+        .frame(width: model.desiredContentSize.width, height: model.desiredContentSize.height)
         .background(Color(nsColor: .windowBackgroundColor))
         .background(keyboardCommands)
+        .onExitCommand(perform: dismiss)
         .confirmationDialog(confirmation?.title(language: model.language) ?? "", isPresented: Binding(
             get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }
         ), titleVisibility: .visible, presenting: confirmation) { action in
@@ -57,8 +57,9 @@ struct PairbarPanelView: View {
             Text(action.message(language: model.language))
         }
         .onChange(of: model.rows) { _ in model.pruneSelection() }
+        .onChange(of: model.desiredContentSize) { size in model.onDesiredContentSizeChange?(size) }
         .onChange(of: model.page) { page in
-            if page != .accounts { searchExpanded = false; model.search = ""; searchFocused = false }
+            if page != .accounts { model.searchExpanded = false; model.search = ""; searchFocused = false }
         }
     }
 
@@ -74,7 +75,7 @@ struct PairbarPanelView: View {
             Spacer(minLength: 4)
             if model.page == .accounts {
                 headerIcon("magnifyingglass", t("Search profiles", "Buscar perfiles")) {
-                    if searchExpanded { searchExpanded = false; model.search = ""; searchFocused = false }
+                    if model.searchExpanded { model.searchExpanded = false; model.search = ""; searchFocused = false }
                     else { revealSearch() }
                 }
                 headerIcon("plus", t("Add profile", "Añadir perfil")) { model.page = .create }
@@ -108,7 +109,7 @@ struct PairbarPanelView: View {
     }
 
     private func revealSearch() {
-        searchExpanded = true
+        model.searchExpanded = true
         DispatchQueue.main.async { searchFocused = true }
     }
 
@@ -131,14 +132,14 @@ struct PairbarPanelView: View {
                     }
                 }
             }
-            if searchExpanded || !model.search.isEmpty {
+            if model.searchExpanded || !model.search.isEmpty {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
                 TextField(t("Search profile names", "Buscar nombres de perfiles"), text: $model.search)
                     .textFieldStyle(.plain).focused($searchFocused)
                     .onAppear {
                         DispatchQueue.main.async {
-                            if model.page == .accounts && (searchExpanded || !model.search.isEmpty) { searchFocused = true }
+                            if model.page == .accounts && (model.searchExpanded || !model.search.isEmpty) { searchFocused = true }
                         }
                     }
                     .accessibilityLabel(t("Search profiles", "Buscar perfiles"))
@@ -152,7 +153,7 @@ struct PairbarPanelView: View {
                 .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.primary.opacity(0.07)))
             }
         }.padding(.horizontal, 16).padding(.bottom, 8)
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: searchExpanded)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: model.searchExpanded)
     }
 
     @ViewBuilder private var pageContent: some View {
