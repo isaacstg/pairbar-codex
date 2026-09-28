@@ -8,6 +8,7 @@ struct PairbarPanelView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var searchExpanded = false
     @State private var confirmation: PairbarConfirmation?
+    @State private var hoveredRowID: String?
 
     private func t(_ english: String, _ spanish: String) -> String { model.text(english, spanish) }
     private var title: String {
@@ -20,18 +21,10 @@ struct PairbarPanelView: View {
         case .edit: return t("Edit profile", "Editar perfil")
         }
     }
-    private var showsFooter: Bool {
-        switch model.page {
-        case .create, .edit: return false
-        default: return true
-        }
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             header
-            if model.page == .accounts { searchAndFilters }
-            Divider()
+            if model.page == .accounts && (searchExpanded || model.showsProviderFilter || model.showsSelectionControl) { searchAndFilters }
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let message = model.errorMessage { errorBanner(message) }
@@ -43,16 +36,13 @@ struct PairbarPanelView: View {
                     }
                     pageContent
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if showsFooter {
-                Divider()
-                footer
-            }
+            if model.page == .welcome || (model.page == .accounts && model.selecting) { footer }
         }
-        .frame(width: PairbarPanelModel.width, height: PairbarPanelModel.height)
+        .frame(width: PairbarPanelModel.width, height: model.panelHeight + (searchExpanded && model.page == .accounts ? 42 : 0))
         .background(Color(nsColor: .windowBackgroundColor))
         .background(keyboardCommands)
         .confirmationDialog(confirmation?.title(language: model.language) ?? "", isPresented: Binding(
@@ -67,32 +57,44 @@ struct PairbarPanelView: View {
             Text(action.message(language: model.language))
         }
         .onChange(of: model.rows) { _ in model.pruneSelection() }
+        .onChange(of: model.page) { page in
+            if page != .accounts { searchExpanded = false; model.search = ""; searchFocused = false }
+        }
     }
 
     private var header: some View {
         HStack(spacing: 10) {
             if model.page != .accounts && model.page != .welcome {
-                Button { model.showAccounts() } label: { Image(systemName: "chevron.left") }
+                Button { model.showAccounts() } label: { Image(systemName: "chevron.left").frame(width: 34, height: 34) }
                     .buttonStyle(.plain)
                     .accessibilityLabel(t("Back to profiles", "Volver a perfiles"))
                     .help(t("Back to profiles · Shift-Command-B", "Volver a perfiles · Mayús-Comando-B"))
             }
-            if model.page == .accounts {
-                Image(systemName: "person.2.fill")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 27, height: 27)
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 7))
-                    .accessibilityHidden(true)
-            }
-            Text(title).font(.headline).lineLimit(2)
+            Text(title).font(.system(size: 16, weight: .semibold)).lineLimit(2)
             Spacer(minLength: 4)
-            Button(action: dismiss) { Image(systemName: "xmark").font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
-                .buttonStyle(.plain)
+            if model.page == .accounts {
+                headerIcon("magnifyingglass", t("Search profiles", "Buscar perfiles")) {
+                    if searchExpanded { searchExpanded = false; model.search = ""; searchFocused = false }
+                    else { revealSearch() }
+                }
+                headerIcon("plus", t("Add profile", "Añadir perfil")) { model.page = .create }
+                    .disabled(!model.canCreate)
+                headerIcon("gearshape", t("Settings", "Ajustes")) { model.page = .settings }
+            } else if model.page == .settings {
+                headerIcon("questionmark.circle", t("Help", "Ayuda")) { model.page = .help }
+            }
+            Button(action: dismiss) { Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).frame(width: 34, height: 34) }
+                .buttonStyle(.plain).foregroundStyle(.secondary)
                 .keyboardShortcut(.cancelAction)
                 .accessibilityLabel(t("Close popover", "Cerrar panel"))
                 .help(t("Close · Escape", "Cerrar · Escape"))
-        }.padding(.horizontal, 16).padding(.vertical, 13)
+        }.padding(.horizontal, 16).padding(.vertical, 9)
+    }
+
+    private func headerIcon(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Image(systemName: symbol).font(.system(size: 14, weight: .medium)).frame(width: 34, height: 34) }
+            .buttonStyle(.plain).contentShape(RoundedRectangle(cornerRadius: 8))
+            .accessibilityLabel(label).help(label)
     }
 
     private var keyboardCommands: some View {
@@ -112,31 +114,22 @@ struct PairbarPanelView: View {
 
     private var searchAndFilters: some View {
         VStack(spacing: 9) {
-            HStack(spacing: 14) {
-                Button {
-                    if searchExpanded { searchExpanded = false; model.search = ""; searchFocused = false }
-                    else { revealSearch() }
-                } label: {
-                    Label(t("Search", "Buscar"), systemImage: "magnifyingglass")
-                }.buttonStyle(.plain)
-                    .foregroundStyle(searchExpanded ? Color.accentColor : Color.primary)
-                    .accessibilityLabel(t("Search profiles", "Buscar perfiles"))
-                Spacer()
-                Menu {
-                    Picker(t("Provider", "Proveedor"), selection: $model.providerFilter) {
-                        Text(t("All", "Todos")).tag("all")
-                        Text("Codex").tag("codex")
-                        Text("Claude").tag("claude")
+            if model.showsProviderFilter || model.showsSelectionControl {
+                HStack {
+                    if model.showsProviderFilter {
+                        Picker(t("Provider", "Proveedor"), selection: $model.providerFilter) {
+                            Text(t("All", "Todos")).tag("all")
+                            ForEach(model.visibleProviderIDs, id: \.self) { id in Text(model.providerName(id)).tag(id) }
+                        }.pickerStyle(.segmented).accessibilityLabel(t("Filter profiles by provider", "Filtrar perfiles por proveedor"))
                     }
-                } label: { Label(t("Filter", "Filtrar"), systemImage: "line.3.horizontal.decrease") }
-                    .menuStyle(.borderlessButton)
-                    .accessibilityLabel(t("Filter profiles by provider", "Filtrar perfiles por proveedor"))
-                Button(model.selecting ? t("Done", "Listo") : t("Select", "Elegir")) {
-                    model.selecting.toggle()
-                    if !model.selecting { model.selectedIDs = [] }
-                }.buttonStyle(.plain)
-                    .accessibilityLabel(model.selecting ? t("Finish selecting profiles", "Terminar de elegir perfiles") :
-                        t("Choose profiles to open", "Elegir perfiles para abrir"))
+                    Spacer(minLength: 0)
+                    if model.showsSelectionControl {
+                        Button(model.selecting ? t("Done", "Listo") : t("Select", "Elegir")) {
+                            model.selecting.toggle()
+                            if !model.selecting { model.selectedIDs = [] }
+                        }.buttonStyle(.plain)
+                    }
+                }
             }
             if searchExpanded || !model.search.isEmpty {
             HStack(spacing: 8) {
@@ -154,11 +147,11 @@ struct PairbarPanelView: View {
                         .buttonStyle(.plain).foregroundStyle(.secondary)
                         .accessibilityLabel(t("Clear search", "Borrar búsqueda"))
                 }
-            }.padding(.horizontal, 10).frame(height: 31)
+            }.padding(.horizontal, 10).frame(height: 34)
                 .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 7))
                 .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.primary.opacity(0.07)))
             }
-        }.padding(.horizontal, 16).padding(.bottom, 12)
+        }.padding(.horizontal, 16).padding(.bottom, 8)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: searchExpanded)
     }
 
@@ -182,7 +175,7 @@ struct PairbarPanelView: View {
     }
 
     private var accounts: some View {
-        LazyVStack(alignment: .leading, spacing: 12) {
+        LazyVStack(alignment: .leading, spacing: 4) {
             if model.memoryPressure != .normal {
                 Label(model.memoryPressure == .critical
                     ? t("Memory pressure is critical. Automatic openings are paused.", "La presión de memoria es crítica. Las aperturas automáticas están en pausa.")
@@ -196,13 +189,7 @@ struct PairbarPanelView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }.padding(.vertical, 16)
             }
-            LazyVStack(spacing: 0) {
-                ForEach(Array(model.visibleRows.enumerated()), id: \.element.id) { index, row in
-                    if index > 0 { Divider().padding(.leading, model.selecting ? 41 : 12) }
-                    profileRow(row)
-                }
-            }
-            .background(Color(nsColor: .controlBackgroundColor).opacity(0.55), in: RoundedRectangle(cornerRadius: 10))
+            ForEach(model.visibleRows) { row in profileRow(row) }
             ForEach(model.providers.filter(\.canRecover)) { provider in
                 HStack {
                     Text(t("Pairbar needs to verify this account before it can be opened.", "Pairbar necesita verificar esta cuenta antes de abrirla."))
@@ -216,89 +203,123 @@ struct PairbarPanelView: View {
     }
 
     private func profileRow(_ row: PairbarProfileRow) -> some View {
-        HStack(alignment: .center, spacing: 10) {
-            if model.selecting {
-                Toggle(t("Select", "Elegir") + " " + row.name, isOn: Binding(
-                    get: { model.selectedIDs.contains(row.id) },
-                    set: { selected in
-                        if selected { model.selectedIDs.insert(row.id) }
-                        else { model.selectedIDs.remove(row.id) }
-                    }
-                )).toggleStyle(.checkbox).labelsHidden()
-                    .disabled(!row.canOpen || row.isBusy)
-            }
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(row.name).font(.callout.weight(.semibold)).lineLimit(2).help(row.name)
-                    if row.favorite { Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(.secondary).accessibilityLabel(t("Favorite", "Favorito")) }
+        VStack(spacing: 0) {
+            HStack(spacing: 4) {
+                if model.selecting {
+                    Toggle(t("Select", "Elegir") + " " + row.name, isOn: Binding(
+                        get: { model.selectedIDs.contains(row.id) },
+                        set: { selected in
+                            if selected { model.selectedIDs.insert(row.id) }
+                            else { model.selectedIDs.remove(row.id) }
+                        }
+                    )).toggleStyle(.checkbox).labelsHidden()
+                        .disabled(!row.canOpen || row.isBusy)
+                        .padding(.leading, 10)
                 }
-                HStack(spacing: 5) {
-                    if row.running && !row.needsAttention {
-                        Image(systemName: "circle.fill").font(.system(size: 6)).foregroundStyle(.green).accessibilityHidden(true)
-                        Text(t("Running", "En ejecución"))
-                        Text("·")
+                Button { model.openRow(row) } label: {
+                    HStack(spacing: 11) {
+                        Image(systemName: row.needsAttention ? "exclamationmark.circle.fill" : row.running ? "circle.fill" : "circle")
+                            .font(.system(size: row.running ? 9 : 12, weight: .medium))
+                            .foregroundStyle(row.needsAttention ? Color.orange : row.running ? Color.green : Color.secondary)
+                            .frame(width: 17).accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 5) {
+                                Text(row.name).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                                if row.favorite { Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(.secondary).accessibilityHidden(true) }
+                            }
+                            Text(row.needsAttention || row.isBusy ? row.status : row.isCurrent ? t("Current", "Actual") : row.running ? t("Running", "En ejecución") : t("Ready", "Listo"))
+                                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        Spacer(minLength: 6)
+                        if let shortcut = row.shortcut {
+                            Text(shortcut.display).font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary).lineLimit(1)
+                        }
                     }
-                    Text(model.providerName(row.providerID))
-                    if row.isCurrent {
-                        Text("·")
-                        Text("Current")
-                    }
-                }.font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                if row.needsAttention || row.isBusy {
-                    Label(row.status, systemImage: row.needsAttention ? "exclamationmark.circle" : "clock")
-                        .font(.caption).foregroundStyle(row.needsAttention ? Color.orange : Color.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                    .padding(.leading, 12).padding(.trailing, 7)
+                    .contentShape(RoundedRectangle(cornerRadius: 9))
+                    .background(hoveredRowID == row.id ? Color.primary.opacity(0.055) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
                 }
-            }.frame(maxWidth: .infinity, alignment: .leading)
-            VStack(alignment: .trailing, spacing: 5) {
-                Button { model.send(.open(row.id)) } label: {
-                    HStack(spacing: 4) {
-                        if row.isBusy { ProgressView().controlSize(.mini) }
-                        Text(row.running ? t("Switch", "Cambiar") : t("Open", "Abrir"))
-                    }.frame(minWidth: 55)
-                }
-                .controlSize(.small)
+                .buttonStyle(PairbarRowButtonStyle())
                 .disabled(model.previewOnly || !row.canOpen || row.isBusy)
                 .accessibilityLabel((row.running ? t("Switch to", "Cambiar a") : t("Open", "Abrir")) + " " + row.name)
-                .help(row.unavailableReason ?? row.shortcut?.display ?? "")
-                HStack(spacing: 7) {
-                    if let shortcut = row.shortcut {
-                        Text(shortcut.display).font(.system(size: 10, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary).lineLimit(1)
-                            .padding(.horizontal, 5).padding(.vertical, 2)
-                            .background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 4))
-                            .accessibilityLabel(t("Shortcut", "Atajo") + " " + shortcut.display)
-                    }
-                    rowMenu(row)
-                }.frame(height: 19)
-            }.frame(minWidth: 78, alignment: .trailing)
+                .help(row.unavailableReason ?? (row.running ? t("Switch", "Cambiar") : t("Open", "Abrir")))
+                .onHover { hoveredRowID = $0 ? row.id : nil }
+                Button { model.toggleActions(for: row.id) } label: {
+                    Image(systemName: "ellipsis").font(.system(size: 16, weight: .semibold))
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.plain)
+                .background(model.expandedActionsID == row.id ? Color.accentColor.opacity(0.12) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityLabel(t("Actions for", "Acciones de") + " " + row.name)
+                .accessibilityValue(model.expandedActionsID == row.id ? t("Expanded", "Expandido") : t("Collapsed", "Contraído"))
+                .padding(.trailing, 7)
+            }
+            if model.expandedActionsID == row.id { rowActions(row) }
         }
-        .padding(.horizontal, 12).padding(.vertical, 10)
-        .frame(minHeight: 72)
+        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5), in: RoundedRectangle(cornerRadius: 11))
         .accessibilityElement(children: .contain)
     }
 
-    private func rowMenu(_ row: PairbarProfileRow) -> some View {
-        Menu {
-            Button(t("Edit profile…", "Editar perfil…")) { model.page = .edit(row.id) }.disabled(!row.canEdit)
-            Button(row.favorite ? t("Remove favorite", "Quitar de favoritos") : t("Add favorite", "Añadir a favoritos")) {
-                model.send(.favorite(row.id, !row.favorite))
-            }.disabled(model.previewOnly || !row.canEdit)
-            Button(t("Move up", "Subir")) { model.send(.move(row.id, -1)) }.disabled(model.previewOnly || !row.canEdit)
-            Button(t("Move down", "Bajar")) { model.send(.move(row.id, 1)) }.disabled(model.previewOnly || !row.canEdit)
-            if !row.isCurrent {
-                Divider()
-                Button(t("Restart…", "Reiniciar…")) { confirmation = .restart(row) }.disabled(model.previewOnly || !row.canRestart)
-                Button(t("Close…", "Cerrar…")) { confirmation = .close(row) }.disabled(model.previewOnly || !row.canClose)
-                Divider()
-                Button(t("Delete profile…", "Eliminar perfil…")) { confirmation = .delete(row) }.disabled(!row.canDelete)
-                Menu(t("Advanced", "Avanzado")) {
-                    Button(t("Archive & reset…", "Archivar y restablecer…")) { confirmation = .reset(row) }.disabled(model.previewOnly || !row.canReset)
+    private func rowActions(_ row: PairbarProfileRow) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                actionButton(t("Edit", "Editar"), "pencil", enabled: row.canEdit) {
+                    model.closeActions(); model.page = .edit(row.id)
+                }
+                actionButton(row.favorite ? t("Unfavorite", "Quitar favorito") : t("Favorite", "Favorito"),
+                             row.favorite ? "star.slash" : "star", enabled: !model.previewOnly && row.canEdit) {
+                    model.send(.favorite(row.id, !row.favorite)); model.closeActions()
+                }
+                if !row.isCurrent {
+                    actionButton(t("Restart", "Reiniciar"), "arrow.clockwise", enabled: !model.previewOnly && row.canRestart) {
+                        model.closeActions(); confirmation = .restart(row)
+                    }
+                    actionButton(t("Close", "Cerrar"), "xmark.circle", enabled: !model.previewOnly && row.canClose) {
+                        model.closeActions(); confirmation = .close(row)
+                    }
                 }
             }
-        } label: { Image(systemName: "ellipsis") }
-        .menuStyle(.borderlessButton).menuIndicator(.hidden).frame(width: 18)
-        .accessibilityLabel(t("Actions for", "Acciones de") + " " + row.name)
+            if model.canOfferDelete(row) {
+                Button(role: .destructive) { model.closeActions(); confirmation = .delete(row) } label: {
+                    Label(t("Delete profile…", "Eliminar perfil…"), systemImage: "trash")
+                        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                }.buttonStyle(.plain).font(.caption).foregroundStyle(.red)
+            }
+            if !row.isCurrent && row.canReset {
+                HStack(spacing: 8) {
+                    actionButton(t("Move up", "Subir"), "arrow.up", enabled: !model.previewOnly && row.canEdit) {
+                        model.send(.move(row.id, -1)); model.closeActions()
+                    }
+                    actionButton(t("Move down", "Bajar"), "arrow.down", enabled: !model.previewOnly && row.canEdit) {
+                        model.send(.move(row.id, 1)); model.closeActions()
+                    }
+                    Button(t("Archive & reset…", "Archivar y restablecer…")) {
+                        model.closeActions(); confirmation = .reset(row)
+                    }.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
+                        .disabled(model.previewOnly)
+                        .frame(minHeight: 32)
+                }
+            } else if row.canEdit {
+                HStack(spacing: 8) {
+                    actionButton(t("Move up", "Subir"), "arrow.up", enabled: !model.previewOnly) {
+                        model.send(.move(row.id, -1)); model.closeActions()
+                    }
+                    actionButton(t("Move down", "Bajar"), "arrow.down", enabled: !model.previewOnly) {
+                        model.send(.move(row.id, 1)); model.closeActions()
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 13).padding(.bottom, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func actionButton(_ title: String, _ symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Label(title, systemImage: symbol).lineLimit(1).frame(minHeight: 32) }
+            .buttonStyle(.bordered).controlSize(.small).disabled(!enabled)
     }
 
     private var welcome: some View {
@@ -369,6 +390,7 @@ struct PairbarPanelView: View {
                     ForEach(model.providers) { provider in providerSettings(provider) }
                     Button(t("Export configuration…", "Exportar configuración…")) { model.send(.exportConfiguration) }
                         .disabled(model.previewOnly || model.busy)
+                    Button(t("Help & diagnostics", "Ayuda y diagnósticos")) { model.page = .help }
                 }.padding(.top, 10)
             }
         }
@@ -384,6 +406,16 @@ struct PairbarPanelView: View {
             }
             Text(provider.status).font(.callout)
             if !provider.detail.isEmpty { Text(provider.detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if provider.id == "claude", let current = model.rows.first(where: { $0.providerID == "claude" && $0.isCurrent }) {
+                HStack {
+                    Text(current.name + " · " + t("Current", "Actual")).font(.callout)
+                    Spacer()
+                    Button(t("Open", "Abrir")) { model.openRow(current) }
+                        .disabled(model.previewOnly || !current.canOpen || current.isBusy)
+                    Button(t("Edit profile…", "Editar perfil…")) { model.page = .edit(current.id) }
+                        .disabled(!current.canEdit)
+                }
+            }
             HStack {
                 Button(t("Choose app…", "Elegir app…")) { model.send(.choose(provider.id)) }.disabled(!provider.canChoose)
                 Button(t("Check again", "Comprobar")) { model.send(.check(provider.id)) }.disabled(!provider.canCheck)
@@ -404,7 +436,7 @@ struct PairbarPanelView: View {
     private var help: some View {
         VStack(alignment: .leading, spacing: 16) {
             Button(t("Quick start", "Guía de inicio")) { model.page = .welcome }
-            Text(t("Find a profile with ⌘F. Use ⇧⌘B to return here to profiles, or Escape to close the panel. Configure a profile's global shortcut in its Edit menu.", "Busca un perfil con ⌘F. Usa ⇧⌘B para volver a perfiles, o Escape para cerrar el panel. Configura el atajo global de un perfil en su menú Editar."))
+            Text(t("Find a profile with ⌘F. Use ⇧⌘B to return to profiles, or Escape to close the panel. Configure a global shortcut in a profile's Edit actions.", "Busca un perfil con ⌘F. Usa ⇧⌘B para volver a perfiles, o Escape para cerrar el panel. Configura un atajo global en las acciones Editar del perfil."))
                 .font(.callout).foregroundStyle(.secondary)
             Text(t("Current is the normal app for each provider. It has no close, restart, archive or reset action. Managed profiles expose lifecycle actions only when ownership is verified.", "Current es la app normal de cada proveedor. No tiene acciones para cerrar, reiniciar, archivar ni restablecer. Los perfiles administrados solo ofrecen controles cuando se verifica su propiedad."))
                 .font(.caption).foregroundStyle(.secondary)
@@ -458,20 +490,6 @@ struct PairbarPanelView: View {
                 }.buttonStyle(.borderedProminent)
                     .disabled(model.previewOnly || model.selectedOpenableIDs.isEmpty || model.busy)
             }.padding(16)
-        } else {
-            HStack(spacing: 14) {
-                Button { model.page = .settings } label: { Image(systemName: "gearshape") }
-                    .buttonStyle(.plain).disabled(model.page == .settings)
-                    .accessibilityLabel(t("Settings", "Ajustes"))
-                    .help(t("Settings", "Ajustes"))
-                Button { model.page = .help } label: { Image(systemName: "questionmark.circle") }
-                    .buttonStyle(.plain).disabled(model.page == .help)
-                    .accessibilityLabel(t("Help", "Ayuda"))
-                    .help(t("Help", "Ayuda"))
-                Spacer()
-                Button { model.page = .create } label: { Label(t("Add profile", "Añadir perfil"), systemImage: "plus") }
-                    .buttonStyle(.borderedProminent).disabled(!model.canCreate || model.page == .create)
-            }.font(.callout).padding(.horizontal, 16).padding(.vertical, 12)
         }
     }
 
@@ -485,6 +503,14 @@ struct PairbarPanelView: View {
             }
             Text(message).font(.caption).fixedSize(horizontal: false, vertical: true)
         }.padding(12).background(Color.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct PairbarRowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? Color.accentColor.opacity(0.13) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 9))
     }
 }
 

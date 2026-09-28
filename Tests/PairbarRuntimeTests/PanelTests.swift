@@ -13,8 +13,11 @@ final class PanelTests: XCTestCase {
             XCTAssertTrue(model.welcomeCompleted)
             XCTAssertEqual(model.providers.map(\.id), ["codex", "claude"])
             XCTAssertEqual(model.rows.map(\.id), [
-                "current:codex", "preview-second", "preview-work", "current:claude"
+                "current:codex", "preview-work", "current:claude"
             ])
+            XCTAssertEqual(model.visibleRows.map(\.name), ["Personal", "Work"])
+            XCTAssertFalse(model.showsProviderFilter)
+            XCTAssertFalse(model.showsSelectionControl)
             XCTAssertEqual(model.providers.first(where: { $0.id == "claude" })?.canCreate, false)
             XCTAssertTrue(model.rows.filter(\.isCurrent).allSatisfy { !$0.canClose && !$0.canRestart })
 
@@ -147,6 +150,62 @@ final class PanelTests: XCTestCase {
             XCTAssertEqual(model.rows.first { $0.id == "current:codex" }?.running, true)
             XCTAssertEqual(model.rows.first { $0.id == "current:codex" }?.canDelete, false)
             XCTAssertEqual(model.rows.first { $0.id == "preview-work" }?.canDelete, true)
+            XCTAssertFalse(model.canOfferDelete(model.rows[0]))
+            XCTAssertTrue(model.canOfferDelete(model.rows[1]))
+        }
+    }
+
+    func testWholeRowActionDispatchAndOnlyOneInlineDrawer() async {
+        await MainActor.run {
+            let model = PairbarPanelModel()
+            model.rows = [
+                Self.row("personal", provider: "codex", canOpen: true),
+                Self.row("work", provider: "codex", canOpen: true)
+            ]
+            var actions: [String] = []
+            model.onAction = { actions.append(Self.describe($0)) }
+            model.toggleActions(for: "personal")
+            XCTAssertEqual(model.expandedActionsID, "personal")
+            model.toggleActions(for: "work")
+            XCTAssertEqual(model.expandedActionsID, "work")
+            model.openRow(model.rows[0])
+            XCTAssertNil(model.expandedActionsID)
+            XCTAssertEqual(actions, ["open:personal"])
+            model.toggleActions(for: "work")
+            model.toggleActions(for: "work")
+            XCTAssertNil(model.expandedActionsID)
+            model.toggleActions(for: "work")
+            model.page = .settings
+            XCTAssertNil(model.expandedActionsID)
+        }
+    }
+
+    func testUnusedClaudeIsHiddenFromProfilesButRemainsInAdvancedProviders() async {
+        await MainActor.run {
+            let model = PairbarPanelModel.preview()
+            XCTAssertEqual(model.visibleProviderIDs, ["codex"])
+            XCTAssertTrue(model.providers.contains { $0.id == "claude" })
+            XCTAssertFalse(model.providers.first { $0.id == "claude" }!.canCreate)
+            model.rows[2].running = true
+            XCTAssertEqual(model.visibleProviderIDs, ["claude", "codex"])
+            XCTAssertTrue(model.showsProviderFilter)
+            model.rows[2].running = false
+            model.providerFilter = "claude"
+            XCTAssertEqual(model.visibleRows.map(\.name), ["Personal", "Work"])
+        }
+    }
+
+    func testPreviewRowActionIsInertAndLabelsTranslate() async {
+        await MainActor.run {
+            let model = PairbarPanelModel.preview(language: .spanish)
+            var actions: [String] = []
+            model.onAction = { actions.append(Self.describe($0)) }
+            model.openRow(model.rows[1])
+            model.send(.delete("preview-work"))
+            XCTAssertTrue(actions.isEmpty)
+            XCTAssertEqual(model.text("Delete profile…", "Eliminar perfil…"), "Eliminar perfil…")
+            model.send(.setLanguage(.english))
+            XCTAssertEqual(model.text("Delete profile…", "Eliminar perfil…"), "Delete profile…")
         }
     }
 

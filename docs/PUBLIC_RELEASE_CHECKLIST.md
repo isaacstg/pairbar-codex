@@ -17,7 +17,7 @@ The repository became public on September 18, 2026. Private vulnerability report
 
 ## Pairbar 2.0.0 public binary release checklist
 
-This is the single authoritative checklist for public binary release. This change starts from post-PR #8 `main` at `406c1d0a33e6bea5ecdee075413ef3e861bb364f`. The current release candidate source declares `2.0.0 (19)`; build 18 was the preceding candidate; CI and local ZIPs are ad-hoc development artifacts. Record evidence and exact artifact identifiers before checking a box. Historical source-publication checks above do not satisfy binary gates.
+This is the single authoritative checklist for public binary release. This UI change starts from post-PR #9 `main` at `4baf8a990ac5597ca99affc602a1ed15518aa90d`. The current release candidate source declares `2.0.0 (20)`; build 19 was the preceding candidate; CI and local ZIPs are ad-hoc development artifacts. Record evidence and exact artifact identifiers before checking a box. Historical source-publication checks above do not satisfy binary gates.
 
 ### Source gate
 
@@ -26,7 +26,7 @@ This is the single authoritative checklist for public binary release. This chang
 
 ### Version and provenance gate
 
-- [ ] Final bundle and `BUILD_INFO.txt` agree on semantic version `2.0.0`, unique build number `19` (increment again if a later binary-affecting change requires another RC), exact source commit, `source_state=clean`, architectures, signing state, and ZIP SHA-256.
+- [ ] Final bundle and `BUILD_INFO.txt` agree on semantic version `2.0.0`, unique build number `20` (increment again if a later binary-affecting change requires another RC), exact source commit, `source_state=clean`, architectures, signing state, and ZIP SHA-256.
 - [ ] `Pairbar.zip.sha256` verifies the exact final ZIP. Record the checksum in release notes. Do not reuse a checksum from a historical build.
 
 ### Live acceptance gate
