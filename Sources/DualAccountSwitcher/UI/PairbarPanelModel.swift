@@ -81,7 +81,7 @@ enum PairbarPanelAction {
 /// No storage, provider inspection or process operations occur in this model or its previews.
 @MainActor
 final class PairbarPanelModel: ObservableObject {
-    static let width: CGFloat = 400
+    static let width: CGFloat = 326
     static let height: CGFloat = 520
     @Published var rows: [PairbarProfileRow] = []
     @Published var providers: [PairbarProviderRow] = []
@@ -104,6 +104,7 @@ final class PairbarPanelModel: ObservableObject {
     @Published var providerFilter = "all"
     @Published var selectedIDs: Set<String> = []
     @Published var selecting = false
+    @Published var advancedExpanded = false
     @Published private(set) var expandedActionsID: String?
     var onAction: ((PairbarPanelAction) -> Void)?
     var onDesiredContentSizeChange: ((CGSize) -> Void)?
@@ -128,13 +129,23 @@ final class PairbarPanelModel: ObservableObject {
     var showsProviderFilter: Bool { visibleProviderIDs.count > 1 }
     var showsSelectionControl: Bool { normalRows.count > 3 || selecting }
     func canOfferDelete(_ row: PairbarProfileRow) -> Bool { !row.isCurrent && row.canDelete }
+    func canOfferClose(_ row: PairbarProfileRow) -> Bool { !row.isCurrent && row.canClose }
+    func canOfferRestart(_ row: PairbarProfileRow) -> Bool { !row.isCurrent && row.canRestart }
+    func pin(_ row: PairbarProfileRow) { send(.favorite(row.id, !row.favorite)); closeActions() }
+    /// Escape dismisses a transient row panel before the native popover.
+    func consumeEscape() -> Bool {
+        guard expandedActionsID != nil else { return false }
+        closeActions()
+        return true
+    }
     var panelHeight: CGFloat {
         switch page {
         case .accounts:
             let rowHeight = CGFloat(min(max(visibleRows.count, 1), 5)) * 68
-            return min(520, max(180, 72 + rowHeight + (expandedActionsID == nil ? 0 : 118)))
-        case .create: return 340
-        case .welcome, .settings, .help, .edit: return Self.height
+            return min(520, max(208, 72 + rowHeight))
+        case .create: return 280
+        case .settings: return advancedExpanded ? 520 : (openProfilesAtLogin ? 390 : 272)
+        case .welcome, .help, .edit: return Self.height
         }
     }
     /// The single desired size used by both SwiftUI layout and the native popover.
@@ -224,7 +235,7 @@ final class PairbarPanelModel: ObservableObject {
 }
 
 extension PairbarPanelModel {
-    static func preview(language: PairbarLanguage = .english) -> PairbarPanelModel {
+    static func preview(language: PairbarLanguage = .english, fourProfiles: Bool = false) -> PairbarPanelModel {
         let model = PairbarPanelModel()
         model.previewOnly = true
         model.language = language
@@ -245,6 +256,18 @@ extension PairbarPanelModel {
             PairbarProfileRow(id: "current:claude", providerID: "claude", name: "Current Account", isCurrent: true,
                 status: model.text("Closed", "Cerrado"), order: 2, canOpen: true)
         ]
+        if fourProfiles {
+            model.rows.insert(contentsOf: [
+                PairbarProfileRow(id: "preview-studio", providerID: "codex", name: "Studio",
+                    status: model.text("Running", "En ejecución"), running: true, order: 2,
+                    shortcut: PairbarShortcut(keyCode: 20, modifiers: 2304),
+                    canOpen: true, canClose: true, canRestart: true, canDelete: true),
+                PairbarProfileRow(id: "preview-testing", providerID: "codex", name: "Testing",
+                    status: model.text("Running", "En ejecución"), running: true, order: 3,
+                    shortcut: PairbarShortcut(keyCode: 21, modifiers: 2304),
+                    canOpen: true, canClose: true, canRestart: true, canDelete: true)
+            ], at: 2)
+        }
         model.diagnosticText = "Pairbar · preview\nprovider codex: ready\nprovider claude: managed-unavailable\nprofiles: 2"
         return model
     }

@@ -34,7 +34,7 @@ jobs:
           codesign --verify --strict --all-architectures "$scratch/Pairbar.app"
           test "$(lipo -archs "$scratch/Pairbar.app/Contents/MacOS/DualAccountSwitcher")" = "x86_64 arm64"
           test "$(sed -n 's/^version=//p' dist/BUILD_INFO.txt)" = "2.0.0"
-          test "$(sed -n 's/^build=//p' dist/BUILD_INFO.txt)" = "21"
+          test "$(sed -n 's/^build=//p' dist/BUILD_INFO.txt)" = "22"
           test "$(sed -n 's/^commit=//p' dist/BUILD_INFO.txt)" = "$(git rev-parse HEAD)"
           grep -Fx 'source_state=clean' dist/BUILD_INFO.txt
           test "$(sed -n 's/^architectures=//p' dist/BUILD_INFO.txt)" = "$(lipo -archs "$scratch/Pairbar.app/Contents/MacOS/DualAccountSwitcher")"

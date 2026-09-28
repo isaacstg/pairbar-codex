@@ -42,9 +42,21 @@ struct PairbarPanelView: View {
             if model.page == .welcome || (model.page == .accounts && model.selecting) { footer }
         }
         .frame(width: model.desiredContentSize.width, height: model.desiredContentSize.height)
+        .overlayPreferenceValue(PairbarActionAnchorKey.self) { anchors in
+            GeometryReader { geometry in
+                if model.page == .accounts,
+                   let id = model.expandedActionsID,
+                   let row = model.visibleRows.first(where: { $0.id == id }),
+                   let anchor = anchors[id] {
+                    PairbarActionOverlayLayout(anchor: geometry[anchor]) {
+                        rowActions(row)
+                    }
+                }
+            }
+        }
         .background(Color(nsColor: .windowBackgroundColor))
         .background(keyboardCommands)
-        .onExitCommand(perform: dismiss)
+        .onExitCommand { if !model.consumeEscape() { dismiss() } }
         .confirmationDialog(confirmation?.title(language: model.language) ?? "", isPresented: Binding(
             get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }
         ), titleVisibility: .visible, presenting: confirmation) { action in
@@ -84,16 +96,11 @@ struct PairbarPanelView: View {
             } else if model.page == .settings {
                 headerIcon("questionmark.circle", t("Help", "Ayuda")) { model.page = .help }
             }
-            Button(action: dismiss) { Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).frame(width: 34, height: 34) }
-                .buttonStyle(.plain).foregroundStyle(.secondary)
-                .keyboardShortcut(.cancelAction)
-                .accessibilityLabel(t("Close popover", "Cerrar panel"))
-                .help(t("Close · Escape", "Cerrar · Escape"))
         }.padding(.horizontal, 16).padding(.vertical, 9)
     }
 
     private func headerIcon(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Image(systemName: symbol).font(.system(size: 14, weight: .medium)).frame(width: 34, height: 34) }
+        Button(action: action) { Image(systemName: symbol).font(.system(size: 15, weight: .medium)).frame(width: 36, height: 36) }
             .buttonStyle(.plain).contentShape(RoundedRectangle(cornerRadius: 8))
             .accessibilityLabel(label).help(label)
     }
@@ -177,150 +184,134 @@ struct PairbarPanelView: View {
 
     private var accounts: some View {
         LazyVStack(alignment: .leading, spacing: 4) {
-            if model.memoryPressure != .normal {
-                Label(model.memoryPressure == .critical
-                    ? t("Memory pressure is critical. Automatic openings are paused.", "La presión de memoria es crítica. Las aperturas automáticas están en pausa.")
-                    : t("Memory pressure is elevated. Open only the profiles you need.", "La presión de memoria es elevada. Abre solo los perfiles que necesitas."), systemImage: "memorychip")
-                    .font(.caption).foregroundStyle(.orange)
-            }
-            if model.visibleRows.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(t("No matching profiles", "No hay perfiles coincidentes")).font(.headline)
-                    Text(t("Try another name or provider filter.", "Prueba otro nombre o filtro de proveedor."))
-                        .font(.caption).foregroundStyle(.secondary)
-                }.padding(.vertical, 16)
-            }
-            ForEach(model.visibleRows) { row in profileRow(row) }
-            ForEach(model.providers.filter(\.canRecover)) { provider in
-                HStack {
-                    Text(t("Pairbar needs to verify this account before it can be opened.", "Pairbar necesita verificar esta cuenta antes de abrirla."))
-                        .font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Button(t("Repair…", "Reparar…")) { confirmation = .recover(provider) }
-                        .disabled(model.previewOnly || provider.busy)
+                if model.memoryPressure != .normal {
+                    Label(model.memoryPressure == .critical
+                        ? t("Memory pressure is critical. Automatic openings are paused.", "La presión de memoria es crítica. Las aperturas automáticas están en pausa.")
+                        : t("Memory pressure is elevated. Open only the profiles you need.", "La presión de memoria es elevada. Abre solo los perfiles que necesitas."), systemImage: "memorychip")
+                        .font(.caption).foregroundStyle(.orange)
                 }
-            }
+                if model.visibleRows.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(t("No matching profiles", "No hay perfiles coincidentes")).font(.headline)
+                        Text(t("Try another name or provider filter.", "Prueba otro nombre o filtro de proveedor."))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }.padding(.vertical, 16)
+                }
+                ForEach(model.visibleRows) { row in profileRow(row) }
+                ForEach(model.providers.filter(\.canRecover)) { provider in
+                    HStack {
+                        Text(t("Pairbar needs to verify this account before it can be opened.", "Pairbar necesita verificar esta cuenta antes de abrirla."))
+                            .font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(t("Repair…", "Reparar…")) { confirmation = .recover(provider) }
+                            .disabled(model.previewOnly || provider.busy)
+                    }
+                }
         }
     }
 
     private func profileRow(_ row: PairbarProfileRow) -> some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 4) {
-                if model.selecting {
-                    Toggle(t("Select", "Elegir") + " " + row.name, isOn: Binding(
-                        get: { model.selectedIDs.contains(row.id) },
-                        set: { selected in
-                            if selected { model.selectedIDs.insert(row.id) }
-                            else { model.selectedIDs.remove(row.id) }
-                        }
-                    )).toggleStyle(.checkbox).labelsHidden()
-                        .disabled(!row.canOpen || row.isBusy)
-                        .padding(.leading, 10)
-                }
-                Button { model.openRow(row) } label: {
-                    HStack(spacing: 11) {
-                        Image(systemName: row.needsAttention ? "exclamationmark.circle.fill" : row.running ? "circle.fill" : "circle")
-                            .font(.system(size: row.running ? 9 : 12, weight: .medium))
-                            .foregroundStyle(row.needsAttention ? Color.orange : row.running ? Color.green : Color.secondary)
-                            .frame(width: 17).accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 5) {
-                                Text(row.name).font(.system(size: 14, weight: .semibold)).lineLimit(1)
-                                if row.favorite { Image(systemName: "star.fill").font(.system(size: 9)).foregroundStyle(.secondary).accessibilityHidden(true) }
-                            }
-                            Text(row.needsAttention || row.isBusy ? row.status : row.isCurrent ? t("Current", "Actual") : row.running ? t("Running", "En ejecución") : t("Ready", "Listo"))
-                                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                        }
-                        Spacer(minLength: 6)
+        HStack(spacing: 2) {
+            if model.selecting {
+                Toggle(t("Select", "Elegir") + " " + row.name, isOn: Binding(
+                    get: { model.selectedIDs.contains(row.id) },
+                    set: { selected in
+                        if selected { model.selectedIDs.insert(row.id) }
+                        else { model.selectedIDs.remove(row.id) }
+                    }
+                )).toggleStyle(.checkbox).labelsHidden()
+                    .disabled(!row.canOpen || row.isBusy)
+            }
+            Button { model.openRow(row) } label: {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        Text(row.name).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                        if row.isCurrent { Text(t("Current", "Actual")).font(.system(size: 10)).foregroundStyle(.tertiary) }
+                        if row.favorite { Image(systemName: "pin.fill").font(.system(size: 9)).foregroundStyle(.tertiary).accessibilityHidden(true) }
+                        Spacer(minLength: 4)
                         if let shortcut = row.shortcut {
-                            Text(shortcut.display).font(.system(size: 11, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary).lineLimit(1)
+                            Text(shortcut.display).font(.system(size: 10, weight: .medium, design: .rounded))
+                                .foregroundStyle(.tertiary).lineLimit(1)
                         }
                     }
-                    .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-                    .padding(.leading, 12).padding(.trailing, 7)
-                    .contentShape(RoundedRectangle(cornerRadius: 9))
-                    .background(hoveredRowID == row.id ? Color.primary.opacity(0.055) : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+                    HStack(spacing: 5) {
+                        Circle().fill(row.needsAttention ? Color.orange : row.running ? Color.green : Color.secondary.opacity(0.5))
+                            .frame(width: 5, height: 5).accessibilityHidden(true)
+                        Text(row.needsAttention || row.isBusy ? row.status : row.running ? t("Running", "En ejecución") : t("Stopped", "Detenido"))
+                            .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                    }
                 }
-                .buttonStyle(PairbarRowButtonStyle())
-                .disabled(model.previewOnly || !row.canOpen || row.isBusy)
-                .accessibilityLabel((row.running ? t("Switch to", "Cambiar a") : t("Open", "Abrir")) + " " + row.name)
-                .help(row.unavailableReason ?? (row.running ? t("Switch", "Cambiar") : t("Open", "Abrir")))
-                .onHover { hoveredRowID = $0 ? row.id : nil }
-                Button { model.toggleActions(for: row.id) } label: {
-                    Image(systemName: "ellipsis").font(.system(size: 16, weight: .semibold))
-                        .frame(width: 36, height: 36)
-                }
-                .buttonStyle(.plain)
-                .background(model.expandedActionsID == row.id ? Color.accentColor.opacity(0.12) : Color.clear,
+                .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
+                .padding(.leading, 10)
+                .contentShape(RoundedRectangle(cornerRadius: 8))
+                .background(hoveredRowID == row.id ? Color.accentColor.opacity(0.07) : Color.clear,
                             in: RoundedRectangle(cornerRadius: 8))
-                .accessibilityLabel(t("Actions for", "Acciones de") + " " + row.name)
-                .accessibilityValue(model.expandedActionsID == row.id ? t("Expanded", "Expandido") : t("Collapsed", "Contraído"))
-                .padding(.trailing, 7)
             }
-            if model.expandedActionsID == row.id { rowActions(row) }
+            .buttonStyle(PairbarRowButtonStyle())
+            .disabled(model.previewOnly || !row.canOpen || row.isBusy)
+            .accessibilityLabel((row.running ? t("Switch to", "Cambiar a") : t("Open", "Abrir")) + " " + row.name)
+            .help(row.unavailableReason ?? (row.running ? t("Switch", "Cambiar") : t("Open", "Abrir")))
+            .onHover { hoveredRowID = $0 ? row.id : nil }
+            Button { model.toggleActions(for: row.id) } label: {
+                Image(systemName: "ellipsis").font(.system(size: 15, weight: .semibold))
+                    .frame(width: 34, height: 36)
+            }
+            .buttonStyle(.plain)
+            .background(model.expandedActionsID == row.id ? Color.accentColor.opacity(0.12) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 8))
+            .accessibilityLabel(t("Actions for", "Acciones de") + " " + row.name)
+            .accessibilityValue(model.expandedActionsID == row.id ? t("Expanded", "Expandido") : t("Collapsed", "Contraído"))
+            .anchorPreference(key: PairbarActionAnchorKey.self, value: .bounds) { [row.id: $0] }
         }
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.5), in: RoundedRectangle(cornerRadius: 11))
+        .frame(height: 64)
         .accessibilityElement(children: .contain)
     }
 
     private func rowActions(_ row: PairbarProfileRow) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 7) {
-                actionButton(t("Edit", "Editar"), "pencil", enabled: row.canEdit) {
-                    model.closeActions(); model.page = .edit(row.id)
+        VStack(spacing: 1) {
+            panelAction(t("Edit", "Editar"), "pencil", enabled: row.canEdit) {
+                model.closeActions(); model.page = .edit(row.id)
+            }
+            panelAction(row.favorite ? t("Unpin", "Desfijar") : t("Pin", "Fijar"),
+                        row.favorite ? "pin.slash" : "pin", enabled: !model.previewOnly && row.canEdit) {
+                model.pin(row)
+            }
+            if model.canOfferClose(row) {
+                panelAction(t("Close", "Cerrar"), "xmark.circle", enabled: !model.previewOnly) {
+                    model.closeActions(); confirmation = .close(row)
                 }
-                actionButton(row.favorite ? t("Unfavorite", "Quitar favorito") : t("Favorite", "Favorito"),
-                             row.favorite ? "star.slash" : "star", enabled: !model.previewOnly && row.canEdit) {
-                    model.send(.favorite(row.id, !row.favorite)); model.closeActions()
-                }
-                if !row.isCurrent {
-                    actionButton(t("Restart", "Reiniciar"), "arrow.clockwise", enabled: !model.previewOnly && row.canRestart) {
-                        model.closeActions(); confirmation = .restart(row)
-                    }
-                    actionButton(t("Close", "Cerrar"), "xmark.circle", enabled: !model.previewOnly && row.canClose) {
-                        model.closeActions(); confirmation = .close(row)
-                    }
+            }
+            if model.canOfferRestart(row) {
+                panelAction(t("Restart", "Reiniciar"), "arrow.clockwise", enabled: !model.previewOnly) {
+                    model.closeActions(); confirmation = .restart(row)
                 }
             }
             if model.canOfferDelete(row) {
-                Button(role: .destructive) { model.closeActions(); confirmation = .delete(row) } label: {
-                    Label(t("Delete profile…", "Eliminar perfil…"), systemImage: "trash")
-                        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
-                }.buttonStyle(.plain).font(.caption).foregroundStyle(.red)
-            }
-            if !row.isCurrent && row.canReset {
-                HStack(spacing: 8) {
-                    actionButton(t("Move up", "Subir"), "arrow.up", enabled: !model.previewOnly && row.canEdit) {
-                        model.send(.move(row.id, -1)); model.closeActions()
-                    }
-                    actionButton(t("Move down", "Bajar"), "arrow.down", enabled: !model.previewOnly && row.canEdit) {
-                        model.send(.move(row.id, 1)); model.closeActions()
-                    }
-                    Button(t("Archive & reset…", "Archivar y restablecer…")) {
-                        model.closeActions(); confirmation = .reset(row)
-                    }.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary)
-                        .disabled(model.previewOnly)
-                        .frame(minHeight: 32)
-                }
-            } else if row.canEdit {
-                HStack(spacing: 8) {
-                    actionButton(t("Move up", "Subir"), "arrow.up", enabled: !model.previewOnly) {
-                        model.send(.move(row.id, -1)); model.closeActions()
-                    }
-                    actionButton(t("Move down", "Bajar"), "arrow.down", enabled: !model.previewOnly) {
-                        model.send(.move(row.id, 1)); model.closeActions()
-                    }
+                Divider().padding(.vertical, 3)
+                panelAction(t("Remove from Pairbar…", "Quitar de Pairbar…"), "minus.circle",
+                            enabled: !model.previewOnly, destructive: true) {
+                    model.closeActions(); confirmation = .delete(row)
                 }
             }
         }
-        .padding(.horizontal, 13).padding(.bottom, 10)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(7)
+        .frame(width: 190)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 11))
+        .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(Color.primary.opacity(0.09)))
+        .shadow(color: .black.opacity(0.12), radius: 10, y: 4)
     }
 
-    private func actionButton(_ title: String, _ symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Label(title, systemImage: symbol).lineLimit(1).frame(minHeight: 32) }
-            .buttonStyle(.bordered).controlSize(.small).disabled(!enabled)
+    private func panelAction(_ title: String, _ symbol: String, enabled: Bool,
+                             destructive: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.system(size: 12, weight: .medium))
+                .frame(maxWidth: .infinity, minHeight: 24, alignment: .leading)
+                .contentShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(PairbarActionButtonStyle())
+        .foregroundStyle(destructive ? Color.red : Color.primary)
+        .disabled(!enabled)
     }
 
     private var welcome: some View {
@@ -334,7 +325,7 @@ struct PairbarPanelView: View {
             welcomeStep("2", t("Add profiles when you need them", "Añade perfiles cuando los necesites"),
                 t("Name each profile and sign in inside its own app window. Your saved Current and Second setup is preserved.", "Pon nombre a cada perfil e inicia sesión en su propia ventana. Se conserva tu configuración de Current y Second."))
             welcomeStep("3", t("Choose what opens", "Elige qué se abre"),
-                t("Use favorites, search and shortcuts. Saving a profile does not open it or enable startup at login.", "Usa favoritos, búsqueda y atajos. Guardar un perfil no lo abre ni activa su inicio de sesión."))
+                t("Use pins, search and shortcuts. Saving a profile does not open it or enable startup at login.", "Usa perfiles fijados, búsqueda y atajos. Guardar un perfil no lo abre ni activa su inicio de sesión."))
         }
     }
 
@@ -350,7 +341,7 @@ struct PairbarPanelView: View {
     }
 
     private var settings: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 9) {
                 Text(t("General", "General")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 Picker(t("Language", "Idioma"), selection: Binding(get: { model.language }, set: { model.send(.setLanguage($0)) })) {
@@ -385,14 +376,15 @@ struct PairbarPanelView: View {
                     }
                 }
             }.padding(.top, 2)
-            Divider()
-            DisclosureGroup(t("Advanced", "Avanzado")) {
-                VStack(alignment: .leading, spacing: 16) {
+            DisclosureGroup(isExpanded: $model.advancedExpanded) {
+                VStack(alignment: .leading, spacing: 12) {
                     ForEach(model.providers) { provider in providerSettings(provider) }
                     Button(t("Export configuration…", "Exportar configuración…")) { model.send(.exportConfiguration) }
                         .disabled(model.previewOnly || model.busy)
-                    Button(t("Help & diagnostics", "Ayuda y diagnósticos")) { model.page = .help }
-                }.padding(.top, 10)
+                    Button(t("Help & About", "Ayuda e información")) { model.page = .help }
+                }.padding(.top, 6)
+            } label: {
+                Text(t("Advanced", "Avanzado")).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             }
         }
     }
@@ -457,7 +449,7 @@ struct PairbarPanelView: View {
                 }.padding(.top, 8)
             }
             DisclosureGroup(t("Reset and archive", "Restablecer y archivar")) {
-                Text(t("Delete profile removes a managed profile from Pairbar and keeps its local data. If it is open, Pairbar closes only that verified profile first. Archive & reset keeps the old data in an archive and starts with fresh storage next time; it still requires every instance of that provider to be closed.", "Eliminar perfil quita un perfil administrado de Pairbar y conserva sus datos locales. Si está abierto, Pairbar cierra primero solo ese perfil verificado. Archivar y restablecer conserva los datos anteriores e inicia con almacenamiento nuevo; sigue exigiendo cerrar todas las instancias del proveedor."))
+                Text(t("Remove from Pairbar keeps the profile's local data. If it is open, Pairbar closes only that verified profile first. Archive & reset keeps the old data in an archive and starts with fresh storage next time; it still requires every instance of that provider to be closed.", "Quitar de Pairbar conserva los datos locales del perfil. Si está abierto, Pairbar cierra primero solo ese perfil verificado. Archivar y restablecer conserva los datos anteriores e inicia con almacenamiento nuevo; sigue exigiendo cerrar todas las instancias del proveedor."))
                     .font(.caption).foregroundStyle(.secondary).padding(.top, 8)
             }
             Divider()
@@ -507,6 +499,39 @@ struct PairbarPanelView: View {
     }
 }
 
+private struct PairbarActionAnchorKey: PreferenceKey {
+    static var defaultValue: [String: Anchor<CGRect>] = [:]
+    static func reduce(value: inout [String: Anchor<CGRect>], nextValue: () -> [String: Anchor<CGRect>]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, latest in latest })
+    }
+}
+
+/// Places the measured panel beside its ellipsis, then keeps it inside the native popover.
+struct PairbarActionPlacement {
+    static func origin(anchor: CGRect, panel: CGSize, bounds: CGRect) -> CGPoint {
+        let inset: CGFloat = 8
+        let preferredX = anchor.minX - panel.width
+        let preferredY = anchor.midY - 40
+        return CGPoint(
+            x: min(max(preferredX, bounds.minX + inset), max(bounds.minX + inset, bounds.maxX - panel.width - inset)),
+            y: min(max(preferredY, bounds.minY + inset), max(bounds.minY + inset, bounds.maxY - panel.height - inset))
+        )
+    }
+}
+
+private struct PairbarActionOverlayLayout: Layout {
+    let anchor: CGRect
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions()
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let panel = subviews.first else { return }
+        let size = panel.sizeThatFits(.unspecified)
+        panel.place(at: PairbarActionPlacement.origin(anchor: anchor, panel: size, bounds: bounds),
+                    proposal: ProposedViewSize(size))
+    }
+}
+
 private struct PairbarRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -515,7 +540,18 @@ private struct PairbarRowButtonStyle: ButtonStyle {
     }
 }
 
-private enum PairbarConfirmation: Identifiable {
+private struct PairbarActionButtonStyle: ButtonStyle {
+    @State private var hovering = false
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 8)
+            .background(configuration.isPressed ? Color.accentColor.opacity(0.18) : hovering ? Color.accentColor.opacity(0.10) : Color.clear,
+                        in: RoundedRectangle(cornerRadius: 6))
+            .onHover { hovering = $0 }
+    }
+}
+
+enum PairbarConfirmation: Identifiable {
     case close(PairbarProfileRow), restart(PairbarProfileRow), delete(PairbarProfileRow), archive(PairbarProfileRow), reset(PairbarProfileRow), recover(PairbarProviderRow)
     var id: String {
         switch self {
@@ -549,7 +585,7 @@ private enum PairbarConfirmation: Identifiable {
         switch self {
         case .close: return language.text("Close profile", "Cerrar perfil")
         case .restart: return language.text("Restart profile", "Reiniciar perfil")
-        case .delete: return language.text("Delete profile", "Eliminar perfil")
+        case .delete: return language.text("Remove from Pairbar", "Quitar de Pairbar")
         case .archive: return language.text("Archive profile", "Archivar perfil")
         case .reset: return language.text("Archive & reset", "Archivar y restablecer")
         case .recover: return language.text("Try safe recovery", "Intentar recuperación segura")
@@ -559,11 +595,8 @@ private enum PairbarConfirmation: Identifiable {
         switch self {
         case .close, .restart:
             return language.text("Save your work first. Pairbar rechecks ownership before requesting a normal close. Current is never closed by Pairbar.", "Guarda tu trabajo primero. Pairbar vuelve a comprobar la propiedad antes de solicitar un cierre normal. Pairbar nunca cierra Current.")
-        case .delete(let row):
-            if row.running {
-                return language.text("This profile is open. Pairbar will close this profile and remove it. Other accounts stay open. Its local data will be kept for safety.", "Este perfil está abierto. Pairbar cerrará este perfil y lo eliminará. Las demás cuentas seguirán abiertas. Sus datos locales se conservarán por seguridad.")
-            }
-            return language.text("This profile will be removed from Pairbar. Its local data will be kept for safety. Other accounts stay open.", "Este perfil se eliminará de Pairbar. Sus datos locales se conservarán por seguridad. Las demás cuentas seguirán abiertas.")
+        case .delete:
+            return language.text("This removes the profile from Pairbar. Its local data is kept.", "Esto quita el perfil de Pairbar. Sus datos locales se conservan.")
         case .archive:
             return language.text("This profile will leave the active list and startup selection. Its data will be archived, not deleted. Every instance of this provider must be closed first.", "Este perfil se retirará de la lista activa y del inicio automático. Sus datos se archivarán, sin borrarlos. Primero deben cerrarse todas las instancias de este proveedor.")
         case .reset:

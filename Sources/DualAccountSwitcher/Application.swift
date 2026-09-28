@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var item: NSStatusItem?
     private var refreshTimer: Timer?
     private var memorySource: DispatchSourceMemoryPressure?
+    private var escapeMonitor: Any?
     private let popover = NSPopover()
 
     init(previewModel: PairbarPanelModel? = nil, previewColorScheme: ColorScheme? = nil) {
@@ -82,6 +83,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             self.model = model
             configureStatusItem(model: model)
+            escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard event.keyCode == 53, let self, self.popover.isShown,
+                      self.model?.consumeEscape() == true else { return event }
+                return nil
+            }
             popover.behavior = .transient
             model.onDesiredContentSizeChange = { [weak self] size in
                 self?.popover.contentSize = size
@@ -107,6 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         refreshTimer?.invalidate()
         memorySource?.cancel()
+        if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
     }
 
     func applicationDidResignActive(_ notification: Notification) {
@@ -162,6 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.refreshLogin()
         NSApp.activate(ignoringOtherApps: true)
         if !popover.isShown {
+            model?.closeActions()
             // Seed AppKit with the current SwiftUI target size before it places the
             // arrow. Later contentSize changes retain NSPopover's native anchor.
             if let model { popover.contentSize = model.desiredContentSize }
@@ -208,22 +216,24 @@ struct SwitcherMain {
         let preview: PairbarPanelModel?
         if arguments.count == 2 && arguments[1] == "--preview-ui" {
             preview = .preview()
-        } else if (arguments.count == 3 || arguments.count == 4) && arguments[1] == "--preview-ui" &&
+        } else if (arguments.count == 3 || arguments.count == 4 || arguments.count == 5) && arguments[1] == "--preview-ui" &&
                     ["english", "spanish"].contains(arguments[2]) &&
-                    (arguments.count == 3 || ["light", "dark"].contains(arguments[3])) {
-            preview = .preview(language: arguments[2] == "spanish" ? .spanish : .english)
+                    (arguments.count == 3 || ["light", "dark"].contains(arguments[3])) &&
+                    (arguments.count != 5 || arguments[4] == "four") {
+            preview = .preview(language: arguments[2] == "spanish" ? .spanish : .english,
+                               fourProfiles: arguments.count == 5)
         } else if arguments.count == 1 {
             preview = nil
         } else {
-            fputs("Usage: DualAccountSwitcher [--check-app /path/to/ChatGPT.app | --check-claude /path/to/Claude.app | --preview-ui [english|spanish [light|dark]]]\n", stderr)
+            fputs("Usage: DualAccountSwitcher [--check-app /path/to/ChatGPT.app | --check-claude /path/to/Claude.app | --preview-ui [english|spanish [light|dark [four]]]]\n", stderr)
             exit(2)
         }
         let app = NSApplication.shared
-        if preview != nil && arguments.count == 4 {
+        if preview != nil && arguments.count >= 4 {
             app.appearance = NSAppearance(named: arguments[3] == "light" ? .aqua : .darkAqua)
         }
         app.setActivationPolicy(.accessory)
-        let previewColorScheme: ColorScheme? = preview != nil && arguments.count == 4
+        let previewColorScheme: ColorScheme? = preview != nil && arguments.count >= 4
             ? (arguments[3] == "light" ? .light : .dark) : nil
         let delegate = AppDelegate(previewModel: preview, previewColorScheme: previewColorScheme)
         app.delegate = delegate
