@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var item: NSStatusItem?
     private var refreshTimer: Timer?
     private var memorySource: DispatchSourceMemoryPressure?
+    private var escapeMonitor: Any?
     private let popover = NSPopover()
 
     init(previewModel: PairbarPanelModel? = nil, previewColorScheme: ColorScheme? = nil) {
@@ -82,6 +83,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             self.model = model
             configureStatusItem(model: model)
+            escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard event.keyCode == 53, let self, self.popover.isShown,
+                      self.model?.consumeEscape() == true else { return event }
+                return nil
+            }
             popover.behavior = .transient
             model.onDesiredContentSizeChange = { [weak self] size in
                 self?.popover.contentSize = size
@@ -107,6 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         refreshTimer?.invalidate()
         memorySource?.cancel()
+        if let escapeMonitor { NSEvent.removeMonitor(escapeMonitor) }
     }
 
     func applicationDidResignActive(_ notification: Notification) {
@@ -162,6 +169,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller?.refreshLogin()
         NSApp.activate(ignoringOtherApps: true)
         if !popover.isShown {
+            model?.closeActions()
             // Seed AppKit with the current SwiftUI target size before it places the
             // arrow. Later contentSize changes retain NSPopover's native anchor.
             if let model { popover.contentSize = model.desiredContentSize }
