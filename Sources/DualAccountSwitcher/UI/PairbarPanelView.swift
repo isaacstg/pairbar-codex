@@ -291,7 +291,7 @@ struct PairbarPanelView: View {
                 Button(t("Restart…", "Reiniciar…")) { confirmation = .restart(row) }.disabled(model.previewOnly || !row.canRestart)
                 Button(t("Close…", "Cerrar…")) { confirmation = .close(row) }.disabled(model.previewOnly || !row.canClose)
                 Divider()
-                Button(t("Delete profile…", "Eliminar perfil…")) { confirmation = .delete(row) }.disabled(model.previewOnly || !row.canDelete)
+                Button(t("Delete profile…", "Eliminar perfil…")) { confirmation = .delete(row) }.disabled(!row.canDelete)
                 Menu(t("Advanced", "Avanzado")) {
                     Button(t("Archive & reset…", "Archivar y restablecer…")) { confirmation = .reset(row) }.disabled(model.previewOnly || !row.canReset)
                 }
