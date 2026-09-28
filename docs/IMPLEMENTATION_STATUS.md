@@ -1,8 +1,14 @@
 # Pairbar implementation status
 
+## Current release-candidate source status (2026-09-28)
+
+The PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
+
+This source declares Pairbar **2.0.0 (18)** as a release candidate. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
+
 Normal use now resolves a moved standard ChatGPT path and proven absent Codex receipts locally and old quiescent pending launches automatically during startup check or Open. Repair remains visible only for unresolved account issues; technical controls remain in Settings → Advanced. New build approval remains contextual and explicit. Managed Claude remains disabled.
 
-Last reconciled with PR #4 remediation on 2026-09-25. This document distinguishes implemented source, completed evidence, and acceptance still required.
+Historical sections below include PR #4 remediation on 2026-09-25. This document distinguishes implemented source, completed evidence, and acceptance still required.
 
 ## Product invariant
 
@@ -55,9 +61,9 @@ A PID, bundle identifier, or signature by itself is never ownership evidence. Th
 
 The installed bundle and static markers do not establish account isolation. Managed Claude support remains blocked until [CLAUDE_ACCEPTANCE.md](CLAUDE_ACCEPTANCE.md) passes with signed-in Chat and Code sessions and no crossover. Cowork requires separate evidence.
 
-## Current PR #4 remediation evidence
+## Historical PR #4 remediation evidence
 
-The current branch passed 150 Swift tests with no failures, source-policy audit, diff/shell/plist checks, a universal `x86_64 arm64` Pairbar 2.0.0 (17) build, fresh ZIP extraction, and strict all-architectures signature verification. `dist/Pairbar.zip` has SHA-256 `f82b511e061d77ae5630ac17854ff8fb053f34314e974e66f0b50d61af873244` and remains ad-hoc signed. The inert English/Spanish preview was inspected in light and dark modes; refreshed synthetic screenshots are in `docs/images/`. First-click Search and Command-F both accepted immediate typing from collapsed search. No new signed-in account isolation or live lifecycle acceptance was claimed.
+That PR #4 branch passed 150 Swift tests with no failures, source-policy audit, diff/shell/plist checks, a universal `x86_64 arm64` Pairbar 2.0.0 (17) build, fresh ZIP extraction, and strict all-architectures signature verification. That historical ZIP had SHA-256 `f82b511e061d77ae5630ac17854ff8fb053f34314e974e66f0b50d61af873244` and was ad-hoc signed. The inert English/Spanish preview was inspected in light and dark modes; refreshed synthetic screenshots are in `docs/images/`. First-click Search and Command-F both accepted immediate typing from collapsed search. No new signed-in account isolation or live lifecycle acceptance was claimed.
 
 Restart can request contextual approval for a changed installed Codex build, but it closes only when the existing receipt and live code can still be verified against the installed bundle. If an old running process cannot match the new bundle, it remains untouched and the user is guided to close it normally before reopening the profile. Open Selected asks at most once after cancellation for a provider in that batch; automatic login still never asks for build approval. Managed Claude creation remains disabled.
 

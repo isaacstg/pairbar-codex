@@ -28,7 +28,8 @@ mkdir -p dist
 staging_dir="$(/usr/bin/mktemp -d /private/tmp/codex-account-switcher-build.XXXXXX)"
 archive_temp="$PWD/dist/.Pairbar-$(/usr/bin/uuidgen).zip"
 iconset=""
-trap 'rm -rf -- "$staging_dir"; if [[ -n "$iconset" ]]; then rm -rf -- "$iconset"; fi; rm -f -- "$archive_temp"' EXIT
+build_info_temp=""
+trap 'rm -rf -- "$staging_dir"; if [[ -n "$iconset" ]]; then rm -rf -- "$iconset"; fi; rm -f -- "$archive_temp"; if [[ -n "$build_info_temp" ]]; then rm -f -- "$build_info_temp"; fi' EXIT
 
 app="$staging_dir/Pairbar.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -76,6 +77,22 @@ archive="$PWD/dist/Pairbar.zip"
 /bin/mv -f "$archive_temp" "$archive"
 checksum="$(/usr/bin/shasum -a 256 "$archive" | /usr/bin/awk '{print $1}')"
 printf '%s  %s\n' "$checksum" "Pairbar.zip" > "$archive.sha256"
+commit="$(git rev-parse HEAD)"
+source_state="clean"
+if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then source_state="dirty"; fi
+build_info_temp="$PWD/dist/.BUILD_INFO-$(/usr/bin/uuidgen).txt"
+{
+  printf 'version=%s\n' "$app_version"
+  printf 'build=%s\n' "$app_build"
+  printf 'commit=%s\n' "$commit"
+  printf 'source_state=%s\n' "$source_state"
+  printf 'architectures=%s\n' "$actual_architectures"
+  printf 'signature=%s\n' "$signing_description"
+  printf 'notarized=false\n'
+  printf 'archive=Pairbar.zip\n'
+  printf 'sha256=%s\n' "$checksum"
+} > "$build_info_temp"
+/bin/mv -f "$build_info_temp" "$PWD/dist/BUILD_INFO.txt"
 printf 'Built Pairbar %s (%s): %s (%s)\n' "$app_version" "$app_build" "$archive" "$signing_description"
 printf 'Architectures: %s\n' "$actual_architectures"
 printf 'SHA-256: %s\n' "$checksum"

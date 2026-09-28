@@ -25,7 +25,7 @@ jobs:
         run: swift test
       - name: Build and verify our app bundle
         run: SWITCHER_BUILD_ARCHS=universal scripts/build.sh
-      - name: Verify development artifact and write build provenance
+      - name: Verify development artifact and build provenance
         run: |
           (cd dist && shasum -a 256 -c Pairbar.zip.sha256)
           scratch="$(mktemp -d)"
@@ -33,14 +33,14 @@ jobs:
           ditto -x -k dist/Pairbar.zip "$scratch"
           codesign --verify --strict --all-architectures "$scratch/Pairbar.app"
           test "$(lipo -archs "$scratch/Pairbar.app/Contents/MacOS/DualAccountSwitcher")" = "x86_64 arm64"
-          {
-            echo "commit=${GITHUB_SHA}"
-            echo "runner=${RUNNER_OS}"
-            echo "architectures=$(lipo -archs "$scratch/Pairbar.app/Contents/MacOS/DualAccountSwitcher")"
-            echo "signature=ad-hoc-development"
-            echo "notarized=false"
-            sw_vers
-          } > dist/BUILD_INFO.txt
+          test "$(sed -n 's/^version=//p' dist/BUILD_INFO.txt)" = "2.0.0"
+          test "$(sed -n 's/^build=//p' dist/BUILD_INFO.txt)" = "18"
+          test "$(sed -n 's/^commit=//p' dist/BUILD_INFO.txt)" = "$(git rev-parse HEAD)"
+          grep -Fx 'source_state=clean' dist/BUILD_INFO.txt
+          test "$(sed -n 's/^architectures=//p' dist/BUILD_INFO.txt)" = "$(lipo -archs "$scratch/Pairbar.app/Contents/MacOS/DualAccountSwitcher")"
+          test "$(sed -n 's/^sha256=//p' dist/BUILD_INFO.txt)" = "$(shasum -a 256 dist/Pairbar.zip | awk '{print $1}')"
+          grep -Fx 'signature=ad-hoc development signature; not notarized' dist/BUILD_INFO.txt
+          grep -Fx 'notarized=false' dist/BUILD_INFO.txt
       - name: Upload development archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, Node 24
         with:
