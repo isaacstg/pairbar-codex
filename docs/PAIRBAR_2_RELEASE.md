@@ -1,6 +1,12 @@
 # Pairbar release gates
 
-This checklist separates implementation validation from a signed, notarized public release. No checklist item is implicitly complete because an earlier Pairbar version passed it. No automated publication or remote push is authorized by this document.
+## Current main and release-candidate status (2026-09-28)
+
+`main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada` includes PR #7. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
+
+This source declares Pairbar **2.0.0 (18)** as a release candidate. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
+
+This historical gate record separates implementation validation from a signed, notarized public release. The current binary release checklist is [PUBLIC_RELEASE_CHECKLIST.md](PUBLIC_RELEASE_CHECKLIST.md). No checklist item is implicitly complete because an earlier Pairbar version passed it. No automated publication or remote push is authorized by this document.
 
 ## Recovery and scope
 
@@ -8,13 +14,13 @@ The deliberately modified 1.3.3 base was consolidated in commit `4efdd57718e9a65
 
 The final recorded merge commit is `0bf3fbcb083e4a6454db2227e78e28522c566d89` from PR #2. Its macOS 14/15 workflow run `35585485542` passed both jobs. A source recovery tag does not roll back migrated user data. Do not install an old binary over schema 3 or restore metadata automatically.
 
-Installed acceptance follow-up code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` fixes immediate English/Spanish refresh of errors and login-item status. PR #3 is mergeable, and workflow runs `35622701599` and `35622779005` passed on macOS 14 and 15 for its code and acceptance-ledger commits. Integration still requires the final adversarial verdict.
+Installed acceptance follow-up code commit `0dcaeff6e98fb7009319363c5e5baa3c6f406273` fixes immediate English/Spanish refresh of errors and login-item status. At that historical point, PR #3 was mergeable, and workflow runs `35622701599` and `35622779005` passed on macOS 14 and 15 for its code and acceptance-ledger commits. That historical record predates PR #3 integration.
 
 The target product is a native menu-bar app with dynamic saved Codex profiles, one unmanaged Current per provider, explicit selected launches and conservative ownership. There is no promise of unlimited concurrent instances. Managed Claude remains unavailable until [the exact-build acceptance gate](CLAUDE_ACCEPTANCE.md) passes for both Chat and Code and resolves Cowork risks. A release with Claude still blocked must say so plainly and must not be labeled completed Claude support.
 
-## Automated source and artifact gates
+## Historical automated source and artifact gates
 
-Run these checks from the final integrated source with the integrator as the sole shared build owner. The commands below do not launch provider accounts:
+The historical integration used these checks with the integrator as the sole shared build owner. The commands below do not launch provider accounts:
 
 ```sh
 git status --short
@@ -43,7 +49,7 @@ Record the commit or a precise dirty-tree statement, compiler/macOS versions, ch
 
 The build script atomically produces `dist/Pairbar.zip` and `dist/Pairbar.zip.sha256` and signs only its own temporary `Pairbar.app`. With the default ad-hoc signing identity it is a development artifact, not a notarized distribution. A Developer ID identity can be supplied explicitly, but the script still does not submit, staple or claim notarization. Rebuilding replaces that workspace ZIP only after the new archive passes an integrity check; copy or rename a needed prior artifact before rebuilding, without touching provider applications.
 
-Before calling any Pairbar build a release candidate, set `CFBundleShortVersionString` and `CFBundleVersion` deliberately and verify that the UI, archive provenance and release notes use the same version. The current integrated source declares 2.0.0 (build 17); this is candidate metadata, not evidence that acceptance, signing or notarization has passed.
+Before calling any Pairbar build a release candidate, set `CFBundleShortVersionString` and `CFBundleVersion` deliberately and verify that the UI, archive provenance and release notes use the same version. The historical integrated source declared 2.0.0 (build 17). Current RC metadata is 2.0.0 (18); see the single [public binary release checklist](PUBLIC_RELEASE_CHECKLIST.md).
 
 ## Native acceptance in a safe environment
 
@@ -105,6 +111,6 @@ Follow [Apple's notarization workflow](https://developer.apple.com/documentation
 - [x] No private paths, test identities, provider data, debug exports or generated live-profile directories enter Git or the verified development archive.
 - [x] Adversarial review lists concrete issues and a final verdict against the integrated revision. Addressed findings were rechecked; absent real acceptance and notarization still block a public binary.
 
-Current adversarial verdict: **BLOCK** for public binary release. The audited worktree passes the source-policy audit, 133 synthetic tests, universal Pairbar 2.0.0 (17) development build, ZIP integrity/checksum, and strict all-architectures verification of Pairbar's ad-hoc signed bundle. Injected failures cover five archive durability boundaries. The installed ChatGPT and Claude bundles pass strict signing, Gatekeeper, and Pairbar's read-only checks outside the task sandbox. The real installed Pairbar pass completed migration, Pairbar restart/reinstall persistence, login-item registration, keyboard traversal, accessibility-tree inspection, appearance modes, and language refresh. Signed-in identity separation, owned lifecycle, an actual login event, completed recovery, archive/reset, human VoiceOver acceptance, Developer ID signing, notarization, stapling, and clean-user acceptance remain pending. Managed Claude is separately blocked by its signed-in Chat, Code, and Cowork evidence gate.
+Historical 2026-09-21 adversarial verdict: **BLOCK** for public binary release. The audited worktree passes the source-policy audit, 133 synthetic tests, universal Pairbar 2.0.0 (17) development build, ZIP integrity/checksum, and strict all-architectures verification of Pairbar's ad-hoc signed bundle. Injected failures cover five archive durability boundaries. The installed ChatGPT and Claude bundles pass strict signing, Gatekeeper, and Pairbar's read-only checks outside the task sandbox. The real installed Pairbar pass completed migration, Pairbar restart/reinstall persistence, login-item registration, keyboard traversal, accessibility-tree inspection, appearance modes, and language refresh. Signed-in identity separation, owned lifecycle, an actual login event, completed recovery, archive/reset, human VoiceOver acceptance, Developer ID signing, notarization, stapling, and clean-user acceptance remain pending. Managed Claude is separately blocked by its signed-in Chat, Code, and Cowork evidence gate.
 
 Truthful development-delivery wording: “Pairbar's dynamic profile update and 133 local synthetic checks are available as a universal ad-hoc development artifact. Managed Claude remains blocked pending signed-in isolation acceptance. Remaining live lifecycle acceptance, Developer ID signing, notarization, and public binary release are not claimed.”

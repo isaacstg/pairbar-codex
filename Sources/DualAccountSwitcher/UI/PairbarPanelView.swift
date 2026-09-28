@@ -393,6 +393,12 @@ struct PairbarPanelView: View {
         }
     }
 
+    private var displayVersion: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        return "Pairbar \(version) (\(build))"
+    }
+
     private var help: some View {
         VStack(alignment: .leading, spacing: 16) {
             Button(t("Quick start", "Guía de inicio")) { model.page = .welcome }
@@ -420,7 +426,7 @@ struct PairbarPanelView: View {
                     .font(.caption).foregroundStyle(.secondary).padding(.top, 8)
             }
             Divider()
-            Text("Pairbar " + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development"))
+            Text(displayVersion)
                 .font(.caption).foregroundStyle(.secondary)
             Text(t("Local only. No telemetry, network requests or automatic updates. Official provider apps remain unchanged.", "Solo local. Sin telemetría, solicitudes de red ni actualizaciones automáticas. Las apps oficiales permanecen sin cambios."))
                 .font(.caption).foregroundStyle(.secondary)

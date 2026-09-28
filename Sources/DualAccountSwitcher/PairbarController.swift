@@ -207,7 +207,9 @@ final class PairbarController {
         model.pruneSelection()
     }
     var diagnosticText: String {
-        var lines = ["Pairbar development", "metadata-schema: 3", "managed-profiles: \(records.filter { !$0.archived }.count)",
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        var lines = ["Pairbar \(version) (\(build))", "metadata-schema: 3", "managed-profiles: \(records.filter { !$0.archived }.count)",
                      "claude-managed: unavailable; runtime-separation-unvalidated"]
         for provider in ProviderID2.allCases {
             lines.append("provider: \(provider.rawValue); official-processes: \(runtime.running(provider: provider).count); recovery: \(states[provider]?.needsRecovery == true)")

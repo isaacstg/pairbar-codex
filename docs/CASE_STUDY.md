@@ -1,5 +1,11 @@
 # Pairbar: designing a conservative multi-profile switcher
 
+## Current main and release-candidate status (2026-09-28)
+
+`main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada` includes PR #7. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
+
+This source declares Pairbar **2.0.0 (18)** as a release candidate. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
+
 **Role:** product direction and implementation ownership — Isaac / [isaacstg](https://github.com/isaacstg). Developed with AI-assisted implementation, adversarial review, and Mac validation.
 
 **Stack:** Swift 5.9+, AppKit, SwiftUI, LaunchServices, Carbon hotkeys, Darwin process identity, Swift Package Manager, XCTest, and GitHub Actions.
@@ -74,7 +80,7 @@ Diagnostics use bounded event codes and aggregate state. Configuration export in
 
 Before this update began, the consolidated 1.3.3 baseline passed 47 tests, the source-policy audit, release compilation, and local ad-hoc bundle verification. Earlier disposable Current + Second smoke tests established that the legacy mechanism could initialize separate storage and preserve Current. Those results remain historical rather than evidence for the dynamic architecture.
 
-The audited Pairbar source passed 133 Swift tests, including dynamic storage/state, injected archive durability failures, fake-runtime controller, suspended-inspection ownership, memory-pressure behavior, independent batch failures, synthetic Claude, explicit Claude lifecycle/archive denial, panel-model suites, and language-change refresh behavior. The source audit, diff/plist/shell checks, universal release build, ZIP integrity, fresh extraction, and strict all-architectures signature verification also passed. The `x86_64 arm64` 2.0.0 (17) development archive has SHA-256 `fbd9891b696fac98b4b28e2ed4f9502db9705956632dd998fa7f3a6514ff8058` and an ad-hoc hardened-runtime signature.
+The historical integrated Pairbar source passed 133 Swift tests, including dynamic storage/state, injected archive durability failures, fake-runtime controller, suspended-inspection ownership, memory-pressure behavior, independent batch failures, synthetic Claude, explicit Claude lifecycle/archive denial, panel-model suites, and language-change refresh behavior. The source audit, diff/plist/shell checks, universal release build, ZIP integrity, fresh extraction, and strict all-architectures signature verification also passed. That historical `x86_64 arm64` 2.0.0 (17) development archive had SHA-256 `fbd9891b696fac98b4b28e2ed4f9502db9705956632dd998fa7f3a6514ff8058` and an ad-hoc hardened-runtime signature.
 
 Read-only checks outside the task sandbox verified ChatGPT `26.915.31945 (9922)` and Claude `1.34493.1` with strict signing, Gatekeeper, and Pairbar's compatibility paths. Earlier “modified” results were sandbox trust-store false negatives; no official bundle was changed. The native UI rendered in English and Spanish, exposed accessibility labels, supported Command-F search, and produced isolated public screenshots with synthetic data. The installed app passed keyboard traversal, appearance/contrast checks, opaque migration, reinstall persistence, and login-item registration. Signed-in isolation, owned lifecycle, completed recovery/archive/reset, actual login launch, and human VoiceOver listening remain pending in a separate disposable user or machine.
 

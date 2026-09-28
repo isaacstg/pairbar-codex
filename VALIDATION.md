@@ -1,14 +1,20 @@
 # Pairbar validation and release status
 
-PR #7 zero-maintenance validation: `swift test` passes 168 tests, including standard-path selection, local absent-receipt cleanup with Current open, the 60-second pending window, Open during fresh and stale pending, process appearance during pause, and a partial two-record save failure. `python3 scripts/audit.py`, `git diff --check`, shell/plist checks and `bash scripts/build.sh` are run before publication. No live ChatGPT account is opened or closed.
+## Current main and release-candidate status (2026-09-28)
 
-Last reconciled on 2026-09-25. This record separates the frozen 1.3.3 baseline, historical Pairbar validation, the PR #4 remediation, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
+`main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada` includes PR #7. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
 
-## PR #4 remediation validation — historical
+This source declares Pairbar **2.0.0 (18)** as a release candidate. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
+
+PR #7 automated validation integrated in current main: `swift test` passes 168 tests, including standard-path selection, local absent-receipt cleanup with Current open, the 60-second pending window, Open during fresh and stale pending, process appearance during pause, and a partial two-record save failure. `python3 scripts/audit.py`, `git diff --check`, shell/plist checks and `bash scripts/build.sh` are run before publication. That automated pass did not open or close a live ChatGPT account; the separate post-merge installed pass is summarized above.
+
+Historical sections last reconciled on 2026-09-25. This record separates the frozen 1.3.3 baseline, historical Pairbar validation, the PR #4 remediation, and real signed-in acceptance. A result in one section must not be used to claim completion of another.
+
+## Historical PR #4 remediation validation — historical
 
 On 2026-09-25, the `codex/pairbar-simplify-ux-v1` remediation passed:
 
-- `swift test`: **150 tests, 0 failures**. New cases cover Restart approval and cancellation for a changed build, build change and ownership change during approval, an old live process that cannot match the installed code, one-prompt Open Selected approval/cancellation, failed approval persistence, approval persisted before a later ownership abort, and exact shortcut-binding rollback after profile persistence fails. The prior approval regression now opens a second stopped profile rather than refocusing the first.
+- `swift test`: **150 tests, 0 failures** (historical PR #4). New cases cover Restart approval and cancellation for a changed build, build change and ownership change during approval, an old live process that cannot match the installed code, one-prompt Open Selected approval/cancellation, failed approval persistence, approval persisted before a later ownership abort, and exact shortcut-binding rollback after profile persistence fails. The prior approval regression now opens a second stopped profile rather than refocusing the first.
 - `python3 scripts/audit.py`, `git diff --check`, `bash -n scripts/build.sh`, and `plutil -lint Resources/Info.plist`: passed.
 - `bash scripts/build.sh`: built Pairbar **2.0.0 (17)** with `x86_64 arm64`; `dist/Pairbar.zip` SHA-256 is `f82b511e061d77ae5630ac17854ff8fb053f34314e974e66f0b50d61af873244`.
 - Fresh ZIP extraction, `unzip -tq`, `lipo -archs`, and `codesign --verify --strict --all-architectures`: passed. This is still an ad-hoc development artifact.
