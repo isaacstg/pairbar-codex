@@ -4,7 +4,7 @@
 
 The PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
 
-This source declares Pairbar **2.0.0 (22)** as the current UI release candidate; build 21 was the preceding candidate. Popover sizing follows the live panel height while retaining its native menu-bar anchor. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
+This source declares Pairbar **2.0.0 (23)** as the current UI release candidate; build 22 was the preceding candidate. Profile action buttons use a 44 × 44 pt hit target while retaining their row-based overlay anchor. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
 
 ## Recovery point
 

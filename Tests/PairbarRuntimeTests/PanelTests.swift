@@ -159,18 +159,21 @@ final class PanelTests: XCTestCase {
         await MainActor.run {
             let model = PairbarPanelModel()
             model.rows = [
-                Self.row("personal", provider: "codex", canOpen: true),
+                PairbarProfileRow(id: "current:codex", providerID: "codex", name: "Personal", isCurrent: true,
+                                  canOpen: true),
                 Self.row("work", provider: "codex", canOpen: true)
             ]
             var actions: [String] = []
             model.onAction = { actions.append(Self.describe($0)) }
-            model.toggleActions(for: "personal")
-            XCTAssertEqual(model.expandedActionsID, "personal")
+            model.toggleActions(for: "current:codex")
+            XCTAssertEqual(model.expandedActionsID, "current:codex")
+            XCTAssertTrue(actions.isEmpty, "Opening the ellipsis panel does not open the profile")
             model.toggleActions(for: "work")
             XCTAssertEqual(model.expandedActionsID, "work")
+            XCTAssertTrue(actions.isEmpty, "Switching the ellipsis panel does not open the profile")
             model.openRow(model.rows[0])
             XCTAssertNil(model.expandedActionsID)
-            XCTAssertEqual(actions, ["open:personal"])
+            XCTAssertEqual(actions, ["open:current:codex"])
             model.toggleActions(for: "work")
             model.toggleActions(for: "work")
             XCTAssertNil(model.expandedActionsID)
@@ -239,16 +242,17 @@ final class PanelTests: XCTestCase {
     func testActionOverlayTracksAnchorAndClampsWithinPopover() {
         let panel = CGSize(width: 190, height: 146)
         let two = CGRect(x: 0, y: 0, width: 326, height: 208)
-        let work = PairbarActionPlacement.origin(anchor: CGRect(x: 286, y: 154, width: 34, height: 36),
+        XCTAssertEqual(PairbarActionHitTarget.side, 44)
+        let work = PairbarActionPlacement.origin(anchor: CGRect(x: 276, y: 150, width: 44, height: 44),
                                                 panel: panel, bounds: two)
-        XCTAssertEqual(work, CGPoint(x: 96, y: 54), "Two-profile Work keeps its existing visual placement")
+        XCTAssertEqual(work, CGPoint(x: 86, y: 54), "The overlay stays tied to the enlarged button anchor")
 
         let four = CGRect(x: 0, y: 0, width: 326, height: 344)
-        let personal = PairbarActionPlacement.origin(anchor: CGRect(x: 286, y: 88, width: 34, height: 36),
+        let personal = PairbarActionPlacement.origin(anchor: CGRect(x: 276, y: 84, width: 44, height: 44),
                                                     panel: panel, bounds: four)
-        let studio = PairbarActionPlacement.origin(anchor: CGRect(x: 286, y: 224, width: 34, height: 36),
+        let studio = PairbarActionPlacement.origin(anchor: CGRect(x: 276, y: 220, width: 44, height: 44),
                                                   panel: panel, bounds: four)
-        let testing = PairbarActionPlacement.origin(anchor: CGRect(x: 286, y: 292, width: 34, height: 36),
+        let testing = PairbarActionPlacement.origin(anchor: CGRect(x: 276, y: 288, width: 44, height: 44),
                                                    panel: panel, bounds: four)
         XCTAssertLessThan(personal.y, studio.y)
         XCTAssertEqual(studio.y, 190)

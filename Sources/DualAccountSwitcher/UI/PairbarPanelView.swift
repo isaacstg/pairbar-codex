@@ -254,11 +254,11 @@ struct PairbarPanelView: View {
             .onHover { hoveredRowID = $0 ? row.id : nil }
             Button { model.toggleActions(for: row.id) } label: {
                 Image(systemName: "ellipsis").font(.system(size: 15, weight: .semibold))
-                    .frame(width: 34, height: 36)
+                    .frame(width: PairbarActionHitTarget.side, height: PairbarActionHitTarget.side)
+                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .background(model.expandedActionsID == row.id ? Color.accentColor.opacity(0.12) : Color.clear,
-                        in: RoundedRectangle(cornerRadius: 8))
+            .buttonStyle(PairbarEllipsisButtonStyle(isExpanded: model.expandedActionsID == row.id))
+            .contentShape(Rectangle())
             .accessibilityLabel(t("Actions for", "Acciones de") + " " + row.name)
             .accessibilityValue(model.expandedActionsID == row.id ? t("Expanded", "Expandido") : t("Collapsed", "Contraído"))
             .anchorPreference(key: PairbarActionAnchorKey.self, value: .bounds) { [row.id: $0] }
@@ -506,6 +506,10 @@ private struct PairbarActionAnchorKey: PreferenceKey {
     }
 }
 
+enum PairbarActionHitTarget {
+    static let side: CGFloat = 44
+}
+
 /// Places the measured panel beside its ellipsis, then keeps it inside the native popover.
 struct PairbarActionPlacement {
     static func origin(anchor: CGRect, panel: CGSize, bounds: CGRect) -> CGPoint {
@@ -547,6 +551,24 @@ private struct PairbarActionButtonStyle: ButtonStyle {
             .padding(.horizontal, 8)
             .background(configuration.isPressed ? Color.accentColor.opacity(0.18) : hovering ? Color.accentColor.opacity(0.10) : Color.clear,
                         in: RoundedRectangle(cornerRadius: 6))
+            .onHover { hovering = $0 }
+    }
+}
+
+private struct PairbarEllipsisButtonStyle: ButtonStyle {
+    let isExpanded: Bool
+    @State private var hovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(width: PairbarActionHitTarget.side, height: PairbarActionHitTarget.side)
+            .contentShape(Rectangle())
+            .background(
+                configuration.isPressed ? Color.accentColor.opacity(0.18)
+                : hovering ? Color.accentColor.opacity(0.09)
+                : isExpanded ? Color.accentColor.opacity(0.14) : Color.clear,
+                in: RoundedRectangle(cornerRadius: 8)
+            )
             .onHover { hovering = $0 }
     }
 }

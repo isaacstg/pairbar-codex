@@ -1,6 +1,11 @@
 # Changelog
 
-## 2.0.0 (19) — Current development candidate
+## 2.0.0 (23) — Current development candidate
+
+- Give each profile’s action button a 44 × 44 pt hit target with explicit rectangular hit testing, whole-target hover feedback, pressed feedback, and an anchored open state. Keep the ellipsis glyph compact and the action overlay attached to its row.
+- Build 22 is the preceding candidate.
+
+## 2.0.0 (19) — Prior development candidate
 
 - Let users delete a stopped managed Codex profile while Current or other verified profiles remain open. A running verified target is closed gracefully and checked again before removal.
 - Keep removed profile storage at its original path under an explicit archived metadata record; release its shortcut and startup selection without deleting local data. Unknown directories still block recovery.
