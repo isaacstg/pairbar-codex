@@ -10,6 +10,7 @@ struct PairbarPanelView: View {
     @State private var hoveredRowID: String?
 
     private func t(_ english: String, _ spanish: String) -> String { model.text(english, spanish) }
+    private var isRestorePage: Bool { if case .restore = model.page { return true }; return false }
     private var title: String {
         switch model.page {
         case .accounts: return "Pairbar"
@@ -18,6 +19,7 @@ struct PairbarPanelView: View {
         case .help: return t("Help", "Ayuda")
         case .create: return t("Add profile", "Añadir perfil")
         case .edit: return t("Edit profile", "Editar perfil")
+        case .restore: return t("Restore Profile", "Restaurar perfil")
         }
     }
     var body: some View {
@@ -78,10 +80,10 @@ struct PairbarPanelView: View {
     private var header: some View {
         HStack(spacing: 10) {
             if model.page != .accounts && model.page != .welcome {
-                Button { model.showAccounts() } label: { Image(systemName: "chevron.left").frame(width: 34, height: 34) }
+                Button { if isRestorePage { model.page = .settings } else { model.showAccounts() } } label: { Image(systemName: "chevron.left").frame(width: 34, height: 34) }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(t("Back to profiles", "Volver a perfiles"))
-                    .help(t("Back to profiles · Shift-Command-B", "Volver a perfiles · Mayús-Comando-B"))
+                    .accessibilityLabel(isRestorePage ? t("Back to Settings", "Volver a Ajustes") : t("Back to profiles", "Volver a perfiles"))
+                    .help(isRestorePage ? t("Back to Settings", "Volver a Ajustes") : t("Back to profiles · Shift-Command-B", "Volver a perfiles · Mayús-Comando-B"))
             }
             Text(title).font(.system(size: 16, weight: .semibold)).lineLimit(2)
             Spacer(minLength: 4)
@@ -178,6 +180,20 @@ struct PairbarPanelView: View {
             } else {
                 Text(t("This profile is no longer available.", "Este perfil ya no está disponible."))
                 Button(t("Back to profiles", "Volver a perfiles")) { model.showAccounts() }
+            }
+        case .restore(let id):
+            VStack(alignment: .leading, spacing: 14) {
+                Text(t("This name is already in use. Choose another name to restore the profile.",
+                       "Este nombre ya está en uso. Elige otro para restaurar el perfil."))
+                    .font(.callout).foregroundStyle(.secondary)
+                TextField(t("Profile name", "Nombre del perfil"), text: $model.restoreName)
+                    .textFieldStyle(.roundedBorder)
+                HStack {
+                    Button(t("Cancel", "Cancelar")) { model.page = .settings }
+                    Spacer()
+                    Button(t("Restore", "Restaurar")) { model.send(.restore(id, model.restoreName)) }
+                        .disabled(!model.restoreNameValid(for: id) || model.busy || model.previewOnly)
+                }
             }
         }
     }
@@ -376,6 +392,24 @@ struct PairbarPanelView: View {
                     }
                 }
             }.padding(.top, 2)
+            if !model.removedProfiles.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(t("Removed Profiles", "Perfiles quitados"))
+                        .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    ForEach(model.removedProfiles) { row in
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(row.name).font(.callout).lineLimit(1)
+                                Text(t("Local data kept", "Datos locales conservados"))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 4)
+                            Button(t("Restore", "Restaurar")) { model.send(.restore(row.id, nil)) }
+                                .disabled(model.busy || model.previewOnly || !row.canEdit)
+                        }.padding(.vertical, 3)
+                    }
+                }
+            }
             DisclosureGroup(isExpanded: $model.advancedExpanded) {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(model.providers) { provider in providerSettings(provider) }
@@ -618,7 +652,7 @@ enum PairbarConfirmation: Identifiable {
         case .close, .restart:
             return language.text("Save your work first. Pairbar rechecks ownership before requesting a normal close. Current is never closed by Pairbar.", "Guarda tu trabajo primero. Pairbar vuelve a comprobar la propiedad antes de solicitar un cierre normal. Pairbar nunca cierra Current.")
         case .delete:
-            return language.text("This removes the profile from Pairbar. Its local data is kept.", "Esto quita el perfil de Pairbar. Sus datos locales se conservan.")
+            return language.text("This removes the profile from Pairbar. Its local data is kept. You can restore it later from Settings.", "Esto quita el perfil de Pairbar. Sus datos locales se conservan. Puedes restaurarlo más adelante desde Ajustes.")
         case .archive:
             return language.text("This profile will leave the active list and startup selection. Its data will be archived, not deleted. Every instance of this provider must be closed first.", "Este perfil se retirará de la lista activa y del inicio automático. Sus datos se archivarán, sin borrarlos. Primero deben cerrarse todas las instancias de este proveedor.")
         case .reset:

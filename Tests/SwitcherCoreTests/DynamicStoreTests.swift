@@ -499,6 +499,73 @@ final class DynamicStoreTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(store.listProfiles().first { $0.id == clean.id }).archived)
     }
 
+    func testRemovedProfileRestoresSameStorageAndIdentityWithoutMovingData() throws {
+        let store = try openStore()
+        var original = try store.createProfile(provider: .codex, name: "Work")
+        original.favorite = true; original.launchAtLogin = true; original.shortcut = .legacySecond
+        try store.saveProfile(original)
+        let paths = try store.prepareStorage(for: original)
+        let marker = paths.codexHome.appendingPathComponent("fixture")
+        try Data("test-only".utf8).write(to: marker)
+        var before = stat(); XCTAssertEqual(lstat(paths.base.path, &before), 0)
+        let removed = try store.removeProfile(original)
+        XCTAssertTrue(removed.isRemovedRestorable)
+        let restored = try store.restoreRemovedProfile(removed, name: "Work", shortcut: .legacySecond)
+        var after = stat(); XCTAssertEqual(lstat(paths.base.path, &after), 0)
+        XCTAssertEqual(before.st_dev, after.st_dev); XCTAssertEqual(before.st_ino, after.st_ino)
+        XCTAssertEqual(restored.id, original.id); XCTAssertEqual(restored.provider, original.provider)
+        XCTAssertEqual(restored.storage, original.storage)
+        XCTAssertEqual(restored.storageGeneration, original.storageGeneration)
+        XCTAssertEqual(restored.order, original.order)
+        XCTAssertEqual(store.paths(for: restored).base, paths.base)
+        XCTAssertEqual(try String(contentsOf: marker, encoding: .utf8), "test-only")
+        XCTAssertFalse(restored.archived); XCTAssertNil(restored.storageRetainedInPlace)
+        XCTAssertFalse(restored.favorite); XCTAssertFalse(restored.launchAtLogin)
+        XCTAssertNil(restored.receipt); XCTAssertNil(restored.pending); XCTAssertNil(restored.archiveID)
+    }
+
+    func testRestoreWithoutStorageDoesNotCreateItAndRejectsStaleOrDuplicateMetadata() throws {
+        let store = try openStore()
+        let original = try store.createProfile(provider: .codex, name: "Work")
+        let path = store.paths(for: original).base.path
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path))
+        XCTAssertThrowsError(try store.restoreRemovedProfile(original, name: "Work"))
+        let removed = try store.removeProfile(original)
+        XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Current account"))
+        _ = try store.createProfile(provider: .codex, name: "Work")
+        XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Work"))
+        let restored = try store.restoreRemovedProfile(removed, name: "Another Work")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path))
+        XCTAssertEqual(restored.storage, original.storage)
+        XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Again"))
+    }
+
+    func testTraditionalArchiveAndLegacyMetadataAreNotRestorable() throws {
+        let store = try openStore()
+        let original = try store.createProfile(provider: .codex, name: "Old")
+        let archived = try store.archive(profileID: original.id, reset: false, evidence: quiescence()).profile
+        XCTAssertFalse(archived.isRemovedRestorable)
+        XCTAssertThrowsError(try store.restoreRemovedProfile(archived, name: "Old"))
+        var legacyJSON = try JSONSerialization.jsonObject(with: JSONEncoder().encode(archived)) as! [String: Any]
+        legacyJSON.removeValue(forKey: "storageRetainedInPlace")
+        let legacy = try JSONDecoder().decode(ProfileRecord2.self, from: JSONSerialization.data(withJSONObject: legacyJSON))
+        XCTAssertNil(legacy.storageRetainedInPlace)
+        XCTAssertFalse(legacy.isRemovedRestorable)
+    }
+
+    func testRestoreRejectsOrphanStorageAndPendingArchiveOperation() throws {
+        let store = try openStore()
+        let original = try store.createProfile(provider: .codex, name: "Work")
+        let removed = try store.removeProfile(original)
+        let unknown = scratch.appendingPathComponent("Profiles/codex/unknown")
+        try PrivateStore.prepareDirectory(unknown)
+        XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Work"))
+        try FileManager.default.removeItem(at: unknown)
+        let journal = archiveJournal(before: original, hadStorage: false)
+        try fixture(journal, at: journalPath(journal))
+        XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Work"))
+    }
+
     private struct ArchiveFixture: Codable {
         let id: UUID
         let before: ProfileRecord2

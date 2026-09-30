@@ -1205,6 +1205,148 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertEqual(try fixture.store.listProfiles().first { $0.id == work.id }?.receipt?.stamp, workStamp)
     }
 
+    func testRemovedWorkRestoresWithOriginalDataWhileCurrentAndAnotherProfileRun() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector()
+        let current = inspector.stamp(provider: .codex, pid: 881, seconds: 100)
+        let otherStamp = inspector.stamp(provider: .codex, pid: 882, seconds: 100)
+        let other = try fixture.addOwnedProfile(name: "Other", stamp: otherStamp, fingerprint: fingerprint)
+        let work = try fixture.addProfile(provider: .codex, name: "Work", order: 7)
+        let storage = try fixture.store.prepareStorage(for: work)
+        let marker = storage.codexHome.appendingPathComponent("test-fixture")
+        try Data("intact".utf8).write(to: marker)
+        let runtime = FakeRuntime()
+        runtime.install(current, provider: .codex, app: inspector.identity(for: .codex).app)
+        runtime.install(otherStamp, provider: .codex, app: inspector.identity(for: .codex).app)
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        await controller.identify(.codex)
+        await controller.delete(work.id)
+        XCTAssertFalse(controller.model.normalRows.contains { $0.id == work.id.description })
+        XCTAssertEqual(controller.model.removedProfiles.map(\.id), [work.id.description])
+        controller.restoreRemoved(work.id)
+        let restored = try XCTUnwrap(controller.records.first { $0.id == work.id })
+        XCTAssertFalse(restored.archived)
+        XCTAssertEqual(restored.id, work.id)
+        XCTAssertEqual(restored.storage, work.storage)
+        XCTAssertEqual(restored.storageGeneration, work.storageGeneration)
+        XCTAssertEqual(restored.order, work.order)
+        XCTAssertEqual(fixture.store.paths(for: restored).base, storage.base)
+        XCTAssertEqual(try String(contentsOf: marker, encoding: .utf8), "intact")
+        XCTAssertTrue(controller.model.removedProfiles.isEmpty)
+        XCTAssertTrue(controller.model.normalRows.contains { $0.id == work.id.description })
+        XCTAssertFalse(restored.favorite); XCTAssertFalse(restored.launchAtLogin)
+        XCTAssertEqual(restored.shortcut, .legacySecond)
+        XCTAssertEqual(controller.records.first { $0.id == other.id }?.receipt?.stamp, otherStamp)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+        XCTAssertEqual(runtime.running(provider: .codex).count, 2)
+    }
+
+    func testRestoreConflictOffersRenameAndSkipsUnavailableShortcut() throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let old = try fixture.addProfile(provider: .codex, name: "Work")
+        let removed = try fixture.store.removeProfile(old)
+        _ = try fixture.addProfile(provider: .codex, name: "Work")
+        let runtime = FakeRuntime()
+        let controller = try fixture.controller(runtime: runtime, inspector: FakeInspector())
+        controller.replaceShortcuts = { !$0.contains(where: { $0.targetID == old.id.description && $0.keyCode == 19 }) }
+        controller.restoreRemoved(old.id)
+        XCTAssertEqual(controller.model.page, .restore(old.id.description))
+        XCTAssertEqual(controller.model.restoreName, "Work")
+        XCTAssertFalse(controller.model.restoreNameValid(for: old.id.description))
+        controller.model.restoreName = "Restored Work"
+        XCTAssertTrue(controller.model.restoreNameValid(for: old.id.description))
+        controller.restoreRemoved(old.id, name: controller.model.restoreName)
+        let restored = try XCTUnwrap(controller.records.first { $0.id == old.id })
+        XCTAssertEqual(restored.name, "Restored Work")
+        XCTAssertEqual(restored.shortcut, Shortcut2(keyCode: 20, modifiers: 2304))
+        XCTAssertFalse(restored.archived)
+        XCTAssertNotEqual(removed, restored)
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+    }
+
+    func testRestoreFailsClosedWhenMetadataChangesSincePresentation() throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let old = try fixture.addProfile(provider: .codex, name: "Work")
+        _ = try fixture.store.removeProfile(old)
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        var changed = try XCTUnwrap(fixture.store.listProfiles().first)
+        changed.name = "Changed outside UI"
+        try fixture.store.saveProfile(changed)
+        controller.restoreRemoved(old.id)
+        XCTAssertTrue(controller.records.first { $0.id == old.id }?.archived == true)
+        XCTAssertEqual(try fixture.store.listProfiles().first?.name, "Changed outside UI")
+    }
+
+    func testRestoreWithNoAvailableShortcutStillSucceeds() throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let old = try fixture.addProfile(provider: .codex, name: "Old")
+        _ = try fixture.store.removeProfile(old)
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        for number in 1...9 { controller.saveDraft(id: nil, draft: PairbarProfileDraft(name: "Other \(number)")) }
+        XCTAssertEqual(controller.records.filter { !$0.archived && $0.shortcut != nil }.count, 9)
+        controller.restoreRemoved(old.id)
+        XCTAssertFalse(try XCTUnwrap(controller.records.first { $0.id == old.id }).archived)
+        XCTAssertNil(controller.records.first { $0.id == old.id }?.shortcut)
+    }
+
+    func testRestoreShortcutRegistrationFailureFallsBackToNoShortcut() throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let old = try fixture.addProfile(provider: .codex, name: "Old")
+        _ = try fixture.store.removeProfile(old)
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        let previous = controller.shortcutBindings()
+        var installed = previous
+        controller.replaceShortcuts = { bindings in
+            guard !bindings.contains(where: { $0.targetID == old.id.description }) else { return false }
+            installed = bindings; return true
+        }
+        controller.restoreRemoved(old.id)
+        XCTAssertEqual(installed, previous)
+        XCTAssertNil(controller.records.first { $0.id == old.id }?.shortcut)
+        XCTAssertFalse(try XCTUnwrap(fixture.store.listProfiles().first { $0.id == old.id }).archived)
+    }
+
+    func testRemovedProfilesOnlyShowsRetainedInPlaceRecords() throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let removedSource = try fixture.addProfile(provider: .codex, name: "Removed")
+        _ = try fixture.store.removeProfile(removedSource)
+        let archivedSource = try fixture.addProfile(provider: .codex, name: "Archived")
+        _ = try fixture.store.archive(profileID: archivedSource.id, reset: false,
+            evidence: ProviderQuiescence2(provider: .codex, officialProcessCount: 0, hasUnverifiableProcesses: false))
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        XCTAssertEqual(controller.model.removedProfiles.map(\.name), ["Removed"])
+        XCTAssertFalse(controller.model.removedProfiles.contains { $0.isCurrent })
+        XCTAssertFalse(controller.model.normalRows.contains { $0.id == removedSource.id.description })
+        XCTAssertFalse(controller.model.normalRows.contains { $0.id == archivedSource.id.description })
+    }
+
+    func testRestoreReconcilesHotkeysWhenMetadataChangesDuringRegistration() throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let old = try fixture.addProfile(provider: .codex, name: "Old")
+        _ = try fixture.store.removeProfile(old)
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: FakeInspector())
+        let previous = controller.shortcutBindings()
+        var installed = previous
+        var changed = false
+        controller.replaceShortcuts = { bindings in
+            installed = bindings
+            if !changed && bindings.contains(where: { $0.targetID == old.id.description }) {
+                changed = true
+                var durable = try! XCTUnwrap(fixture.store.listProfiles().first { $0.id == old.id })
+                durable.name = "Changed concurrently"
+                try! fixture.store.saveProfile(durable)
+            }
+            return true
+        }
+        controller.restoreRemoved(old.id)
+        XCTAssertTrue(changed)
+        XCTAssertEqual(installed, previous)
+        XCTAssertTrue(try XCTUnwrap(fixture.store.listProfiles().first { $0.id == old.id }).archived)
+        XCTAssertEqual(controller.records.first { $0.id == old.id }?.name, "Changed concurrently")
+    }
+
     func testDeleteCloseTimeoutOrStampChangePreservesProfile() async throws {
         for changed in [false, true] {
             let fixture = try Fixture(); defer { fixture.remove() }

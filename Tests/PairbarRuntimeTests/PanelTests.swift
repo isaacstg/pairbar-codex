@@ -287,9 +287,27 @@ final class PanelTests: XCTestCase {
             XCTAssertEqual(confirmation.button(language: .english), "Remove from Pairbar")
             XCTAssertEqual(confirmation.button(language: .spanish), "Quitar de Pairbar")
             XCTAssertEqual(confirmation.message(language: .english),
-                           "This removes the profile from Pairbar. Its local data is kept.")
+                           "This removes the profile from Pairbar. Its local data is kept. You can restore it later from Settings.")
             XCTAssertEqual(confirmation.message(language: .spanish),
-                           "Esto quita el perfil de Pairbar. Sus datos locales se conservan.")
+                           "Esto quita el perfil de Pairbar. Sus datos locales se conservan. Puedes restaurarlo más adelante desde Ajustes.")
+        }
+    }
+
+    func testInertPreviewSeparatesActiveAndRemovedProfilesInBothLanguages() async {
+        await MainActor.run {
+            for language in [PairbarLanguage.english, .spanish] {
+                let model = PairbarPanelModel.preview(language: language)
+                XCTAssertEqual(model.normalRows.filter { $0.providerID == "codex" }.map(\.name), ["Personal", "Work"])
+                XCTAssertEqual(model.removedProfiles.map(\.name), ["Old Work", "Testing"])
+                XCTAssertFalse(model.normalRows.contains { $0.id == "preview-old-work" })
+                XCTAssertFalse(model.removedProfiles.contains { $0.isCurrent })
+                var dispatched = false
+                model.onAction = { _ in dispatched = true }
+                model.send(.restore("preview-old-work", nil))
+                XCTAssertFalse(dispatched)
+                XCTAssertEqual(model.text("Removed Profiles", "Perfiles quitados"),
+                               language == .english ? "Removed Profiles" : "Perfiles quitados")
+            }
         }
     }
 
@@ -401,6 +419,7 @@ final class PanelTests: XCTestCase {
         case .restart(let id): return "restart:\(id)"
         case .archive(let id): return "archive:\(id)"
         case .delete(let id): return "delete:\(id)"
+        case .restore(let id, let name): return "restore:\(id):\(name ?? "")"
         case .reset(let id): return "reset:\(id)"
         case .check(let id): return "check:\(id)"
         case .choose(let id): return "choose:\(id)"

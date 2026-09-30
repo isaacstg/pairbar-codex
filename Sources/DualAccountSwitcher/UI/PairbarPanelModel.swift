@@ -61,7 +61,7 @@ struct PairbarProfileDraft: Equatable {
 }
 
 enum PairbarPanelPage: Equatable {
-    case welcome, accounts, settings, help, create, edit(String)
+    case welcome, accounts, settings, help, create, edit(String), restore(String)
 }
 
 enum PairbarMemoryPressure { case normal, warning, critical }
@@ -71,6 +71,7 @@ enum PairbarPanelAction {
     case create(PairbarProfileDraft), update(String, PairbarProfileDraft)
     case favorite(String, Bool), move(String, Int)
     case close(String), restart(String), archive(String), reset(String), delete(String)
+    case restore(String, String?)
     case check(String), choose(String), recover(String)
     case setStartAtLogin(Bool), setOpenProfilesAtLogin(Bool), setProfileAtLogin(String, Bool)
     case setLanguage(PairbarLanguage), completeWelcome
@@ -84,6 +85,8 @@ final class PairbarPanelModel: ObservableObject {
     static let width: CGFloat = 326
     static let height: CGFloat = 520
     @Published var rows: [PairbarProfileRow] = []
+    @Published var removedProfiles: [PairbarProfileRow] = []
+    @Published var restoreName = ""
     @Published var providers: [PairbarProviderRow] = []
     @Published var errorMessage: String?
     @Published var progressMessage: String?
@@ -144,7 +147,8 @@ final class PairbarPanelModel: ObservableObject {
             let rowHeight = CGFloat(min(max(visibleRows.count, 1), 5)) * 68
             return min(520, max(208, 72 + rowHeight))
         case .create: return 280
-        case .settings: return advancedExpanded ? 520 : (openProfilesAtLogin ? 390 : 272)
+        case .restore: return 260
+        case .settings: return advancedExpanded ? 520 : min(520, (openProfilesAtLogin ? 390 : 272) + CGFloat(min(removedProfiles.count, 3)) * 52 + (removedProfiles.isEmpty ? 0 : 34))
         case .welcome, .help, .edit: return Self.height
         }
     }
@@ -172,6 +176,14 @@ final class PairbarPanelModel: ObservableObject {
         orderedRows.filter { selectedIDs.contains($0.id) && $0.canOpen && !$0.isBusy }.map(\.id)
     }
     var canCreate: Bool { providers.contains { $0.canCreate && !$0.busy } }
+    func restoreNameValid(for id: String) -> Bool {
+        let name = restoreName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name.count <= 40,
+              !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) || CharacterSet.newlines.contains($0) }),
+              let row = removedProfiles.first(where: { $0.id == id }) else { return false }
+        let normalized = name.precomposedStringWithCanonicalMapping.lowercased()
+        return !rows.contains { $0.providerID == row.providerID && $0.name.precomposedStringWithCanonicalMapping.lowercased() == normalized }
+    }
     func send(_ action: PairbarPanelAction) {
         if previewOnly {
             // The inert preview can exercise settings presentation without
@@ -199,6 +211,8 @@ final class PairbarPanelModel: ObservableObject {
             guard rows.contains(where: { $0.id == id && !$0.isCurrent && $0.canDelete }) else { return }
         case .reset(let id):
             guard rows.contains(where: { $0.id == id && !$0.isCurrent && $0.canReset }) else { return }
+        case .restore(let id, _):
+            guard removedProfiles.contains(where: { $0.id == id }) else { return }
         case .open(let id):
             guard rows.contains(where: { $0.id == id && $0.canOpen && !$0.isBusy }) else { return }
         case .openSelected(let ids):
@@ -255,6 +269,10 @@ extension PairbarPanelModel {
                 canOpen: true, canClose: true, canRestart: true, canArchive: true, canDelete: true, canReset: true),
             PairbarProfileRow(id: "current:claude", providerID: "claude", name: "Current Account", isCurrent: true,
                 status: model.text("Closed", "Cerrado"), order: 2, canOpen: true)
+        ]
+        model.removedProfiles = [
+            PairbarProfileRow(id: "preview-old-work", providerID: "codex", name: "Old Work", order: 3),
+            PairbarProfileRow(id: "preview-removed-testing", providerID: "codex", name: "Testing", order: 4)
         ]
         if fourProfiles {
             model.rows.insert(contentsOf: [

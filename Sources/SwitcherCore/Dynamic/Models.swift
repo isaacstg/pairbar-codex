@@ -165,6 +165,11 @@ public struct ProfileRecord2: Codable, Equatable, Identifiable {
     /// True only for a removed profile whose opaque storage stays at its original path.
     /// Optional so records written before this field existed still decode.
     public var storageRetainedInPlace: Bool?
+    /// Removal is distinct from a traditional archive, even for old metadata.
+    public var isRemovedRestorable: Bool {
+        provider.managedProfilesEnabled && archived && storageRetainedInPlace == true &&
+        archiveID == nil && pending == nil && receipt == nil && !launchAtLogin && !favorite && shortcut == nil
+    }
     public init(id: ManagedProfileID = ManagedProfileID(), provider: ProviderID2, name: String,
                 storage: StorageLocator2? = nil, storageGeneration: UUID = UUID()) {
         self.id = id; self.provider = provider; self.name = name
