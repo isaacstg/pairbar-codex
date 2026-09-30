@@ -33,7 +33,7 @@ Additional managed profiles are separate records. Managed Codex profiles have di
 
 - Pure per-provider resolution for Current and managed states, with explicit absent, unreadable, and verified process observations.
 - Current classification excludes only managed processes with fully verified ownership. Ambiguity or recovery uncertainty blocks classification.
-- Provider-specific identity inspection and LaunchServices requests using an allowlisted environment.
+- Provider-specific identity inspection and LaunchServices requests with explicit managed-profile overrides; LaunchServices may retain inherited variables.
 - Codex managed launch with per-profile Electron and `CODEX_HOME` paths, pending-before-launch ordering, new-process adoption, receipt persistence, post-launch fingerprint recheck, and conservative failure state.
 - Graceful close and restart for verified managed profiles only; no forced termination.
 - Provider-wide safe recovery and quiescence requirements for metadata repair and archive transitions.

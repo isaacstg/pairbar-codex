@@ -1,5 +1,6 @@
 import AppKit
 import CoreServices
+import Darwin
 import SwiftUI
 import SwitcherCore
 
@@ -202,6 +203,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct SwitcherMain {
     @MainActor static func main() {
+        PairbarStartup.run(environment: ProcessInfo.processInfo.environment,
+                           pairbarRoot: PrivateStore.defaultRoot.standardizedFileURL,
+                           unset: { _ = Darwin.unsetenv($0) }) {
+            runApp()
+        }
+    }
+
+    @MainActor private static func runApp() {
         let arguments = CommandLine.arguments
         if arguments.count == 3 && arguments[1] == "--check-app" {
             do { print(try Compatibility.inspect(URL(fileURLWithPath: arguments[2])).summary) }

@@ -10,7 +10,7 @@
 
 The PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
 
-This source declares Pairbar **2.0.0 (23)** as the current UI release candidate; build 22 was the preceding candidate. Profile action buttons use a 44 × 44 pt hit target while retaining their row-based overlay anchor. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
+This source declares Pairbar **2.0.0 (25)** as the current development candidate; build 24 was the preceding candidate. Profile action buttons use a 44 × 44 pt hit target while retaining their row-based overlay anchor. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
 
 **Keep each provider's normal Current account. Save additional Codex profiles. Open only the ones you choose.**
 
@@ -96,7 +96,7 @@ flowchart LR
     C2 --> I2[Private Electron + CODEX_HOME]
 ```
 
-Only a chosen managed Codex profile receives `--user-data-dir`, `CODEX_ELECTRON_USER_DATA_PATH`, and `CODEX_HOME`. LaunchServices starts the official app unchanged with an allowlisted environment. Current receives no isolation override. Saved profiles consume metadata and storage but are not assumed to be simultaneously runnable; practical concurrency depends on memory and on the official app.
+Pairbar explicitly supplies `--user-data-dir`, `CODEX_ELECTRON_USER_DATA_PATH`, and `CODEX_HOME` for a chosen managed Codex profile. LaunchServices may retain other variables inherited from Pairbar, even when a request supplies an environment dictionary. At startup, Pairbar removes only inherited `CODEX_HOME` and `CODEX_ELECTRON_USER_DATA_PATH` values that point into its own `Profiles` tree, so a newly launched Current cannot inherit another Pairbar profile. External custom values and other environment variables remain intact. Current receives no explicit isolation override. Saved profiles consume metadata and storage but are not assumed to be simultaneously runnable; practical concurrency depends on memory and on the official app.
 
 Before launch, Pairbar saves a profile-specific pending marker. After launch it verifies the returned process, saves a receipt, rechecks the approved app fingerprint, and then clears pending state. Any unreadable identity or mismatched state blocks focus, close, restart, archive, and recovery as appropriate.
 

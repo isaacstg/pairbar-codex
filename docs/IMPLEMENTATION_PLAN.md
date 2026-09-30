@@ -56,7 +56,7 @@ Secondary resolution algorithm:
 
 `Open / Focus`:
 - one resolved default process => activate it;
-- none => launch official app with normal/default storage and a minimal allowlisted environment, then re-resolve;
+- none => launch the official app without explicit profile overrides, then re-resolve; Pairbar removes its own inherited managed Codex storage overrides at startup, while external custom values remain;
 - multiple => show actionable ambiguity message; never guess.
 
 No switcher-owned Quit/Restart for Current account. The official app remains responsible for its lifecycle.
@@ -69,7 +69,7 @@ Launch a new official application instance with:
 - `CODEX_HOME=<private>/Profiles/b/codex`
 - `CODEX_ELECTRON_USER_DATA_PATH=<private>/Profiles/b/electron`
 
-Use the existing minimal environment allowlist. Persist launch intent before launch, then verify the returned process before persisting ownership. Keep graceful terminate with timeout; never force kill.
+Explicitly provide the managed profile's required launch variables. LaunchServices may retain other inherited variables. Persist launch intent before launch, then verify the returned process before persisting ownership. Keep graceful terminate with timeout; never force kill.
 
 ### Open Both
 
