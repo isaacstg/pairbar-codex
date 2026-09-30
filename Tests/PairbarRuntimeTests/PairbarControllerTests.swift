@@ -1234,6 +1234,7 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: marker, encoding: .utf8), "intact")
         XCTAssertTrue(controller.model.removedProfiles.isEmpty)
         XCTAssertTrue(controller.model.normalRows.contains { $0.id == work.id.description })
+        XCTAssertEqual(controller.model.normalRows.first { $0.id == work.id.description }?.status, "Closed")
         XCTAssertFalse(restored.favorite); XCTAssertFalse(restored.launchAtLogin)
         XCTAssertEqual(restored.shortcut, .legacySecond)
         XCTAssertEqual(controller.records.first { $0.id == other.id }?.receipt?.stamp, otherStamp)

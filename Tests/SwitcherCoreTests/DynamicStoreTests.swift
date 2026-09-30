@@ -566,6 +566,34 @@ final class DynamicStoreTests: XCTestCase {
         XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Work"))
     }
 
+    func testRestoreRejectsAmbiguousDurableRecordAndStorageOwnerCollision() throws {
+        let store = try openStore()
+        let original = try store.createProfile(provider: .codex, name: "Work")
+        let removed = try store.removeProfile(original)
+        let path = "Metadata/profiles/codex/\(removed.id.description).json"
+        var withPending = removed
+        withPending.pending = PendingLaunch2(fingerprint: "fixture")
+        try fixture(withPending, at: path)
+        XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Work"))
+        var withReceipt = removed
+        withReceipt.receipt = receipt(for: removed)
+        try fixture(withReceipt, at: path)
+        XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Work"))
+        var withArchiveID = removed
+        withArchiveID.archiveID = UUID()
+        try fixture(withArchiveID, at: path)
+        XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Work"))
+        var withFavorite = removed
+        withFavorite.favorite = true
+        try fixture(withFavorite, at: path)
+        XCTAssertThrowsError(try store.restoreRemovedProfile(withFavorite, name: "Work"))
+        try fixture(removed, at: path)
+        var competing = try store.createProfile(provider: .codex, name: "Other")
+        competing.storage = removed.storage
+        try fixture(competing, at: "Metadata/profiles/codex/\(competing.id.description).json")
+        XCTAssertThrowsError(try store.restoreRemovedProfile(removed, name: "Work"))
+    }
+
     private struct ArchiveFixture: Codable {
         let id: UUID
         let before: ProfileRecord2
