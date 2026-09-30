@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.0 (24) — Current development candidate
+
+- Add a compact Removed Profiles section in Settings for profiles removed from Pairbar while their local data stayed in place. Restore preserves profile identity and storage, leaves startup and pin off, and assigns a free numeric shortcut when available.
+- Ask for a new name only when the original name is now occupied. Restore never opens an account or creates storage.
+- Keep traditional Archive and Archive & Reset records outside this restore flow.
+
 ## 2.0.0 (23) — Current development candidate
 
 - Give each profile’s action button a 44 × 44 pt hit target with explicit rectangular hit testing, whole-target hover feedback, pressed feedback, and an anchored open state. Keep the ellipsis glyph compact and the action overlay attached to its row.

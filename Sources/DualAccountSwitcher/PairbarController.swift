@@ -210,6 +210,11 @@ final class PairbarController {
                 canChoose: !isBusy, canRecover: managedProfilesEnabled && state.needsRecovery && !isBusy, busy: isBusy))
         }
         model.rows = rows; model.providers = providerRows; model.busy = !busy.isEmpty
+        model.removedProfiles = records.filter(\.isRemovedRestorable).map { record in
+            PairbarProfileRow(id: record.id.description, providerID: record.provider.rawValue,
+                              name: record.name, order: record.order,
+                              canEdit: !busy.contains(record.provider) && states[record.provider]?.needsRecovery == false)
+        }.sorted { $0.order == $1.order ? $0.id < $1.id : $0.order < $1.order }
         model.openProfilesAtLogin = preferences.launchSelectedAtLogin
         model.diagnosticText = diagnosticText
         model.pruneSelection()
@@ -615,6 +620,75 @@ final class PairbarController {
         } }
         return values
     }
+    func restoreRemoved(_ id: ManagedProfileID, name proposedName: String? = nil) {
+        guard let expected = records.first(where: { $0.id == id && $0.isRemovedRestorable }),
+              !busy.contains(expected.provider) else { fail("operation-blocked"); return }
+        let provider = expected.provider
+        guard !providerHasMetadataIssue(provider), states[provider]?.needsRecovery == false else {
+            fail("operation-blocked"); return
+        }
+        do {
+            let durable = try store.listProfiles()
+            guard durable.first(where: { $0.id == id }) == expected else { fail("operation-blocked"); return }
+            guard try ProviderID2.allCases.allSatisfy({ try store.loadProvider($0) == providers[$0] }) else {
+                fail("operation-blocked"); return
+            }
+            let name = (proposedName ?? expected.name).trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalized = name.precomposedStringWithCanonicalMapping.lowercased()
+            let currentName = try store.loadProvider(provider).currentName.precomposedStringWithCanonicalMapping.lowercased()
+            let occupiedName = currentName == normalized || durable.contains {
+                $0.id != id && $0.provider == provider && !$0.archived &&
+                $0.name.precomposedStringWithCanonicalMapping.lowercased() == normalized
+            }
+            if occupiedName && proposedName == nil {
+                model.restoreName = expected.name
+                model.page = .restore(id.description)
+                return
+            }
+            guard !occupiedName else { fail("name"); return }
+            let previous = shortcutBindings()
+            let occupied = Set(providers.values.compactMap(\.currentShortcut) +
+                               records.filter { !$0.archived }.compactMap(\.shortcut))
+            var selected: Shortcut2?
+            for candidate in NumericShortcutPolicy.available(occupied: occupied) {
+                var trial = expected
+                trial.archived = false; trial.storageRetainedInPlace = nil
+                trial.name = name; trial.shortcut = candidate
+                if acceptShortcuts(shortcutBindings(profiles: records.map { $0.id == id ? trial : $0 })) {
+                    selected = candidate; break
+                }
+            }
+            if selected == nil { _ = replaceShortcuts?(previous) }
+            do {
+                let restored = try store.restoreRemovedProfile(expected, name: name, shortcut: selected)
+                if let index = records.firstIndex(where: { $0.id == id }) { records[index] = restored }
+                model.errorMessage = nil
+                model.page = .accounts
+                event("profile-restored")
+            } catch {
+                // fsync may fail after metadata rename. Use the durable record to
+                // choose the matching hotkeys and presentation state.
+                if let durable = try? store.listProfiles() {
+                    records = durable
+                    for provider in ProviderID2.allCases { if let settings = try? store.loadProvider(provider) { providers[provider] = settings } }
+                    _ = replaceShortcuts?(shortcutBindings())
+                    if durable.first(where: { $0.id == id })?.archived == false {
+                        model.errorMessage = nil; model.page = .accounts; event("profile-restored")
+                    } else { caught(error) }
+                } else {
+                    _ = replaceShortcuts?(previous)
+                    caught(error)
+                }
+            }
+        } catch { caught(error) }
+        // Recompute presentation without refresh's unrelated stale-receipt cleanup.
+        let apps = runtime.running(provider: provider)
+        states[provider] = DynamicStateResolver.resolve(provider: provider, records: records, root: store.root,
+            officialPIDs: apps.map(\.pid), observations: observations(provider: provider, apps: apps), uid: runtime.uid,
+            launching: launching, quitting: quitting, currentLaunching: currentLaunching.contains(provider),
+            metadataUncertain: providerHasMetadataIssue(provider))
+        present()
+    }
     private func acceptShortcuts(_ bindings: [HotKeys.Binding]) -> Bool {
         var seen = Set<Shortcut2>()
         guard bindings.allSatisfy({ HotKeys.isValid(keyCode: $0.keyCode, modifiers: $0.modifiers) &&
@@ -722,6 +796,7 @@ final class PairbarController {
         case .restart(let id): if let uuid = UUID(uuidString: id) { Task { await restart(ManagedProfileID(uuid)) } }
         case .archive(let id): if let uuid = UUID(uuidString: id) { archive(ManagedProfileID(uuid), reset: false) }
         case .delete(let id): if let uuid = UUID(uuidString: id) { Task { await delete(ManagedProfileID(uuid)) } }
+        case .restore(let id, let name): if let uuid = UUID(uuidString: id) { restoreRemoved(ManagedProfileID(uuid), name: name) }
         case .reset(let id): if let uuid = UUID(uuidString: id) { archive(ManagedProfileID(uuid), reset: true) }
         case .check(let id): if let provider = ProviderID2(rawValue: id) { Task { await check(provider) } }
         case .recover(let id): if let provider = ProviderID2(rawValue: id) { Task { await recover(provider) } }

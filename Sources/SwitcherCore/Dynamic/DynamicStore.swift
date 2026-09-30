@@ -421,6 +421,40 @@ public final class DynamicStore {
         try saveProfile(removed)
         return removed
     }
+    /// Restore only a durable, unchanged removal record. Storage is neither opened nor created.
+    public func restoreRemovedProfile(_ expected: ProfileRecord2, name: String,
+                                      shortcut: Shortcut2? = nil) throws -> ProfileRecord2 {
+        try requireLock()
+        let records = try listProfiles()
+        guard let current = records.first(where: { $0.id == expected.id }), current == expected,
+              current.isRemovedRestorable,
+              !(try hasPendingOperations(provider: current.provider)),
+              !(try hasOrphanStorage(provider: current.provider, records: records)) else {
+            throw DynamicStoreError.recoveryRequired
+        }
+        // An absent storage directory is valid before first launch. If it exists,
+        // verify its path as a private directory without creating or moving it.
+        let storageParts: [String]
+        switch current.storage {
+        case .legacySecond: storageParts = ["Profiles", "b"]
+        case .generated(let id): storageParts = ["Profiles", current.provider.rawValue, id.uuidString.lowercased()]
+        }
+        _ = try directoryExists(storageParts)
+        var restored = current
+        restored.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        restored.archived = false
+        restored.storageRetainedInPlace = nil
+        restored.archiveID = nil
+        restored.receipt = nil
+        restored.pending = nil
+        restored.launchAtLogin = false
+        restored.favorite = false
+        restored.shortcut = shortcut
+        // saveProfile validates the active name, shortcut and storage owner before
+        // replacing one metadata file atomically.
+        try saveProfile(restored)
+        return restored
+    }
     private func requireQuiescence(_ evidence: ProviderQuiescence2) throws {
         guard evidence.officialProcessCount == 0, !evidence.hasUnverifiableProcesses,
               Date().timeIntervalSince(evidence.observedAt) >= 0, Date().timeIntervalSince(evidence.observedAt) <= 2 else { throw DynamicStoreError.providerNotStopped }
