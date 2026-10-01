@@ -3,7 +3,6 @@ import SwiftUI
 
 struct PairbarPanelView: View {
     @ObservedObject var model: PairbarPanelModel
-    let dismiss: () -> Void
     @FocusState private var searchFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmation: PairbarConfirmation?
@@ -58,15 +57,14 @@ struct PairbarPanelView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .background(keyboardCommands)
-        .onExitCommand { if !model.consumeEscape() { dismiss() } }
         .confirmationDialog(confirmation?.title(language: model.language) ?? "", isPresented: Binding(
-            get: { confirmation != nil }, set: { if !$0 { confirmation = nil } }
+            get: { confirmation != nil }, set: { if !$0 { setConfirmation(nil) } }
         ), titleVisibility: .visible, presenting: confirmation) { action in
             Button(action.button(language: model.language)) {
-                confirmation = nil
+                setConfirmation(nil)
                 model.send(action.action)
             }
-            Button(t("Cancel", "Cancelar"), role: .cancel) { confirmation = nil }
+            Button(t("Cancel", "Cancelar"), role: .cancel) { setConfirmation(nil) }
         } message: { action in
             Text(action.message(language: model.language))
         }
@@ -75,6 +73,11 @@ struct PairbarPanelView: View {
         .onChange(of: model.page) { page in
             if page != .accounts { model.searchExpanded = false; model.search = ""; searchFocused = false }
         }
+    }
+
+    private func setConfirmation(_ value: PairbarConfirmation?) {
+        model.confirmationPresented = value != nil
+        confirmation = value
     }
 
     private var header: some View {
@@ -219,7 +222,7 @@ struct PairbarPanelView: View {
                         Text(t("Pairbar needs to verify this account before it can be opened.", "Pairbar necesita verificar esta cuenta antes de abrirla."))
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer()
-                        Button(t("Repair…", "Reparar…")) { confirmation = .recover(provider) }
+                        Button(t("Repair…", "Reparar…")) { setConfirmation(.recover(provider)) }
                             .disabled(model.previewOnly || provider.busy)
                     }
                 }
@@ -294,19 +297,19 @@ struct PairbarPanelView: View {
             }
             if model.canOfferClose(row) {
                 panelAction(t("Close", "Cerrar"), "xmark.circle", enabled: !model.previewOnly) {
-                    model.closeActions(); confirmation = .close(row)
+                    model.closeActions(); setConfirmation(.close(row))
                 }
             }
             if model.canOfferRestart(row) {
                 panelAction(t("Restart", "Reiniciar"), "arrow.clockwise", enabled: !model.previewOnly) {
-                    model.closeActions(); confirmation = .restart(row)
+                    model.closeActions(); setConfirmation(.restart(row))
                 }
             }
             if model.canOfferDelete(row) {
                 Divider().padding(.vertical, 3)
                 panelAction(t("Remove from Pairbar…", "Quitar de Pairbar…"), "minus.circle",
                             enabled: !model.previewOnly, destructive: true) {
-                    model.closeActions(); confirmation = .delete(row)
+                    model.closeActions(); setConfirmation(.delete(row))
                 }
             }
         }
@@ -448,7 +451,7 @@ struct PairbarPanelView: View {
                 Button(t("Check again", "Comprobar")) { model.send(.check(provider.id)) }.disabled(!provider.canCheck)
             }.disabled(model.previewOnly || provider.busy)
             if provider.canRecover {
-                Button(t("Try safe recovery…", "Intentar recuperación segura…")) { confirmation = .recover(provider) }
+                Button(t("Try safe recovery…", "Intentar recuperación segura…")) { setConfirmation(.recover(provider)) }
                     .disabled(model.previewOnly || provider.busy)
             }
         }
