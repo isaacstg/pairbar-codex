@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.0 (25) — Current development candidate
+
+- Remove inherited Codex environment overrides pointing into Pairbar's `Profiles` tree once at startup, before any provider can launch. Keep external custom paths and all other environment variables.
+- Keep Current's empty launch environment and managed Codex's explicit profile overrides. Clarify that LaunchServices can retain inherited environment variables.
+
 ## 2.0.0 (24) — Current development candidate
 
 - Add a compact Removed Profiles section in Settings for profiles removed from Pairbar while their local data stayed in place. Restore preserves profile identity and storage, leaves startup and pin off, and assigns a free numeric shortcut when available.

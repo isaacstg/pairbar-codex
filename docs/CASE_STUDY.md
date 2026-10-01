@@ -70,7 +70,7 @@ English and Spanish strings, keyboard navigation, accessible names, native confi
 
 ## Security architecture
 
-Pairbar contains no network client, telemetry, updater, credential reader, token copier, Keychain integration, or inspection of another process's arguments or environment. It never patches or re-signs an official provider app. Launches use LaunchServices and an allowlisted environment; termination is graceful and limited to a receipt-owned managed process.
+Pairbar contains no network client, telemetry, updater, credential reader, token copier, Keychain integration, or inspection of another process's arguments or environment. It reads its own inherited environment once at startup to remove Codex overrides into Pairbar-owned profile storage. It never patches or re-signs an official provider app. Managed launches explicitly supply their required profile variables through LaunchServices, which may retain other inherited variables; termination is graceful and limited to a receipt-owned managed process.
 
 The dynamic state resolver is pure. It combines durable records, observed official processes, verified kernel snapshots, in-flight controller state, archive journals, and unexplained storage into provider-wide state. One uncertain managed profile can block Current classification because a visible official process might actually be an orphaned managed launch.
 
