@@ -62,15 +62,7 @@ This is profile separation within one macOS user, not an operating-system securi
 
 ## Development and release status
 
-Pairbar is in active development. The repository contains source code and local development packaging; there is no Developer ID-signed, notarized public release. Managed Claude profiles remain disabled pending real signed-in tests of Chat and Code session separation, and Claude Cowork is not validated. See [implementation status](docs/IMPLEMENTATION_STATUS.md) and the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) for current evidence and open gates.
-
-### Validation notes from the 2026-09-28 checkpoint
-
-At that checkpoint, the PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`; its automated suite reported **168 tests, 0 failures**. A live installed pass on a post-merge artifact covered Current Codex, managed Work, preserved session, Switch, Search/⌘F, English and Spanish, Settings, and the Add profile form. This was not a signed-in A/B account-isolation test.
-
-The source at that checkpoint declared Pairbar **2.0.0 (25)** as a development candidate, following build 24. Profile action buttons used a 44 × 44 pt hit target. Disposable signed-in isolation, a ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install were still open. The source-policy audit, diff/plist/shell checks, universal release compilation, ZIP extraction, and strict all-architectures signature verification had passed on the historical PR #7 baseline.
-
-The historical PR #4 Pairbar 2.0.0 (17) archive contained `x86_64` and `arm64` and was ad-hoc signed with hardened runtime; it was not Developer ID signed or notarized. Build and CI archives are development artifacts until the release gates are complete.
+Pairbar is in active development; no public Developer ID-signed and notarized release is available yet. Managed Claude awaits real signed-in acceptance, and signed-in A/B account isolation remains pending. See [implementation status](docs/IMPLEMENTATION_STATUS.md) and the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) for evidence and remaining release gates.
 
 ## Build and try it
 
