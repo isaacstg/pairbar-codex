@@ -53,7 +53,8 @@ Pairbar stays in a native popover. It has no permanent window and does not requi
 - **Verified ownership.** Managed lifecycle actions require a receipt matching profile, storage generation, PID, user, kernel start time, exact executable, provider identity, and expected private paths.
 - **Conservative recovery.** Interrupted launches and unreadable or ambiguous processes block control. Pairbar never guesses ownership and never force-kills an app.
 - **Durable intent.** Pairbar records a pending launch before asking LaunchServices to open a managed profile and clears it only after process and app-build checks succeed.
-- **Recoverable reset.** Reset and removal archive the profile directory; they do not immediately delete it. Every official process for that provider must be closed before an archive transition.
+- **Recoverable removal.** Remove from Pairbar hides a managed profile from the active list and keeps its local storage at its original path; it can be restored from Settings → Removed Profiles.
+- **Conservative archive/reset.** Archive and reset are separate safety-sensitive operations that require the provider state needed for a safe storage transition.
 - **Opaque migration.** Existing Current + Second installations migrate their Pairbar metadata while the contents of `Profiles/b` remain unread. The historical Second storage path is retained.
 - **Redacted output.** Diagnostics contain Pairbar state and bounded event codes. Configuration export contains labels and preferences, never paths, receipts, PIDs, fingerprints, journals, account data, or credentials.
 - **No switcher networking.** Pairbar contains no network client, telemetry, updater, credential reader, token copier, Keychain access, or inspection of another process's arguments or environment.
