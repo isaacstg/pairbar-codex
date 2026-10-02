@@ -1,7 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title">
-  <title id="title">Pairbar mark: two paired bars</title>
-  <rect width="128" height="128" rx="30" fill="#0B1220"/>
-  <rect x="30" y="29" width="25" height="70" rx="12.5" fill="#69DCC8"/>
-  <rect x="73" y="29" width="25" height="70" rx="12.5" fill="#F6BC73"/>
-  <rect x="48" y="57" width="32" height="14" rx="7" fill="#F4F7FB"/>
+  <title id="title">Pairbar mark: paired profile shapes in mint and amber</title>
+  <defs>
+    <linearGradient id="icon" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#0E1726"/>
+      <stop offset="1" stop-color="#263751"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="30" fill="url(#icon)" stroke="#7185A0" stroke-opacity=".38" stroke-width="2"/>
+  <circle cx="45" cy="40" r="14" fill="#69DCC8"/>
+  <circle cx="83" cy="40" r="14" fill="#F6BC73"/>
+  <rect x="25" y="63" width="40" height="42" rx="19" fill="#69DCC8"/>
+  <rect x="63" y="63" width="40" height="42" rx="19" fill="#F6BC73"/>
 </svg>
