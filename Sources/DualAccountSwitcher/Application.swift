@@ -85,17 +85,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.model = model
             configureStatusItem(model: model)
             escapeMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-                guard event.keyCode == 53, let self, self.popover.isShown,
-                      self.model?.consumeEscape() == true else { return event }
-                return nil
+                guard event.keyCode == 53, let self, let model = self.model else { return event }
+                let popoverWindow = self.popover.contentViewController?.view.window
+                // SwiftUI confirmationDialog can remain in the popover's window.
+                // Its presentation state complements AppKit's modal/sheet windows.
+                let modalActive = model.confirmationPresented || NSApp.modalWindow != nil ||
+                    NSApp.windows.contains(where: { $0.attachedSheet != nil })
+                let receivesEvent = popoverWindow != nil &&
+                    (event.window === popoverWindow ||
+                     (event.window == nil && NSApp.keyWindow === popoverWindow))
+                let disposition = PairbarEscapeDisposition.decide(
+                    popoverShown: self.popover.isShown,
+                    popoverReceivesEvent: receivesEvent,
+                    actionsOpen: model.expandedActionsID != nil,
+                    modalActive: modalActive)
+                return PairbarEscapeHandler.handle(disposition, model: model,
+                    closePopover: { self.popover.performClose(nil) }) ? nil : event
             }
             popover.behavior = .transient
             model.onDesiredContentSizeChange = { [weak self] size in
                 self?.popover.contentSize = size
             }
-            let hosting = NSHostingController(rootView: PairbarPanelView(
-                model: model, dismiss: { [weak self] in self?.popover.performClose(nil) }
-            ).preferredColorScheme(previewColorScheme))
+            let hosting = NSHostingController(rootView: PairbarPanelView(model: model)
+                .preferredColorScheme(previewColorScheme))
             if let previewColorScheme {
                 hosting.view.appearance = NSAppearance(named: previewColorScheme == .light ? .aqua : .darkAqua)
             }

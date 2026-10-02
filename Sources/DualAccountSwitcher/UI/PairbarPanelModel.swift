@@ -109,6 +109,9 @@ final class PairbarPanelModel: ObservableObject {
     @Published var selecting = false
     @Published var advancedExpanded = false
     @Published private(set) var expandedActionsID: String?
+    // SwiftUI confirmationDialog may not create an NSApp.modalWindow.
+    // The AppKit Escape monitor consults this while native dismissal runs.
+    var confirmationPresented = false
     var onAction: ((PairbarPanelAction) -> Void)?
     var onDesiredContentSizeChange: ((CGSize) -> Void)?
 
@@ -135,12 +138,6 @@ final class PairbarPanelModel: ObservableObject {
     func canOfferClose(_ row: PairbarProfileRow) -> Bool { !row.isCurrent && row.canClose }
     func canOfferRestart(_ row: PairbarProfileRow) -> Bool { !row.isCurrent && row.canRestart }
     func pin(_ row: PairbarProfileRow) { send(.favorite(row.id, !row.favorite)); closeActions() }
-    /// Escape dismisses a transient row panel before the native popover.
-    func consumeEscape() -> Bool {
-        guard expandedActionsID != nil else { return false }
-        closeActions()
-        return true
-    }
     var panelHeight: CGFloat {
         switch page {
         case .accounts:

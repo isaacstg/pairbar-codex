@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.0 (26) — Current development candidate
+
+- Route Escape through the AppKit popover monitor: dismiss row actions first, then the popover on the next press. A single press closes a nonmodal popover on any page.
+- Let SwiftUI confirmations and native modal or sheet windows receive Escape themselves; the popover stays open behind them. Keep transient outside-click dismissal.
+
 ## 2.0.0 (25) — Current development candidate
 
 - Remove inherited Codex environment overrides pointing into Pairbar's `Profiles` tree once at startup, before any provider can launch. Keep external custom paths and all other environment variables.

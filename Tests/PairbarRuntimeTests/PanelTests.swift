@@ -214,13 +214,79 @@ final class PanelTests: XCTestCase {
         }
     }
 
-    func testEscapeConsumesOneOverlayBeforePopover() async {
+    func testEscapeClosesActionsThenPopoverWithoutDoubleDismiss() async {
         await MainActor.run {
             let model = PairbarPanelModel.preview()
             model.toggleActions(for: "preview-work")
-            XCTAssertTrue(model.consumeEscape())
+            var closeCount = 0
+            var actions: [String] = []
+            model.onAction = { actions.append(Self.describe($0)) }
+            @MainActor func escape() -> Bool {
+                let disposition = PairbarEscapeDisposition.decide(
+                    popoverShown: true, popoverReceivesEvent: true,
+                    actionsOpen: model.expandedActionsID != nil, modalActive: false)
+                return PairbarEscapeHandler.handle(disposition, model: model) { closeCount += 1 }
+            }
+            XCTAssertTrue(escape())
             XCTAssertNil(model.expandedActionsID)
-            XCTAssertFalse(model.consumeEscape())
+            XCTAssertEqual(closeCount, 0, "The first Escape must not also close the popover")
+            XCTAssertTrue(escape())
+            XCTAssertEqual(closeCount, 1)
+            XCTAssertTrue(actions.isEmpty, "Escape must never dispatch a profile action")
+        }
+    }
+
+    func testEscapeClosesPopoverOnEveryNonmodalPage() async {
+        await MainActor.run {
+            let model = PairbarPanelModel.preview()
+            for page in [PairbarPanelPage.accounts, .settings, .create, .help, .restore("preview-old-work")] {
+                model.page = page
+                var closeCount = 0
+                let disposition = PairbarEscapeDisposition.decide(
+                    popoverShown: true, popoverReceivesEvent: true,
+                    actionsOpen: model.expandedActionsID != nil, modalActive: false)
+                XCTAssertEqual(disposition, .closePopover, "page: \(page)")
+                XCTAssertTrue(PairbarEscapeHandler.handle(disposition, model: model) { closeCount += 1 })
+                XCTAssertEqual(closeCount, 1, "page: \(page)")
+                XCTAssertEqual(model.page, page, "Escape closes the popover; it is not Back")
+            }
+        }
+    }
+
+    func testEscapePassesThroughModalAndConfirmations() async {
+        await MainActor.run {
+            let model = PairbarPanelModel.preview()
+            let row = model.rows[1]
+            let confirmations: [PairbarConfirmation] = [.delete(row), .close(row), .restart(row)]
+            for confirmation in confirmations {
+                model.confirmationPresented = true
+                var closeCount = 0
+                var dispatched = false
+                model.onAction = { _ in dispatched = true }
+                let disposition = PairbarEscapeDisposition.decide(
+                    popoverShown: true, popoverReceivesEvent: true,
+                    actionsOpen: false, modalActive: model.confirmationPresented)
+                XCTAssertEqual(disposition, .passThrough, confirmation.id)
+                XCTAssertFalse(PairbarEscapeHandler.handle(disposition, model: model) { closeCount += 1 })
+                XCTAssertEqual(closeCount, 0, confirmation.id)
+                XCTAssertFalse(dispatched, confirmation.id)
+            }
+            XCTAssertEqual(PairbarEscapeDisposition.decide(popoverShown: true,
+                popoverReceivesEvent: true, actionsOpen: false, modalActive: true), .passThrough,
+                "An AppKit modal or sheet also receives its own Escape")
+        }
+    }
+
+    func testEscapeDoesNotInterceptOtherWindowsOrHiddenPopover() async {
+        await MainActor.run {
+            let model = PairbarPanelModel.preview()
+            for (shown, receives) in [(false, true), (true, false)] {
+                var closeCount = 0
+                let disposition = PairbarEscapeDisposition.decide(popoverShown: shown,
+                    popoverReceivesEvent: receives, actionsOpen: false, modalActive: false)
+                XCTAssertFalse(PairbarEscapeHandler.handle(disposition, model: model) { closeCount += 1 })
+                XCTAssertEqual(closeCount, 0)
+            }
         }
     }
 
