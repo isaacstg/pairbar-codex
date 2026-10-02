@@ -1,64 +1,39 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
-  <title id="title">Pairbar — two accounts, one click apart</title>
-  <desc id="desc">Native ChatGPT and Codex account switching for macOS. An illustration shows Personal and Work account cards, Switch buttons, and Open Both.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520" role="img" aria-labelledby="title desc">
+  <title id="title">Pairbar — ChatGPT and Codex profiles for your Mac menu bar</title>
+  <desc id="desc">Pairbar logo beside a concise description and three product attributes: Native macOS, Local-only, and Open source.</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#111F31"/><stop offset="1" stop-color="#080D17"/></linearGradient>
-    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#2B3033"/><stop offset="1" stop-color="#111619"/></linearGradient>
-    <radialGradient id="glow"><stop stop-color="#69DCC8" stop-opacity="0.13"/><stop offset="1" stop-color="#69DCC8" stop-opacity="0"/></radialGradient>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#111B2A"/>
+      <stop offset="1" stop-color="#0B1220"/>
+    </linearGradient>
+    <linearGradient id="icon" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#0E1726"/>
+      <stop offset="1" stop-color="#263751"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop stop-color="#69DCC8" stop-opacity=".11"/>
+      <stop offset="1" stop-color="#69DCC8" stop-opacity="0"/>
+    </radialGradient>
   </defs>
-  <rect width="1280" height="640" rx="26" fill="url(#bg)"/>
-  <circle cx="1040" cy="272" r="330" fill="url(#glow)"/>
-  <g fill="none" stroke="#69DCC8" stroke-opacity="0.09"><circle cx="1010" cy="326" r="234"/><circle cx="1010" cy="326" r="295"/></g>
-  <g font-family="Arial, Helvetica, sans-serif">
-    <g transform="translate(72 60)">
-      <rect width="54" height="54" rx="14" fill="#192D40"/>
-      <rect x="12" y="12" width="11" height="30" rx="5.5" fill="#69DCC8"/>
-      <rect x="31" y="12" width="11" height="30" rx="5.5" fill="#F6BC73"/>
-      <rect x="20" y="24" width="15" height="6" rx="3" fill="#F4F7FB"/>
+  <rect width="1280" height="520" rx="28" fill="url(#background)"/>
+  <circle cx="1080" cy="118" r="320" fill="url(#glow)"/>
+  <g font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+    <g transform="translate(96 90)">
+      <rect width="112" height="112" rx="29" fill="url(#icon)" stroke="#7185A0" stroke-opacity=".38" stroke-width="2"/>
+      <circle cx="37" cy="35" r="12" fill="#69DCC8"/>
+      <circle cx="75" cy="35" r="12" fill="#F6BC73"/>
+      <rect x="20" y="57" width="36" height="36" rx="17" fill="#69DCC8"/>
+      <rect x="58" y="57" width="36" height="36" rx="17" fill="#F6BC73"/>
     </g>
-    <text x="144" y="93" fill="#A6B7CB" font-size="13" font-weight="700" letter-spacing="2">NATIVE MACOS UTILITY</text>
-    <text x="68" y="233" fill="#F4F7FB" font-size="100" font-weight="700" letter-spacing="-5">Pairbar</text>
-    <text x="72" y="299" fill="#69DCC8" font-size="34" font-weight="700">Two accounts.</text>
-    <text x="72" y="346" fill="#F4F7FB" font-size="34" font-weight="700">One click apart.</text>
-    <text x="72" y="397" fill="#A6B7CB" font-size="20">ChatGPT &amp; Codex account switching.</text>
-    <text x="72" y="429" fill="#A6B7CB" font-size="20">Keep your current login. Add a second.</text>
-    <g transform="translate(72 481)">
-      <rect width="110" height="33" rx="16.5" fill="#1C3040"/><text x="20" y="22" fill="#B9DED7" font-size="13">Local-only</text>
-      <rect x="122" width="108" height="33" rx="16.5" fill="#1C3040"/><text x="143" y="22" fill="#B9DED7" font-size="13">Swift native</text>
-      <rect x="242" width="119" height="33" rx="16.5" fill="#1C3040"/><text x="263" y="22" fill="#B9DED7" font-size="13">Open source</text>
+    <text x="236" y="171" fill="#F4F7FB" font-size="76" font-weight="700" letter-spacing="-2">Pairbar</text>
+    <text x="100" y="280" fill="#F4F7FB" font-size="35" font-weight="600">ChatGPT &amp; Codex profiles, right from your Mac menu bar</text>
+    <text x="102" y="329" fill="#A6B7CB" font-size="23">Keep your current account. Open the profiles you choose.</text>
+    <g transform="translate(100 382)" font-size="16" font-weight="600">
+      <rect width="148" height="42" rx="21" fill="#1C3040"/><text x="20" y="27" fill="#C4DED9">Native macOS</text>
+      <rect x="162" width="128" height="42" rx="21" fill="#1C3040"/><text x="184" y="27" fill="#C4DED9">Local-only</text>
+      <rect x="304" width="142" height="42" rx="21" fill="#1C3040"/><text x="325" y="27" fill="#C4DED9">Open source</text>
     </g>
-    <g transform="translate(802 132)">
-      <rect x="-8" y="12" width="414" height="398" rx="24" fill="#02050B" opacity="0.3"/>
-      <rect width="398" height="390" rx="22" fill="url(#panel)" stroke="#496074" stroke-opacity="0.5"/>
-      <path d="M185 0 L199 -14 L213 0" fill="#2B3033"/>
-      <text x="20" y="34" fill="#E3ECF7" font-size="14" font-weight="700">Pairbar</text>
-      <text x="365" y="34" fill="#94A6BA" font-size="22">×</text>
-      <path d="M0 53 H398" stroke="#3B4B5E"/>
-      <g transform="translate(18 73)">
-        <rect width="362" height="77" rx="13" fill="#1F1F1F"/>
-        <circle cx="29" cy="36" r="15" fill="none" stroke="#A8ABAC" stroke-width="2"/>
-        <circle cx="29" cy="31" r="4" fill="#A8ABAC"/><path d="M21 43 Q29 32 37 43" stroke="#A8ABAC" stroke-width="2" fill="none"/>
-        <text x="57" y="31" fill="#F4F7FB" font-size="15" font-weight="700">Personal</text>
-        <circle cx="61" cy="52" r="3.5" fill="#30D158"/><text x="71" y="57" fill="#30D158" font-size="12">Running</text>
-        <rect x="270" y="15" width="74" height="27" rx="7" fill="#393B3C"/><text x="286" y="33" fill="#EDF3FB" font-size="12">Switch</text>
-        <text x="314" y="62" fill="#879BAF" font-size="12">⌥⌘1</text>
-      </g>
-      <g transform="translate(18 166)">
-        <rect width="362" height="77" rx="13" fill="#1F1F1F"/>
-        <circle cx="29" cy="36" r="15" fill="none" stroke="#A8ABAC" stroke-width="2"/>
-        <circle cx="29" cy="31" r="4" fill="#A8ABAC"/><path d="M21 43 Q29 32 37 43" stroke="#A8ABAC" stroke-width="2" fill="none"/>
-        <text x="57" y="31" fill="#F4F7FB" font-size="15" font-weight="700">Work</text>
-        <circle cx="61" cy="52" r="3.5" fill="#30D158"/><text x="71" y="57" fill="#30D158" font-size="12">Running</text>
-        <rect x="270" y="15" width="74" height="27" rx="7" fill="#393B3C"/><text x="286" y="33" fill="#EDF3FB" font-size="12">Switch</text>
-        <text x="290" y="62" fill="#879BAF" font-size="12">···</text><text x="314" y="62" fill="#879BAF" font-size="12">⌥⌘2</text>
-      </g>
-      <rect x="18" y="262" width="362" height="34" rx="17" fill="#007AFF"/><text x="34" y="284" fill="#F4F7FB" font-size="14" font-weight="700">Open Both</text>
-      <text x="19" y="321" fill="#99ACBF" font-size="11">Switching keeps the other account running.</text>
-      <path d="M0 342 H398" stroke="#3B4B5E"/>
-      <text x="20" y="372" fill="#C0CBD7" font-size="12">Settings</text><text x="353" y="372" fill="#C0CBD7" font-size="12">Help</text>
-    </g>
-    <path d="M72 554 H1200" stroke="#253344"/>
-    <text x="72" y="591" fill="#73879F" font-size="13">BUILT BY ISAAC · ISAACSTG</text>
-    <text x="980" y="591" fill="#73879F" font-size="12">Interface illustration · v1.3.2</text>
+    <path d="M100 466 H1180" stroke="#33445A" stroke-opacity=".7"/>
+    <text x="100" y="494" fill="#8294AA" font-size="13" letter-spacing="1">PAIRBAR · macOS</text>
   </g>
 </svg>

@@ -1,38 +1,32 @@
 <p align="center">
-
-**Normal use is automatic:** open Pairbar, choose an account, and continue. Pairbar rechecks the saved ChatGPT location against the project's standard install paths when needed and clears a proven absent receipt locally even while Current is open, and resolves old interrupted launches only after provider-wide quiescence. Settings → Advanced retains Choose app…, Check again, and safe recovery for exceptional installations or unresolved issues. A newly installed build still asks for explicit approval.
-  <img src="docs/brand/banner.svg" alt="Pairbar — perfiles de ChatGPT y Codex desde la barra de menús de macOS." width="100%">
+  <img src="docs/brand/banner.svg" alt="Pairbar logo and tagline: ChatGPT and Codex profiles, right from your Mac menu bar." width="100%">
 </p>
 
-# Pairbar · account profiles for ChatGPT/Codex on macOS
+# Pairbar
 
-## Current release-candidate source status (2026-09-28)
+**ChatGPT &amp; Codex profiles, right from your Mac menu bar.**
 
-The PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.
-
-This source declares Pairbar **2.0.0 (25)** as the current development candidate; build 24 was the preceding candidate. Profile action buttons use a 44 × 44 pt hit target while retaining their row-based overlay anchor. Local and CI ZIPs remain ad-hoc development artifacts. Disposable signed-in isolation, a real ChatGPT build-update pass, clean first run, human VoiceOver speech/rotor, Developer ID signing, notarization, stapling, and final ZIP clean install remain open. The single [public binary release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) tracks the required gates.
-
-**Keep each provider's normal Current account. Save additional Codex profiles. Open only the ones you choose.**
-
-[![macOS CI](https://github.com/isaacstg/pairbar-codex/actions/workflows/ci.yml/badge.svg)](https://github.com/isaacstg/pairbar-codex/actions/workflows/ci.yml) [![macOS 13+](https://img.shields.io/badge/macOS-13%2B-111827?logo=apple&logoColor=white)](#build-and-try-it) [![Swift 5.9+](https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift&logoColor=white)](Package.swift) [![MIT](https://img.shields.io/badge/license-MIT-69DCC8)](LICENSE)
-
-Pairbar is a native, local-only menu-bar utility for the official macOS apps. The current update keeps one ordinary **Current** account per provider and lets you save any number of additional **ChatGPT/Codex profiles**. It imposes no profile-count limit, but it never opens every saved profile automatically: you choose what to open, and memory-pressure warnings pause unsafe automatic openings.
-
-Each additional Codex profile gets its own Electron storage and `CODEX_HOME`. Pairbar does not swap tokens, copy sessions, read credentials, or modify the official app. It is an independent, unofficial project and is not affiliated with or endorsed by OpenAI or Anthropic.
-
-**[Build and try it](#build-and-try-it) · [User guide](docs/USER_GUIDE.md) · [Security model](SECURITY.md) · [Engineering case study](docs/CASE_STUDY.md)**
-
-> **Development status:** Pairbar's source, automated suite, audit, and local packaging checks are complete. The archive is an ad-hoc development artifact; there is no Developer ID signed, notarized public release. Managed Claude profiles remain disabled until real signed-in tests prove that both Chat and Code are separated without account crossover. Cowork is also unvalidated. See [implementation status](docs/IMPLEMENTATION_STATUS.md).
+Pairbar is a native macOS menu-bar app for keeping your usual account and opening only the additional ChatGPT or Codex profiles you choose. Profiles stay local on your Mac; Pairbar does not copy sessions or read credentials.
 
 <p align="center">
-  <img src="docs/images/pairbar-profiles.png" alt="Pairbar's compact profile list in English with synthetic accounts" width="46%">
-  <img src="docs/images/pairbar-profiles-es.png" alt="Pairbar's compact profile list in Spanish with synthetic accounts" width="46%">
-</p>
-<p align="center">
-  <img src="docs/images/pairbar-settings.png" alt="Pairbar settings with synthetic preview data" width="46%">
+  <img src="docs/images/pairbar-profiles.png" alt="Pairbar profile list in English with synthetic profile names and states" width="47%">
+  <img src="docs/images/pairbar-settings.png" alt="Pairbar settings panel showing language, login options, and Advanced in the inert preview" width="47%">
 </p>
 
-These are native screenshots from Pairbar's inert preview. Names and states are synthetic. The preview can change language and login selections locally for visual inspection, but cannot open accounts, change system login items, export data, or control provider processes.
+Screenshots use Pairbar's inert preview and synthetic names. The preview does not open accounts, change login items, or control provider apps.
+
+## Why Pairbar
+
+- Keep the official app's **Current** account while saving the extra profiles you need.
+- Open a profile or a chosen group from the native menu-bar popover.
+- Keep profile data and preferences on your Mac, with no Pairbar networking or telemetry.
+- Use search, favorites, filters, and optional keyboard shortcuts to reach profiles quickly.
+
+**[Build](#build-and-try-it) · [User Guide](docs/USER_GUIDE.md) · [Security](SECURITY.md) · [Case Study](docs/CASE_STUDY.md)**
+
+[![macOS CI](https://github.com/isaacstg/pairbar-codex/actions/workflows/ci.yml/badge.svg)](https://github.com/isaacstg/pairbar-codex/actions/workflows/ci.yml) [![macOS 13+](https://img.shields.io/badge/macOS-13%2B-111827?logo=apple&logoColor=white)](#build-and-try-it) [![Swift 5.9+](https://img.shields.io/badge/Swift-5.9%2B-F05138?logo=swift)](Package.swift) [![MIT](https://img.shields.io/badge/license-MIT-69DCC8)](LICENSE)
+
+Pairbar is independent and unofficial, with no affiliation with or endorsement from OpenAI or Anthropic.
 
 ## Everyday workflow
 
@@ -59,12 +53,17 @@ Pairbar stays in a native popover. It has no permanent window and does not requi
 - **Verified ownership.** Managed lifecycle actions require a receipt matching profile, storage generation, PID, user, kernel start time, exact executable, provider identity, and expected private paths.
 - **Conservative recovery.** Interrupted launches and unreadable or ambiguous processes block control. Pairbar never guesses ownership and never force-kills an app.
 - **Durable intent.** Pairbar records a pending launch before asking LaunchServices to open a managed profile and clears it only after process and app-build checks succeed.
-- **Recoverable reset.** Reset and removal archive the profile directory; they do not immediately delete it. Every official process for that provider must be closed before an archive transition.
+- **Recoverable removal.** Remove from Pairbar hides a managed profile from the active list and keeps its local storage at its original path; it can be restored from Settings → Removed Profiles.
+- **Conservative archive/reset.** Archive and reset are separate safety-sensitive operations that require the provider state needed for a safe storage transition.
 - **Opaque migration.** Existing Current + Second installations migrate their Pairbar metadata while the contents of `Profiles/b` remain unread. The historical Second storage path is retained.
 - **Redacted output.** Diagnostics contain Pairbar state and bounded event codes. Configuration export contains labels and preferences, never paths, receipts, PIDs, fingerprints, journals, account data, or credentials.
 - **No switcher networking.** Pairbar contains no network client, telemetry, updater, credential reader, token copier, Keychain access, or inspection of another process's arguments or environment.
 
 This is profile separation within one macOS user, not an operating-system security boundary. The official apps and their upstream behavior determine whether profile overrides provide real session separation. Pairbar therefore treats static compatibility checks as necessary evidence, never as proof of account isolation.
+
+## Development and release status
+
+Pairbar is in active development; no public Developer ID-signed and notarized release is available yet. Managed Claude awaits real signed-in acceptance, and signed-in A/B account isolation remains pending. See [implementation status](docs/IMPLEMENTATION_STATUS.md) and the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) for evidence and remaining release gates.
 
 ## Build and try it
 
