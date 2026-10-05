@@ -12,6 +12,7 @@ final class PairbarController {
     let store: DynamicStore
     private let runtime: ApplicationRuntime
     private let inspector: ProviderInspecting
+    private let currentCodexEnvironment: CurrentCodexLaunchEnvironment
     private let standardCandidates: (URL?) -> [URL]
     private(set) var preferences: Preferences2
     private(set) var providers: [ProviderID2: ProviderSettings2] = [:]
@@ -35,9 +36,11 @@ final class PairbarController {
     var confirmNewBuild: ((ProviderInspection) -> Bool)?
 
     init(store: DynamicStore, runtime: ApplicationRuntime, inspector: ProviderInspecting,
-         model: PairbarPanelModel, standardCandidates: @escaping (URL?) -> [URL] = Compatibility.standardCandidates) throws {
+         model: PairbarPanelModel, currentCodexEnvironment: CurrentCodexLaunchEnvironment,
+         standardCandidates: @escaping (URL?) -> [URL] = Compatibility.standardCandidates) throws {
         self.store = store; self.runtime = runtime; self.inspector = inspector; self.model = model
         self.standardCandidates = standardCandidates
+        self.currentCodexEnvironment = currentCodexEnvironment
         preferences = try store.loadPreferences()
         records = try store.listProfiles()
         for provider in ProviderID2.allCases { providers[provider] = try store.loadProvider(provider) }
@@ -338,7 +341,11 @@ final class PairbarController {
                 guard state.current == .stopped else { fail("ownership"); return false }
                 guard model.memoryPressure != .critical || allowCriticalMemory else { fail("memory"); return false }
                 currentLaunching.insert(provider); refresh(); defer { currentLaunching.remove(provider) }
-                let request = ProviderLaunchRequest.current(app: identity.app, hasManagedInstances: !runtime.running(provider: provider).isEmpty)
+                let hasManagedInstances = !runtime.running(provider: provider).isEmpty
+                let request = provider == .codex
+                    ? ProviderLaunchRequest.current(app: identity.app, hasManagedInstances: hasManagedInstances,
+                                                    currentEnvironment: currentCodexEnvironment)
+                    : ProviderLaunchRequest.currentClaude(app: identity.app, hasManagedInstances: hasManagedInstances)
                 let returned = try await runtime.open(request)
                 refresh()
                 guard case .running(let resolved) = states[provider]?.current, resolved == returned,

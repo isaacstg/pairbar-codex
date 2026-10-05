@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.0 (27) — Current development candidate
+
+- Capture Codex Current paths once at startup and explicitly pass both sensitive environment variables and `--user-data-dir` on every new Current launch, including alongside running managed profiles. The Electron variable and argument share exactly the same resolved path.
+- The tested ChatGPT provider needed the explicit Chromium/Electron argument to establish synthetic user-data isolation; the Electron environment variable alone was insufficient in that observed test.
+- Preserve external custom Current paths exactly; replace inherited Pairbar-managed paths with ordinary Current defaults. Keep the startup sanitizer, managed launch recipe, and Claude behavior.
+
 ## 2.0.0 (26) — Current development candidate
 
 - Route Escape through the AppKit popover monitor: dismiss row actions first, then the popover on the next press. A single press closes a nonmodal popover on any page.

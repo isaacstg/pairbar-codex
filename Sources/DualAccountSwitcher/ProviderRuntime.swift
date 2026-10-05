@@ -55,31 +55,6 @@ struct InstalledProviderInspector: ProviderInspecting {
     }
 }
 
-struct ProviderLaunchRequest {
-    let app: URL
-    let arguments: [String]
-    let environment: [String: String]
-    let createsNewInstance: Bool
-
-    static func baseEnvironment(home: URL = FileManager.default.homeDirectoryForCurrentUser,
-                                username: String = NSUserName(), temporaryDirectory: String = NSTemporaryDirectory()) -> [String: String] {
-        ["HOME": home.path, "USER": username, "LOGNAME": username,
-         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "TMPDIR": temporaryDirectory]
-    }
-
-    static func current(app: URL, hasManagedInstances: Bool) -> Self {
-        Self(app: app, arguments: [], environment: [:], createsNewInstance: hasManagedInstances)
-    }
-
-    static func codex(app: URL, electron: URL, codexHome: URL) -> Self {
-        var environment = baseEnvironment()
-        environment["CODEX_HOME"] = codexHome.path
-        environment["CODEX_ELECTRON_USER_DATA_PATH"] = electron.path
-        return Self(app: app, arguments: ["--user-data-dir=" + electron.path],
-                    environment: environment, createsNewInstance: true)
-    }
-}
-
 @MainActor
 protocol ApplicationRuntime {
     func running(provider: ProviderID2) -> [RunningInstance]
@@ -147,13 +122,7 @@ final class NativeApplicationRuntime: ApplicationRuntime {
     func pause() async { try? await Task.sleep(nanoseconds: 200_000_000) }
 
     func open(_ request: ProviderLaunchRequest) async throws -> Int32 {
-        let configuration = NSWorkspace.OpenConfiguration()
-        // Focus is allowed only after the controller verifies the returned process and receipt.
-        configuration.activates = false
-        configuration.createsNewApplicationInstance = request.createsNewInstance
-        configuration.allowsRunningApplicationSubstitution = false
-        configuration.arguments = request.arguments
-        if !request.environment.isEmpty { configuration.environment = request.environment }
+        let configuration = request.openConfiguration()
         return try await withCheckedThrowingContinuation { continuation in
             let gate = CompletionGate<Int32> { continuation.resume(with: $0) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 20) {

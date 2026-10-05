@@ -6,6 +6,7 @@ import SwitcherCore
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let currentCodexEnvironment: CurrentCodexLaunchEnvironment
     private let previewModel: PairbarPanelModel?
     private let previewColorScheme: ColorScheme?
     private var controller: PairbarController?
@@ -17,7 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var escapeMonitor: Any?
     private let popover = NSPopover()
 
-    init(previewModel: PairbarPanelModel? = nil, previewColorScheme: ColorScheme? = nil) {
+    init(currentCodexEnvironment: CurrentCodexLaunchEnvironment, previewModel: PairbarPanelModel? = nil, previewColorScheme: ColorScheme? = nil) {
+        self.currentCodexEnvironment = currentCodexEnvironment
         self.previewModel = previewModel
         self.previewColorScheme = previewColorScheme
     }
@@ -36,7 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try store.migrateIfNeeded()
                 model = PairbarPanelModel()
                 let controller = try PairbarController(store: store, runtime: NativeApplicationRuntime(),
-                                                       inspector: InstalledProviderInspector(), model: model)
+                                                       inspector: InstalledProviderInspector(), model: model,
+                                                       currentCodexEnvironment: currentCodexEnvironment)
                 self.controller = controller
                 let keys = HotKeys(registerDefaults: false)
                 keys.onTargetPress = { [weak controller] target in
@@ -215,14 +218,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 @main
 struct SwitcherMain {
     @MainActor static func main() {
-        PairbarStartup.run(environment: ProcessInfo.processInfo.environment,
-                           pairbarRoot: PrivateStore.defaultRoot.standardizedFileURL,
-                           unset: { _ = Darwin.unsetenv($0) }) {
-            runApp()
+        do {
+            try PairbarStartup.run(environment: ProcessInfo.processInfo.environment,
+                                   pairbarRoot: PrivateStore.defaultRoot.standardizedFileURL,
+                                   unset: { _ = Darwin.unsetenv($0) }) { currentEnvironment in
+                runApp(currentCodexEnvironment: currentEnvironment)
+            }
+        } catch {
+            fputs("Pairbar could not resolve safe Current launch paths.\n", stderr)
+            exit(1)
         }
     }
 
-    @MainActor private static func runApp() {
+    @MainActor private static func runApp(currentCodexEnvironment: CurrentCodexLaunchEnvironment) {
         let arguments = CommandLine.arguments
         if arguments.count == 3 && arguments[1] == "--check-app" {
             do { print(try Compatibility.inspect(URL(fileURLWithPath: arguments[2])).summary) }
@@ -256,7 +264,7 @@ struct SwitcherMain {
         app.setActivationPolicy(.accessory)
         let previewColorScheme: ColorScheme? = preview != nil && arguments.count >= 4
             ? (arguments[3] == "light" ? .light : .dark) : nil
-        let delegate = AppDelegate(previewModel: preview, previewColorScheme: previewColorScheme)
+        let delegate = AppDelegate(currentCodexEnvironment: currentCodexEnvironment, previewModel: preview, previewColorScheme: previewColorScheme)
         app.delegate = delegate
         withExtendedLifetime(delegate) { app.run() }
     }
