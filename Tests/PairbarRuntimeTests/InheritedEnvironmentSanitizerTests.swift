@@ -70,11 +70,12 @@ final class InheritedEnvironmentSanitizerTests: XCTestCase {
         XCTAssertEqual(removed.count, 2)
     }
 
-    func testStartupSanitizesBeforeConstructingLaunchCapableObjects() {
+    func testStartupSanitizesBeforeConstructingLaunchCapableObjects() throws {
         var events: [String] = []
-        let constructed = PairbarStartup.run(
+        let constructed = try PairbarStartup.run(
             environment: ["CODEX_HOME": root.path + "/Profiles/b/codex"], pairbarRoot: root,
-            unset: { events.append("unset:\($0)") }, start: {
+            home: URL(fileURLWithPath: "/private/tmp/synthetic-home"), username: "fixture", temporaryDirectory: "/private/tmp/",
+            unset: { events.append("unset:\($0)") }, start: { _ in
                 events.append("construct runtime/controller")
                 return true
             })
@@ -82,46 +83,4 @@ final class InheritedEnvironmentSanitizerTests: XCTestCase {
         XCTAssertEqual(events, ["unset:CODEX_HOME", "construct runtime/controller"])
     }
 
-    func testManagedEnvironmentCannotLeakIntoNewCurrent() {
-        var inherited = ["PAIRBAR_ENV_TEST": "sentinel",
-                         "CODEX_HOME": root.path + "/Profiles/codex/fake/codex",
-                         "CODEX_ELECTRON_USER_DATA_PATH": root.path + "/Profiles/codex/fake/electron"]
-        PairbarInheritedEnvironmentSanitizer.apply(environment: inherited, pairbarRoot: root) {
-            inherited.removeValue(forKey: $0)
-        }
-        let request = ProviderLaunchRequest.current(app: URL(fileURLWithPath: "/tmp/Fixture.app"),
-                                                    hasManagedInstances: true)
-        XCTAssertEqual(request.arguments, [])
-        XCTAssertTrue(request.environment.isEmpty)
-        XCTAssertTrue(request.createsNewInstance)
-        XCTAssertNil(inherited["CODEX_HOME"])
-        XCTAssertNil(inherited["CODEX_ELECTRON_USER_DATA_PATH"])
-        XCTAssertEqual(inherited["PAIRBAR_ENV_TEST"], "sentinel")
-    }
-
-    func testCurrentManagedAndClaudeRequestsKeepTheirRecipes() {
-        let app = URL(fileURLWithPath: "/tmp/Fixture.app")
-        let ordinary = ProviderLaunchRequest.current(app: app, hasManagedInstances: false)
-        let separate = ProviderLaunchRequest.current(app: app, hasManagedInstances: true)
-        for request in [ordinary, separate] {
-            XCTAssertEqual(request.arguments, [])
-            XCTAssertTrue(request.environment.isEmpty)
-        }
-        XCTAssertFalse(ordinary.createsNewInstance)
-        XCTAssertTrue(separate.createsNewInstance)
-        // Claude Current uses this same request factory; it has no provider-specific overrides.
-        let claudeCurrent = ProviderLaunchRequest.current(app: URL(fileURLWithPath: "/tmp/Claude.app"),
-                                                         hasManagedInstances: false)
-        XCTAssertEqual(claudeCurrent.arguments, [])
-        XCTAssertTrue(claudeCurrent.environment.isEmpty)
-        XCTAssertFalse(claudeCurrent.createsNewInstance)
-
-        let electron = root.appendingPathComponent("Profiles/codex/id/electron")
-        let home = root.appendingPathComponent("Profiles/codex/id/codex")
-        let managed = ProviderLaunchRequest.codex(app: app, electron: electron, codexHome: home)
-        XCTAssertEqual(managed.environment["CODEX_HOME"], home.path)
-        XCTAssertEqual(managed.environment["CODEX_ELECTRON_USER_DATA_PATH"], electron.path)
-        XCTAssertEqual(managed.arguments, ["--user-data-dir=" + electron.path])
-        XCTAssertTrue(managed.createsNewInstance)
-    }
 }

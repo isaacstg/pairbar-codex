@@ -39,7 +39,7 @@ for path in source_files:
                     path == root / 'Sources/DualAccountSwitcher/Application.swift' and
                     match.group(0) == 'ProcessInfo.processInfo.environment'):
                 # Startup reads only Pairbar's own inherited environment so it can
-                # remove Pairbar-owned Codex overrides before any provider launch.
+                # capture Current paths and remove Pairbar-owned overrides before any provider launch.
                 continue
             line = text.count('\n', 0, match.start()) + 1
             failures.append(f'{path.relative_to(root)}:{line}: {label}')

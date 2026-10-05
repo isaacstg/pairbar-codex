@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.0 (27) — Current development candidate
+
+- Capture Codex Current paths once at startup and explicitly pass both sensitive environment variables on every new Current launch, including alongside running managed profiles.
+- Preserve external custom Current paths exactly; replace inherited Pairbar-managed paths with ordinary Current defaults. Keep the startup sanitizer, managed launch recipe, and Claude behavior.
+
 ## 2.0.0 (26) — Current development candidate
 
 - Route Escape through the AppKit popover monitor: dismiss row actions first, then the popover on the next press. A single press closes a nonmodal popover on any page.

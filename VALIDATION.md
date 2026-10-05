@@ -1,5 +1,15 @@
 # Pairbar validation and release status
 
+## Current launch isolation — 2.0.0 (27), 2026-10-05
+
+Base verified by a fresh origin fetch and GitHub API: `1edef59e656ff0ac9b00f216ae84497efb50218d`. `swift test --disable-sandbox` with isolated module caches passes **231 tests, 0 failures**. Coverage includes immutable startup capture, all default/custom/contaminated combinations, lexical boundaries and dot components, unresolvable-value fallback, unsafe-default rejection, unchanged managed and Claude requests, and controller launch alongside receipt-owned synthetic Work without changing its metadata.
+
+The reproducible fixture is `bash scripts/test-current-launch-environment.sh`. It compiles the production resolver, request factory, and NSWorkspace configuration builder; creates a uniquely identified mini app entirely in `/private/tmp`; records only its own two sensitive environment variables and PID; and terminates every fixture instance normally before deleting its scratch tree. It uses no provider app, network, user home, or real profile storage. On this host it required execution outside the task sandbox: the sandbox attempt failed before opening any app with LaunchServices `kLSNoExecutableErr`.
+
+Observed on macOS **26.6.2 (25G83)**: five distinct instances. Managed received synthetic `Profiles/b/codex` and `Profiles/b/electron`. Old Current with unspecified environment received **both variables absent**, so this fixture did **not** reproduce the reported provider contamination and does not identify its internal source. New Current received explicit synthetic defaults, two exact external custom paths, and a custom/default combination respectively, with no managed values. All five instances exited and no fixture scratch directory remained. This proves the explicit NSWorkspace path on this macOS, not ChatGPT's downstream storage behavior or signed-in isolation.
+
+Before physical build-27 acceptance, use a separate disposable user/machine and verify that the exact official provider honors both Current variables with managed instances running. Real Personal, Work, Current, receipts, pending state, defaults, and backups were neither used nor modified for this fix. Public signing/notarization and broader acceptance gates below remain open.
+
 ## Current release-candidate source status (2026-09-28)
 
 The PR #7 baseline was `main` at `55b704c9fdbb5fce5ee4dbbe011d9cf182813ada`. Its automated suite passed **168 tests, 0 failures**. A live installed pass on a post-merge artifact confirmed Current Codex, managed Work, preserved session, Switch, Search/⌘F, English/Spanish, Settings, and Add profile form. The healthy path needed no Check/Discovery, Repair, or Advanced action. These are operational observations, not a signed-in A/B account-isolation test.

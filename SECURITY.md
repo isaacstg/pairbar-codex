@@ -82,7 +82,9 @@ After positively excluding every owned managed process:
 - one candidate may be treated as Current;
 - more than one candidate is ambiguous and Pairbar refuses to choose.
 
-Opening Current verifies official identity and uses no profile override. If managed processes already exist, LaunchServices is asked for a new normal instance. Pairbar then re-resolves provider state and focuses the returned process only if it is classified as Current and is not referenced by a managed receipt.
+Opening Current verifies official identity and uses no managed-profile override. If managed processes already exist, LaunchServices is asked for a new normal instance. Pairbar then re-resolves provider state and focuses the returned process only if it is classified as Current and is not referenced by a managed receipt.
+
+LaunchServices environment inheritance is not a sufficient boundary between instances of the same bundle. Codex Current therefore receives explicit `CODEX_HOME` and `CODEX_ELECTRON_USER_DATA_PATH`, plus the allowlisted base environment, on every new launch. An immutable context captured before startup sanitization preserves absolute external custom values exactly; missing, Pairbar-managed, or unresolvable values use `~/.codex` and `~/Library/Application Support/Codex` respectively. Resolution shares the sanitizer's lexical component policy, including dot normalization and component boundaries, without resolving symlinks or reading storage. An unsafe default blocks startup. Pairbar-managed values never propagate through these two Current variables. The startup sanitizer still cleans Pairbar's own inherited environment once; launches do not mutate global environment. Claude Current retains its ordinary launch behavior.
 
 ## Managed Codex storage and launch
 

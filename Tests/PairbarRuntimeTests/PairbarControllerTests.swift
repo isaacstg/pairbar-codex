@@ -220,6 +220,61 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertEqual(controller.states[.codex]?.needsRecovery, true)
     }
 
+    func testNewCurrentAlongsideManagedWorkUsesCapturedEnvironmentWithoutReceipt() async throws {
+        for custom in [false, true] {
+            let fixture = try Fixture(); defer { fixture.remove() }
+            let inspector = FakeInspector(codexFingerprint: fingerprint)
+            let runtime = FakeRuntime()
+            let workStamp = inspector.stamp(provider: .codex, pid: 305, seconds: 100)
+            let work = try fixture.addOwnedProfile(name: "Work", stamp: workStamp, fingerprint: fingerprint)
+            runtime.install(workStamp, provider: .codex, app: inspector.identity(for: .codex).app)
+            let paths = fixture.store.paths(for: work)
+            let home = URL(fileURLWithPath: "/private/tmp/pairbar-controller-current")
+            let initial = custom
+                ? ["CODEX_HOME": "/private/tmp/custom/codex", "CODEX_ELECTRON_USER_DATA_PATH": "/private/tmp/custom/electron"]
+                : ["CODEX_HOME": paths.codexHome.path, "CODEX_ELECTRON_USER_DATA_PATH": paths.electron.path]
+            let context = try CurrentCodexLaunchEnvironment(environment: initial, pairbarRoot: fixture.root,
+                home: home, username: "fixture", temporaryDirectory: "/private/tmp/")
+            let currentStamp = inspector.stamp(provider: .codex, pid: 306, seconds: 101)
+            runtime.openHandler = { _ in
+                runtime.install(currentStamp, provider: .codex, app: inspector.identity(for: .codex).app)
+                return currentStamp.pid
+            }
+            let controller = try fixture.controller(runtime: runtime, inspector: inspector, currentEnvironment: context)
+            let opened = await controller.open(.current(.codex))
+            XCTAssertTrue(opened)
+            let request = try XCTUnwrap(runtime.openRequests.first)
+            XCTAssertEqual(request.environment, context.environment)
+            XCTAssertEqual(request.environment["CODEX_HOME"], custom ? initial["CODEX_HOME"] : home.path + "/.codex")
+            XCTAssertEqual(request.environment["CODEX_ELECTRON_USER_DATA_PATH"], custom ? initial["CODEX_ELECTRON_USER_DATA_PATH"] : home.path + "/Library/Application Support/Codex")
+            XCTAssertNotEqual(request.environment["CODEX_HOME"], paths.codexHome.path)
+            XCTAssertNotEqual(request.environment["CODEX_ELECTRON_USER_DATA_PATH"], paths.electron.path)
+            XCTAssertEqual(request.arguments, [])
+            XCTAssertTrue(request.createsNewInstance)
+            XCTAssertEqual(try fixture.store.listProfiles(), [work])
+            XCTAssertTrue(runtime.terminationAttempts.isEmpty)
+        }
+    }
+
+    func testNewClaudeCurrentRetainsOrdinaryRequest() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector()
+        let runtime = FakeRuntime()
+        let stamp = inspector.stamp(provider: .claude, pid: 307, seconds: 101)
+        runtime.openHandler = { _ in
+            runtime.install(stamp, provider: .claude, app: inspector.identity(for: .claude).app)
+            return stamp.pid
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        let opened = await controller.open(.current(.claude))
+        XCTAssertTrue(opened)
+        let request = try XCTUnwrap(runtime.openRequests.first)
+        XCTAssertEqual(request.environment, [:])
+        XCTAssertEqual(request.arguments, [])
+        XCTAssertFalse(request.createsNewInstance)
+        XCTAssertTrue(try fixture.store.listProfiles().isEmpty)
+    }
+
     func testCurrentAccountCanOnlyBeActivatedAndNeverTerminated() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -1475,8 +1530,12 @@ private final class Fixture {
     }
 
     func controller(runtime: FakeRuntime, inspector: FakeInspector,
-                    candidates: ((URL?) -> [URL])? = nil) throws -> PairbarController {
+                    candidates: ((URL?) -> [URL])? = nil,
+                    currentEnvironment: CurrentCodexLaunchEnvironment? = nil) throws -> PairbarController {
         try PairbarController(store: store, runtime: runtime, inspector: inspector, model: PairbarPanelModel(),
+                              currentCodexEnvironment: try currentEnvironment ?? CurrentCodexLaunchEnvironment(environment: [:], pairbarRoot: root,
+                                  home: URL(fileURLWithPath: "/private/tmp/pairbar-controller-current"),
+                                  username: "fixture", temporaryDirectory: "/private/tmp/"),
                               standardCandidates: candidates ?? Compatibility.standardCandidates)
     }
 
