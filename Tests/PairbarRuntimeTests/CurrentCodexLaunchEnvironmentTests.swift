@@ -16,6 +16,10 @@ final class CurrentCodexLaunchEnvironmentTests: XCTestCase {
     private func assertPaths(_ initial: [String: String], codex: String? = nil, electron: String? = nil,
                              file: StaticString = #filePath, line: UInt = #line) throws {
         let context = try resolve(initial)
+        XCTAssertEqual(Array(context.codexHome.utf8), Array((codex ?? codexDefault).utf8), file: file, line: line)
+        XCTAssertEqual(Array(context.electronUserDataPath.utf8), Array((electron ?? electronDefault).utf8), file: file, line: line)
+        XCTAssertEqual(context.environment["CODEX_HOME"], context.codexHome, file: file, line: line)
+        XCTAssertEqual(context.environment["CODEX_ELECTRON_USER_DATA_PATH"], context.electronUserDataPath, file: file, line: line)
         for separate in [false, true] {
             let request = ProviderLaunchRequest.current(app: root.appendingPathComponent("Fixture.app"),
                 hasManagedInstances: separate, currentEnvironment: context)
@@ -23,7 +27,12 @@ final class CurrentCodexLaunchEnvironmentTests: XCTestCase {
                 "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "TMPDIR": "/private/tmp/fixture-temp/",
                 "CODEX_HOME": codex ?? codexDefault, "CODEX_ELECTRON_USER_DATA_PATH": electron ?? electronDefault],
                 file: file, line: line)
-            XCTAssertEqual(request.arguments, [], file: file, line: line)
+            XCTAssertEqual(request.arguments.map { Array($0.utf8) }, [Array(("--user-data-dir=" + (electron ?? electronDefault)).utf8)],
+                           file: file, line: line)
+            XCTAssertEqual(request.arguments, request.environment["CODEX_ELECTRON_USER_DATA_PATH"].map { ["--user-data-dir=" + $0] },
+                           file: file, line: line)
+            XCTAssertNotEqual(PairbarCodexEnvironmentValue.classify(String(request.arguments[0].dropFirst("--user-data-dir=".count)),
+                pairbarRoot: root), .managed, file: file, line: line)
             XCTAssertEqual(request.createsNewInstance, separate, file: file, line: line)
             XCTAssertFalse(request.environment.isEmpty, file: file, line: line)
             XCTAssertTrue(PairbarInheritedEnvironmentSanitizer.keysToRemove(environment: request.environment,
@@ -62,24 +71,24 @@ final class CurrentCodexLaunchEnvironmentTests: XCTestCase {
     }
     func testProfilesEvilIsExternalAtComponentBoundary() throws {
         let path = root.path + "/Profiles-evil/codex"
-        try assertPaths(["CODEX_HOME": path], codex: path)
+        try assertPaths(["CODEX_HOME": path, "CODEX_ELECTRON_USER_DATA_PATH": path], codex: path, electron: path)
     }
     func testDotComponentsShareSanitizerPolicy() throws {
         for path in [root.path + "/Profiles/foo/../bar/", root.path + "/./Profiles/b/codex", root.path + "/Profiles"] {
             XCTAssertEqual(PairbarInheritedEnvironmentSanitizer.keysToRemove(environment: ["CODEX_HOME": path],
                 pairbarRoot: root), ["CODEX_HOME"])
-            try assertPaths(["CODEX_HOME": path])
+            try assertPaths(["CODEX_HOME": path, "CODEX_ELECTRON_USER_DATA_PATH": path])
         }
         let outside = root.path + "/Profiles/../outside"
-        try assertPaths(["CODEX_HOME": outside], codex: outside)
+        try assertPaths(["CODEX_HOME": outside, "CODEX_ELECTRON_USER_DATA_PATH": outside], codex: outside, electron: outside)
     }
     func testExternalValuesArePreservedByteForByte() throws {
-        let path = "/private/custom//with space/./child/../codex/"
+        let path = "/private/custom//with space/./child/../cafe\u{301}/"
         try assertPaths(["CODEX_HOME": path, "CODEX_ELECTRON_USER_DATA_PATH": path], codex: path, electron: path)
     }
     func testUnresolvableValuesUseDefaultsWithoutChangingStartupSanitizer() throws {
         for path in ["", "relative/Profiles/b", "~/.codex", "weird:value", "/private/custom\0invalid"] {
-            try assertPaths(["CODEX_HOME": path])
+            try assertPaths(["CODEX_HOME": path, "CODEX_ELECTRON_USER_DATA_PATH": path])
             XCTAssertTrue(PairbarInheritedEnvironmentSanitizer.keysToRemove(environment: ["CODEX_HOME": path],
                                                                           pairbarRoot: root).isEmpty)
         }
@@ -96,6 +105,7 @@ final class CurrentCodexLaunchEnvironmentTests: XCTestCase {
         let work = ProviderLaunchRequest.codex(app: app, electron: workElectron, codexHome: workHome,
             home: home, username: "fixture", temporaryDirectory: "/private/tmp/")
         let current = ProviderLaunchRequest.current(app: app, hasManagedInstances: true, currentEnvironment: context)
+        XCTAssertEqual(current.arguments, ["--user-data-dir=" + context.electronUserDataPath])
         XCTAssertNotEqual(current.environment["CODEX_HOME"], work.environment["CODEX_HOME"])
         XCTAssertNotEqual(current.environment["CODEX_ELECTRON_USER_DATA_PATH"], work.environment["CODEX_ELECTRON_USER_DATA_PATH"])
         XCTAssertEqual(current.environment["CODEX_HOME"], codexDefault)

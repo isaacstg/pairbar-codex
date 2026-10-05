@@ -249,7 +249,7 @@ final class PairbarControllerTests: XCTestCase {
             XCTAssertEqual(request.environment["CODEX_ELECTRON_USER_DATA_PATH"], custom ? initial["CODEX_ELECTRON_USER_DATA_PATH"] : home.path + "/Library/Application Support/Codex")
             XCTAssertNotEqual(request.environment["CODEX_HOME"], paths.codexHome.path)
             XCTAssertNotEqual(request.environment["CODEX_ELECTRON_USER_DATA_PATH"], paths.electron.path)
-            XCTAssertEqual(request.arguments, [])
+            XCTAssertEqual(request.arguments, ["--user-data-dir=" + context.electronUserDataPath])
             XCTAssertTrue(request.createsNewInstance)
             XCTAssertEqual(try fixture.store.listProfiles(), [work])
             XCTAssertTrue(runtime.terminationAttempts.isEmpty)

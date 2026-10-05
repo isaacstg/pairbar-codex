@@ -1,12 +1,13 @@
 import AppKit
 import Darwin
 
-// Only our own two requested variables and PID are recorded. All files are fixture-local.
+// Only our own requested variables, arguments and PID are recorded. All files are fixture-local.
 let app = NSApplication.shared
 app.setActivationPolicy(.prohibited)
 let records = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("records")
 let record: [String: Any] = [
     "PID": getpid(),
+    "arguments": Array(CommandLine.arguments.dropFirst()),
     "CODEX_HOME": getenv("CODEX_HOME").map { String(cString: $0) } as Any? ?? NSNull(),
     "CODEX_ELECTRON_USER_DATA_PATH": getenv("CODEX_ELECTRON_USER_DATA_PATH").map { String(cString: $0) } as Any? ?? NSNull()
 ]

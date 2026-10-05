@@ -42,7 +42,10 @@ struct FixtureDriver {
             }
             throw NSError(domain: "FixtureRecord", code: 1)
         }
-        func verify(_ record: [String: Any], expected: [String: String]) throws {
+        func verify(_ record: [String: Any], context: CurrentCodexLaunchEnvironment) throws {
+            guard record["arguments"] as? [String] == ["--user-data-dir=" + context.electronUserDataPath]
+            else { throw NSError(domain: "FixtureArguments", code: 1) }
+            let expected = context.environment
             for key in PairbarInheritedEnvironmentSanitizer.codexKeys {
                 guard record[key] as? String == expected[key],
                       PairbarCodexEnvironmentValue.classify(record[key] as? String, pairbarRoot: pairbarRoot) != .managed
@@ -68,11 +71,11 @@ struct FixtureDriver {
                     home: home, username: "fixture", temporaryDirectory: root.path, unset: { _ in }) { $0 }
                 let request = ProviderLaunchRequest.current(app: appURL, hasManagedInstances: true, currentEnvironment: current)
                 let record = try await launch(request, label: label)
-                try verify(record, expected: current.environment)
+                try verify(record, context: current)
             }
             guard Set(apps.map(\.processIdentifier)).count == apps.count else { throw NSError(domain: "FixtureInstances", code: 1) }
             try await waitForExit()
-            print("PASS: five distinct instances; explicit defaults/custom verified; every fixture process terminated normally.")
+            print("PASS: five distinct instances; explicit environment and user-data-dir defaults/custom verified; every fixture process terminated normally.")
         } catch {
             try await waitForExit()
             throw error

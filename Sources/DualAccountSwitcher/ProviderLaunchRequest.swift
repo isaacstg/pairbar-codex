@@ -26,7 +26,8 @@ struct ProviderLaunchRequest {
 
     static func current(app: URL, hasManagedInstances: Bool,
                         currentEnvironment: CurrentCodexLaunchEnvironment) -> Self {
-        Self(app: app, arguments: [], environment: currentEnvironment.environment,
+        Self(app: app, arguments: ["--user-data-dir=" + currentEnvironment.electronUserDataPath],
+             environment: currentEnvironment.environment,
              createsNewInstance: hasManagedInstances)
     }
 
