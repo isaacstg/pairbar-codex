@@ -44,4 +44,3 @@ struct ProviderLaunchRequest {
                     environment: environment, createsNewInstance: true)
     }
 }
-
