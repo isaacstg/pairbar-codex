@@ -94,41 +94,99 @@ public enum Compatibility {
     }
 
     // Inspect packaged program code only. Never inspect profile files, process argv, or environment.
-    private static func bootstrapIndicators(_ archive: URL) throws -> String {
+    // Available to SwitcherCoreTests with synthetic ASAR fixtures.
+    static func bootstrapIndicators(_ archive: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: archive)
         defer { try? handle.close() }
         guard let header = try handle.read(upToCount: 16), header.count == 16 else {
             throw SwitcherError.message("Electron archive header is unreadable.")
         }
-        func u32(_ offset: Int) -> UInt32 {
-            (0..<4).reduce(UInt32(0)) { $0 | (UInt32(header[offset + $1]) << ($1 * 8)) }
+        func u32(_ offset: Int) -> UInt64 {
+            (0..<4).reduce(UInt64(0)) { $0 | (UInt64(header[offset + $1]) << ($1 * 8)) }
         }
-        let size = Int(u32(12)); let base = UInt64(u32(4)) + 8
-        guard size > 0, size <= 8_388_608, let json = try handle.read(upToCount: size), json.count == size,
-              let root = try JSONSerialization.jsonObject(with: json) as? [String: Any] else {
+
+        let jsonSize = u32(12), headerSize = u32(4), headerPayload = u32(8)
+        let archiveSize = try handle.seekToEnd()
+        // Validate the ASAR pickle layout and bound every read by the actual
+        // file length; never trust an index offset or size from a changed app.
+        guard u32(0) == 4, headerSize >= 8, headerSize % 4 == 0,
+              headerSize <= UInt64.max - 8, headerSize + 8 <= archiveSize,
+              headerPayload + 4 == headerSize,
+              jsonSize > 0, jsonSize <= 8_388_608,
+              jsonSize + 4 <= headerPayload, headerPayload - (jsonSize + 4) < 4,
+              let rootData = try readArchive(handle, at: 16, length: Int(jsonSize), archiveSize: archiveSize),
+              let root = try JSONSerialization.jsonObject(with: rootData) as? [String: Any],
+              let files = root["files"] as? [String: Any] else {
             throw SwitcherError.message("Electron archive layout changed; compatibility review required.")
         }
-        var selected: [String: Any]?
-        func visit(_ node: [String: Any], path: String) {
-            guard let files = node["files"] as? [String: [String: Any]] else { return }
-            for (name, child) in files {
-                let next = path + name
-                if child["files"] != nil { visit(child, path: next + "/") }
-                else if next.hasPrefix(".vite/build/bootstrap-"), next.hasSuffix(".js") { selected = child }
+        let payloadBase = headerSize + 8
+
+        // Only inspect authoritative bootstraps, not every similarly named
+        // numbered chunk. Modern ChatGPT ships hundreds of early-bootstrap-N.js
+        // modules; scanning them all used to hit a 64-candidate cap before
+        // inspecting the real canonical early-bootstrap.js.
+        guard let vite = files[".vite"] as? [String: Any],
+              let viteFiles = vite["files"] as? [String: Any],
+              let build = viteFiles["build"] as? [String: Any],
+              let buildFiles = build["files"] as? [String: Any] else {
+            throw SwitcherError.message("ChatGPT's packaged Electron bootstrap directory is missing or changed.")
+        }
+
+        let canonicalNames = ["early-bootstrap.js", "bootstrap.js"]
+        let canonical = canonicalNames.filter { buildFiles[$0] != nil }
+        let selectedNames: [String]
+        if !canonical.isEmpty {
+            selectedNames = canonical
+        } else {
+            // Legacy builds used one or a few bootstrap-<hash>.js files.
+            // Keep fallback bounded: arbitrary code chunks quoting the markers
+            // are not evidence that the official bootstrap uses the override.
+            let fallback = buildFiles.keys.filter { name in
+                name.hasSuffix(".js") &&
+                (name.hasPrefix("bootstrap-") || name.hasPrefix("early-bootstrap-"))
+            }.sorted()
+            guard !fallback.isEmpty, fallback.count <= 64 else {
+                throw SwitcherError.message(
+                    "This ChatGPT build has no canonical Electron bootstrap and its legacy bootstrap layout cannot be verified."
+                )
+            }
+            selectedNames = fallback
+        }
+
+        for name in selectedNames {
+            guard let entry = buildFiles[name] as? [String: Any],
+                  entry["files"] == nil, entry["link"] == nil,
+                  (entry["unpacked"] == nil || (entry["unpacked"] as? Bool) == false),
+                  let offsetString = entry["offset"] as? String,
+                  !offsetString.isEmpty,
+                  offsetString.allSatisfy({ $0 >= "0" && $0 <= "9" }),
+                  let offset = UInt64(offsetString),
+                  let length = entry["size"] as? Int,
+                  length > 0, length <= 4_194_304,
+                  offset <= UInt64.max - payloadBase,
+                  let data = try readArchive(handle, at: payloadBase + offset,
+                                             length: length, archiveSize: archiveSize),
+                  let source = String(data: data, encoding: .utf8) else {
+                throw SwitcherError.message(
+                    "The Electron bootstrap '\(name)' is unreadable, linked, unpacked or changed."
+                )
+            }
+            if source.contains("CODEX_ELECTRON_USER_DATA_PATH") && source.contains("userData") {
+                return source
             }
         }
-        visit(root, path: "")
-        guard let selected, let offsetText = selected["offset"] as? String, let offset = UInt64(offsetText),
-              let length = selected["size"] as? Int, length > 0, length <= 4_194_304,
-              base <= UInt64.max - offset else {
-            throw SwitcherError.message("Expected Electron bootstrap code was not found. Update compatibility checks after reviewing the new app.")
-        }
-        try handle.seek(toOffset: base + offset)
-        guard let data = try handle.read(upToCount: length), data.count == length,
-              let text = String(data: data, encoding: .utf8) else {
-            throw SwitcherError.message("Cannot inspect Electron bootstrap.")
-        }
-        return text
+        throw SwitcherError.message(
+            "The ChatGPT bootstrap does not expose the expected Electron profile override. Managed profile opening remains blocked."
+        )
+    }
+
+    private static func readArchive(_ handle: FileHandle, at offset: UInt64,
+                                    length: Int, archiveSize: UInt64) throws -> Data? {
+        guard length > 0, length <= 8_388_608,
+              offset <= archiveSize, UInt64(length) <= archiveSize - offset else { return nil }
+        try handle.seek(toOffset: offset)
+        let bytes = try handle.read(upToCount: length)
+        return bytes?.count == length ? bytes : nil
     }
 
     private static func archiveContains(_ file: URL, marker: String) throws -> Bool {

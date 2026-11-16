@@ -65,6 +65,94 @@ This is profile separation within one macOS user, not an operating-system securi
 
 Pairbar is in active development; no public Developer ID-signed and notarized release is available yet. Managed Claude awaits real signed-in acceptance, and signed-in A/B account isolation remains pending. See [implementation status](docs/IMPLEMENTATION_STATUS.md) and the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) for evidence and remaining release gates.
 
+## Profile opening and troubleshooting
+
+Choose a profile to open it. First-time managed-profile use requires one explicit approval.
+After that, signed official ChatGPT updates that pass the same compatibility and identity
+checks are reverified automatically without asking you to approve every version.
+If the official app changes its profile-override behavior, Pairbar refuses an unsafe
+managed launch; no tool can guarantee that unreviewed upstream versions still isolate accounts.
+
+If **Work** or another profile cannot open, use its **⋯ → Diagnose…** action. This
+opens **Settings → Advanced** and runs **Check again**, displaying either a successful
+check or the specific compatibility reason. When the controller can safely recover
+interrupted state, **⋯ → Repair…** appears instead. Repair is never a general solution
+to a missing app, an incompatible Electron build, or an OS launch error.
+Do not delete or reset profile directories as a troubleshooting shortcut; account
+data is retained in place. Diagnostics copied from Settings intentionally omit
+profile names, personal paths and account/session contents.
+
+Opening may wait briefly for macOS to register a newly launched process; adoption
+still requires a matching official-app identity and an unambiguous fresh process.
+The full signed-in Personal/Work separation and actual installed-build compatibility
+must be verified on a Mac before declaring a fix successful.
+
+## Pairbar 2.0.1 (28): recover an existing Work profile on your Mac
+
+ChatGPT 26.1111.21308 changed the packaged Electron entrypoint from
+`.vite/build/bootstrap-*.js` to `.vite/build/early-bootstrap.js`. Pairbar 2.0.0 (27)
+rejected that official signed build even though the package still contains the
+separate Electron user-data and CODEX_HOME overrides. Build 28 supports both
+layouts and does not reset existing `Profiles/b` Work storage.
+
+**Recommended on your own Mac: install from source, not downloaded binaries.**
+The downloadable test ZIP is ad-hoc signed and macOS may refuse execution
+(`Killed: 9`) when the archive carries Gatekeeper quarantine. That error is
+*not* a ChatGPT compatibility diagnosis. Never disable Gatekeeper globally.
+
+Once, clone the hotfix branch into a stable development location:
+
+```bash
+mkdir -p "$HOME/Developer"
+git clone --branch chatgpt/pairbar-resilient-profiles-20261116 --single-branch \
+  https://github.com/isaacstg/pairbar-codex.git "$HOME/Developer/pairbar-codex"
+cd "$HOME/Developer/pairbar-codex"
+```
+
+Quit Pairbar **normally** and close the directly launched Work instance
+before replacing the app. Then run this single command:
+
+```bash
+bash scripts/try-work-fix.sh --sync-install
+```
+
+It performs a fast-forward-only GitHub pull, local source-policy audit and
+Swift tests, builds a native app **on this Mac**, checks its code signature and
+uses its own `--check-app` against the actually installed ChatGPT. It **aborts
+without installing anything** if that execution or compatibility check fails.
+If the checks pass, it backs up Pairbar's metadata and previous app, installs
+2.0.1 (28), and keeps the old app alongside the new one for rollback. No
+ChatGPT profile/session directory is moved, inspected, or deleted. A normal
+administrator password may be required to replace `/Applications/Pairbar.app`.
+
+Run exactly the same command after later GitHub commits on this branch.
+When the hotfix has passed live account-isolation checks and is merged, use
+`main` as the source branch for subsequent installations.
+
+If the new Pairbar still cannot open Work, quit Pairbar and restore the
+previous app (Work's data remains unchanged):
+
+```bash
+bash scripts/try-work-fix.sh --rollback
+```
+
+To inspect old generated downloads without deleting anything:
+
+```bash
+bash scripts/try-work-fix.sh --cleanup-preview
+```
+
+Only after reviewing the list, remove those *known downloaded diagnostic/installer
+artifacts* via `bash scripts/try-work-fix.sh --cleanup-downloads`.
+This never removes the source checkout, the existing Work/Personal storage,
+candidate builds, app backups, or rollback copies. The normal source build's
+`work/` and `dist/` are ignored temporary output; retain them while using
+the build for debugging, then delete manually if you want to reclaim space.
+
+For a no-install trial, run `--build`, quit Pairbar, then `--launch`.
+The locally built app is a development artifact; it is not a notarized public
+release and distinct Work/Personal identities must still be checked live.
+
 ## Build and try it
 
 You need macOS 13 or later, Xcode Command Line Tools with Swift 5.9 or later, and the official Electron-based `ChatGPT.app` with bundle identifier `com.openai.codex` for managed Codex profiles. The optional Claude Current integration expects the official `Claude.app` with bundle identifier `com.anthropic.claudefordesktop` and Team ID `Q6L2SF6YDW`.

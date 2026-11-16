@@ -107,9 +107,9 @@ Opening Current while a managed instance exists requests a distinct normal app i
 
 ## App checks and updates
 
-Opening Current requires an identity check of the selected official app. Opening a stopped managed Codex profile also requires a successful compatibility inspection and approval of the installed build fingerprint.
+Opening Current requires an official-app identity check. Opening a stopped managed Codex profile requires a successful compatibility inspection. The first managed launch needs one explicit opt-in; subsequent genuine compatible ChatGPT updates are automatically rechecked twice and adopted without another prompt. A failed check still blocks the managed launch.
 
-After a ChatGPT update, Pairbar can focus an already receipt-owned managed process only if its live code still matches the installed app. The first new managed launch checks the official build, asks for one contextual approval, then checks the build again before saving that approval and launching. A failed check cannot be approved. Automatic login never prompts for approval or launches an unapproved build. Approval never bypasses pending recovery or ambiguous ownership. Manual **Check again** and **Choose app…** remain in Settings → Advanced for diagnostics and nonstandard installations.
+After a ChatGPT update, Pairbar can focus an already receipt-owned managed process only if its live code still matches the installed app. The first managed launch checks the official build, asks for one contextual approval, then checks again before saving that approval and launching. Later compatible build updates are verified twice automatically, without repeated approval dialogs. A failed check cannot be approved. Automatic login never prompts for approval or launches an unapproved build. Approval never bypasses pending recovery or ambiguous ownership. Manual **Check again** and **Choose app…** remain in Settings → Advanced for diagnostics and nonstandard installations.
 
 Claude's identity check is intentionally separate from managed capability. A genuine, correctly signed Claude.app can be used as Current without implying that profile relocation isolates Chat, Code, secure storage, OAuth, deep links, extensions, or Cowork.
 

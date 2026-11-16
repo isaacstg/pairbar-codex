@@ -50,10 +50,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 controller.confirmNewBuild = { [weak self, weak model] report in
                     guard let self, let model else { return false }
                     let alert = NSAlert()
-                    alert.messageText = model.text("Approve this ChatGPT/Codex version?", "¿Aprobar esta versión de ChatGPT/Codex?")
+                    alert.messageText = model.text("Enable additional ChatGPT profiles?", "¿Habilitar perfiles adicionales de ChatGPT?")
                     alert.informativeText = model.text(
-                        "Pairbar verified the official app and its static compatibility. Version \(report.identity.version) needs your approval before opening an additional profile. Check the account shown in the app after it opens.",
-                        "Pairbar verificó la app oficial y su compatibilidad estática. La versión \(report.identity.version) requiere tu aprobación antes de abrir otro perfil. Comprueba la cuenta mostrada al abrirse.")
+                        "Pairbar verified the official signature and the presence of profile overrides; this cannot prove that two signed-in accounts stay separate. Enable additional profiles once. Compatible updates are rechecked automatically. Verify the account shown after opening.",
+                        "Pairbar ha verificado la firma oficial y la presencia de mecanismos para separar perfiles, pero esto no demuestra que dos cuentas iniciadas permanezcan aisladas. Autoriza una vez los perfiles adicionales. Las actualizaciones compatibles se revisan automáticamente. Comprueba la cuenta al abrir.")
                     alert.addButton(withTitle: model.text("Approve and open", "Aprobar y abrir"))
                     alert.addButton(withTitle: model.text("Cancel", "Cancelar"))
                     self.showPopover()
@@ -234,7 +234,7 @@ struct SwitcherMain {
         let arguments = CommandLine.arguments
         if arguments.count == 3 && arguments[1] == "--check-app" {
             do { print(try Compatibility.inspect(URL(fileURLWithPath: arguments[2])).summary) }
-            catch { fputs("Pairbar could not verify the selected ChatGPT app.\n", stderr); exit(1) }
+            catch { fputs("Pairbar could not verify the selected ChatGPT app: \(error.localizedDescription)\n", stderr); exit(1) }
             return
         }
         if arguments.count == 3 && arguments[1] == "--check-claude" {

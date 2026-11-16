@@ -20,6 +20,23 @@ jobs:
       - name: Shell and bundle metadata validation
         run: |
           bash -n scripts/build.sh
+          bash -n scripts/try-work-fix.sh
+          bash -n scripts/test-local-install.sh
+          # Scan every literal macOS tool path used by the installer, including
+          # modes not reached by --cleanup-preview (build/install/rollback).
+          python3 - <<'PY'
+          import os, pathlib, re, sys
+          script = pathlib.Path("scripts/try-work-fix.sh").read_text()
+          paths = sorted(set(re.findall(
+              r"/(?:usr/(?:bin|libexec)|bin)/[A-Za-z][A-Za-z0-9._-]*", script
+          )))
+          missing = [p for p in paths if not os.path.isfile(p) or not os.access(p, os.X_OK)]
+          if missing:
+              print("Invalid macOS executable paths: " + ", ".join(missing), file=sys.stderr)
+              sys.exit(1)
+          print(f"Validated {len(paths)} macOS executable paths")
+          PY
+          bash scripts/try-work-fix.sh --cleanup-preview
           plutil -lint Resources/Info.plist
       - name: Unit tests
         run: swift test
@@ -33,14 +50,16 @@ jobs:
           ditto -x -k dist/Pairbar.zip "$scratch"
           codesign --verify --strict --all-architectures "$scratch/Pairbar.app"
           test "$(lipo -archs "$scratch/Pairbar.app/Contents/MacOS/DualAccountSwitcher")" = "x86_64 arm64"
-          test "$(sed -n 's/^version=//p' dist/BUILD_INFO.txt)" = "2.0.0"
-          test "$(sed -n 's/^build=//p' dist/BUILD_INFO.txt)" = "27"
+          test "$(sed -n 's/^version=//p' dist/BUILD_INFO.txt)" = "2.0.1"
+          test "$(sed -n 's/^build=//p' dist/BUILD_INFO.txt)" = "28"
           test "$(sed -n 's/^commit=//p' dist/BUILD_INFO.txt)" = "$(git rev-parse HEAD)"
           grep -Fx 'source_state=clean' dist/BUILD_INFO.txt
           test "$(sed -n 's/^architectures=//p' dist/BUILD_INFO.txt)" = "$(lipo -archs "$scratch/Pairbar.app/Contents/MacOS/DualAccountSwitcher")"
           test "$(sed -n 's/^sha256=//p' dist/BUILD_INFO.txt)" = "$(shasum -a 256 dist/Pairbar.zip | awk '{print $1}')"
           grep -Fx 'signature=ad-hoc development signature; not notarized' dist/BUILD_INFO.txt
           grep -Fx 'notarized=false' dist/BUILD_INFO.txt
+      - name: Exercise local installation and rollback in isolated HOME
+        run: bash scripts/test-local-install.sh
       - name: Upload development archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, Node 24
         with:

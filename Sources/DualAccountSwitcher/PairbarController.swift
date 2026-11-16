@@ -54,6 +54,7 @@ final class PairbarController {
     private func event(_ code: String) { events.append(code); if events.count > 200 { events.removeFirst(events.count - 200) } }
     private func fail(_ code: String = "operation-blocked") {
         event(code)
+        model.statusMessage = nil
         switch code {
         case "compatibility": model.errorMessage = text("This official app build could not be verified or approved. See Advanced in Settings.", "No se pudo verificar o aprobar esta versión oficial. Consulta Avanzado en Ajustes.")
         case "claude-unvalidated": model.errorMessage = text("Additional Claude profiles are unavailable until real Chat and Code separation is validated.", "Los perfiles adicionales de Claude no están disponibles hasta validar la separación real de Chat y Code.")
@@ -65,13 +66,36 @@ final class PairbarController {
         case "name": model.errorMessage = text("Use a unique name of 1–40 characters without line breaks or control characters.", "Usa un nombre único de 1–40 caracteres, sin saltos de línea ni caracteres de control.")
         case "memory": model.errorMessage = text("Memory pressure paused new openings. Existing instances were preserved.", "La presión de memoria ha pausado las aperturas. Se conservan las instancias abiertas.")
         case "quit-timeout": model.errorMessage = text("The app did not finish quitting. Restart was cancelled; no forced close was sent.", "La app no terminó de cerrarse. Se canceló el reinicio; no se forzó el cierre.")
-        default: model.errorMessage = text("Pairbar could not open this account safely. Your data is preserved. Use Repair… if the issue continues.", "Pairbar no pudo abrir esta cuenta con seguridad. Se conservan tus datos. Usa Reparar… si el problema continúa.")
+        default: model.errorMessage = text("Pairbar could not complete the action. No account data was deleted. Open Settings → Advanced → Check again for a compatibility diagnosis.", "Pairbar no pudo completar la acción. No se borraron datos. Abre Ajustes → Avanzado → Comprobar para diagnosticar la compatibilidad.")
         }
         onPresent?()
     }
     private func caught(_ error: Error) {
-        if let storeError = error as? DynamicStoreError, storeError == .invalidName || storeError == .duplicateProfile { fail("name") }
-        else { fail("operation-blocked") }
+        if let storeError = error as? DynamicStoreError {
+            if storeError == .invalidName || storeError == .duplicateProfile { fail("name"); return }
+            event("metadata-error:" + storeError.rawValue)
+            model.statusMessage = nil
+            switch storeError {
+            case .recoveryRequired:
+                model.errorMessage = text(
+                    "An interrupted operation needs recovery. Close all ChatGPT windows and use Repair in Profiles or Settings → Advanced. Your profile data is preserved.",
+                    "Una operación interrumpida necesita recuperación. Cierra todas las ventanas de ChatGPT y usa Reparar en Perfiles o Ajustes → Avanzado. Los datos se conservan.")
+            default:
+                model.errorMessage = text(
+                    "Pairbar could not access its profile metadata (" + storeError.rawValue + "). No account data was deleted. Open Settings → Advanced to diagnose the issue.",
+                    "Pairbar no ha podido acceder a sus metadatos (" + storeError.rawValue + "). No se han borrado datos. Abre Ajustes → Avanzado para diagnosticarlo.")
+            }
+            onPresent?()
+        } else if let switcherError = error as? SwitcherError {
+            // These messages are authored by Pairbar and describe the failing operation.
+            // Keep private paths and system NSError descriptions out of copied diagnostics.
+            event("official-app-check-or-launch-failed")
+            model.statusMessage = nil
+            model.errorMessage = switcherError.localizedDescription
+            onPresent?()
+        } else {
+            fail("operation-blocked")
+        }
     }
     private func target(_ id: String) -> AccountTarget2? {
         if id.hasPrefix("current:"), let provider = ProviderID2(rawValue: String(id.dropFirst(8))) { return .current(provider) }
@@ -201,11 +225,11 @@ final class PairbarController {
                 }
                 rows.append(row)
             }
-            let report = reports[provider]
-            let approved = report?.fingerprint != nil && report?.fingerprint == settings.approvedFingerprint && settings.setupComplete
+            let previouslyApproved = settings.setupComplete && settings.approvedFingerprint != nil
             providerRows.append(PairbarProviderRow(id: provider.rawValue, name: provider == .codex ? "Codex" : "Claude",
                 status: provider == .claude ? text("Managed profiles unvalidated", "Perfiles administrados sin validar") :
-                    (approved ? text("Build approved", "Versión aprobada") : text("Approval requested when opening a profile", "Se pedirá aprobación al abrir un perfil")),
+                    (previouslyApproved ? text("Automatic compatibility checks on opening", "Compatibilidad comprobada automáticamente al abrir") :
+                        text("One-time approval on first opening", "Aprobación única al abrir por primera vez")),
                 detail: provider == .claude ? text("Current stays normal. Additional Chat and Code profiles remain unavailable pending real separation tests.", "Current sigue siendo normal. Los perfiles adicionales de Chat y Code esperan pruebas reales de separación.") :
                     text("Static compatibility does not prove account isolation. Verify the account inside the official app.", "La compatibilidad estática no demuestra aislamiento. Verifica la cuenta dentro de la app oficial."),
                 version: identities[provider]?.version ?? "", canCreate: provider == .codex && !isBusy,
@@ -241,7 +265,16 @@ final class PairbarController {
             let identity = try await officialIdentity(provider, settings: settings)
             let result = try await inspector.inspect(provider: provider, at: identity.app)
             identities[provider] = result.identity; reports[provider] = result; model.errorMessage = nil
+            if presentErrors {
+                model.statusMessage = provider == .codex
+                    ? text("Official ChatGPT verified (" + result.identity.version + "). Profile compatibility checks passed.",
+                           "ChatGPT oficial verificado (" + result.identity.version + "). Compatibilidad de perfiles comprobada.")
+                    : text("Official Claude identity verified. Additional profiles are still disabled.",
+                           "Identidad de Claude verificada. Los perfiles adicionales siguen deshabilitados.")
+                event("manual-provider-check-passed")
+            }
         } catch {
+            if presentErrors { model.statusMessage = nil }
             reports[provider] = nil
             // Current identification remains independent of the stricter managed inspection.
             if let settings = providers[provider] {
@@ -295,10 +328,15 @@ final class PairbarController {
         guard report.managedLaunchAllowed, let fingerprint = report.fingerprint else { fail("compatibility"); return nil }
         identities[provider] = report.identity
         reports[provider] = report
-        if !settings.setupComplete || fingerprint != settings.approvedFingerprint {
-            guard allowApproval else { event("build-approval-required"); return nil }
-            guard confirmNewBuild?(report) == true else {
-                event("build-approval-declined"); onDecline?(provider); return nil
+        let needsFirstApproval = !settings.setupComplete || settings.approvedFingerprint == nil
+        if needsFirstApproval || fingerprint != settings.approvedFingerprint {
+            // A genuine, compatible app update is verified again and adopted without
+            // asking the user to approve every daily build. Initial opt-in remains explicit.
+            if needsFirstApproval {
+                guard allowApproval else { event("build-approval-required"); return nil }
+                guard confirmNewBuild?(report) == true else {
+                    event("build-approval-declined"); onDecline?(provider); return nil
+                }
             }
             let confirmed = try await inspector.inspect(provider: provider, at: report.identity.app)
             guard confirmed.managedLaunchAllowed, confirmed.fingerprint == fingerprint,
@@ -308,7 +346,7 @@ final class PairbarController {
                   current.appPath == settings.appPath else { fail("ownership"); return nil }
             current.approvedFingerprint = fingerprint; current.setupComplete = true
             try store.saveProvider(current); providers[provider] = current
-            event("official-build-approved")
+            event(needsFirstApproval ? "official-build-approved" : "official-build-update-verified")
         }
         return report
     }
@@ -347,6 +385,13 @@ final class PairbarController {
                                                     currentEnvironment: currentCodexEnvironment)
                     : ProviderLaunchRequest.currentClaude(app: identity.app, hasManagedInstances: hasManagedInstances)
                 let returned = try await runtime.open(request)
+                // LaunchServices may finish before the process is visible to NSWorkspace.
+                // Never infer Current from the returned PID alone; wait for resolution.
+                for _ in 0..<20 {
+                    refresh()
+                    if case .running(let resolved) = states[provider]?.current, resolved == returned { break }
+                    await runtime.pause()
+                }
                 refresh()
                 guard case .running(let resolved) = states[provider]?.current, resolved == returned,
                       !records.contains(where: { $0.receipt?.stamp.pid == returned }),
@@ -382,13 +427,24 @@ final class PairbarController {
                 record.receipt = nil; record.pending = intent
                 try replaceRecord(record); launching.insert(id); refresh(); defer { launching.remove(id) }
                 let pid = try await runtime.open(.codex(app: report.identity.app, electron: paths.electron, codexHome: paths.codexHome))
-                guard case .observed(let stamp) = runtime.observe(pid: pid),
-                      LaunchReceipt.canAdopt(stamp, launchedAfter: intent.startedAt.timeIntervalSince1970,
-                          executable: report.identity.executable.path, uid: runtime.uid, existingPIDs: existing),
-                      runtime.running(provider: provider).contains(where: { $0.pid == pid &&
-                          $0.appURL?.resolvingSymlinksInPath() == report.identity.app }),
-                      runtime.verifyLiveIdentity(stamp, provider: provider, identity: report.identity),
-                      !records.contains(where: { $0.id != id && $0.receipt?.stamp.pid == pid }) else { fail("ownership"); return false }
+                // The provider can start after NSWorkspace's completion callback.
+                // Only adopt a fresh PID when *every* original identity/ownership
+                // condition is satisfied. Timeouts keep the pending intent for recovery.
+                var verified: ProcessStamp?
+                for _ in 0..<20 {
+                    if case .observed(let stamp) = runtime.observe(pid: pid),
+                       LaunchReceipt.canAdopt(stamp, launchedAfter: intent.startedAt.timeIntervalSince1970,
+                           executable: report.identity.executable.path, uid: runtime.uid, existingPIDs: existing),
+                       runtime.running(provider: provider).contains(where: { $0.pid == pid &&
+                           $0.appURL?.resolvingSymlinksInPath() == report.identity.app }),
+                       runtime.verifyLiveIdentity(stamp, provider: provider, identity: report.identity),
+                       !records.contains(where: { $0.id != id && $0.receipt?.stamp.pid == pid }) {
+                        verified = stamp
+                        break
+                    }
+                    await runtime.pause()
+                }
+                guard let stamp = verified else { fail("ownership"); return false }
                 record.receipt = LaunchReceipt2(provider: provider, profileID: id, storageGeneration: record.storageGeneration,
                     launchID: intent.launchID, stamp: stamp, paths: paths, fingerprint: fingerprint)
                 try replaceRecord(record)

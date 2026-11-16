@@ -140,6 +140,113 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, fingerprint)
     }
 
+    func testVerifiedUpdateOpensAutomaticallyAfterInitialOptIn() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        try fixture.approveCodex(fingerprint: "old-build")
+        let profile = try fixture.addProfile(provider: .codex, name: "Work")
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        let runtime = FakeRuntime()
+        let stamp = inspector.stamp(provider: .codex, pid: 719, seconds: 101)
+        runtime.openHandler = { _ in
+            runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+            return stamp.pid
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        var prompts = 0
+        controller.confirmNewBuild = { _ in prompts += 1; return false }
+
+        await controller.openBatch([.managed(profile.id)], automatic: true)
+
+        XCTAssertEqual(prompts, 0)
+        XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, fingerprint)
+        XCTAssertEqual(runtime.openRequests.count, 1)
+        XCTAssertNil(try fixture.store.listProfiles(provider: .codex).first?.pending)
+        XCTAssertNotNil(try fixture.store.listProfiles(provider: .codex).first?.receipt)
+        XCTAssertTrue(controller.diagnosticText.contains("official-build-update-verified"))
+    }
+
+    func testUnstableVerifiedUpdateFailsClosedWithoutNewPrompt() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        try fixture.approveCodex(fingerprint: "old-build")
+        let profile = try fixture.addProfile(provider: .codex, name: "Work")
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        inspector.inspectionResponses[.codex] = [
+            inspector.report(provider: .codex, fingerprint: fingerprint, managedLaunchAllowed: true),
+            inspector.report(provider: .codex, fingerprint: "changed-again", managedLaunchAllowed: true)
+        ]
+        let runtime = FakeRuntime()
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+        var prompts = 0
+        controller.confirmNewBuild = { _ in prompts += 1; return true }
+
+        let opened = await controller.open(.managed(profile.id))
+        XCTAssertFalse(opened)
+        XCTAssertEqual(prompts, 0)
+        XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, "old-build")
+        XCTAssertTrue(runtime.openRequests.isEmpty)
+        XCTAssertNil(try fixture.store.listProfiles(provider: .codex).first?.pending)
+    }
+
+    func testManualCheckShowsSuccessAndProviderErrorShowsReason() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector()
+        let controller = try fixture.controller(runtime: FakeRuntime(), inspector: inspector)
+
+        await controller.check(.codex)
+        XCTAssertNil(controller.model.errorMessage)
+        XCTAssertTrue(controller.model.statusMessage?.contains("Profile compatibility checks passed") == true)
+        inspector.inspectionError = SwitcherError.message("Electron bootstrap unsupported for this installed version.")
+
+        await controller.check(.codex)
+        XCTAssertNil(controller.model.statusMessage)
+        XCTAssertEqual(controller.model.errorMessage, "Electron bootstrap unsupported for this installed version.")
+        XCTAssertTrue(controller.diagnosticText.contains("official-app-check-or-launch-failed"))
+    }
+
+    func testManagedLaunchWaitsForDelayedOfficialProcessRegistration() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let profile = try fixture.addProfile(provider: .codex, name: "Delayed")
+        try fixture.approveCodex(fingerprint: fingerprint)
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        let stamp = inspector.stamp(provider: .codex, pid: 818, seconds: 101)
+        let runtime = FakeRuntime()
+        runtime.openHandler = { _ in stamp.pid }
+        runtime.pauseHandler = {
+            if runtime.pauseCount == 1 {
+                runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+            }
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+
+        let opened = await controller.open(.managed(profile.id))
+
+        XCTAssertTrue(opened)
+        XCTAssertEqual(runtime.pauseCount, 1)
+        XCTAssertEqual(try fixture.store.listProfiles(provider: .codex).first?.receipt?.stamp, stamp)
+        XCTAssertNil(try fixture.store.listProfiles(provider: .codex).first?.pending)
+    }
+
+    func testCurrentLaunchWaitsForDelayedOfficialProcessRegistration() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        let stamp = inspector.stamp(provider: .codex, pid: 819, seconds: 101)
+        let runtime = FakeRuntime()
+        runtime.openHandler = { _ in stamp.pid }
+        runtime.pauseHandler = {
+            if runtime.pauseCount == 1 {
+                runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+            }
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+
+        let opened = await controller.open(.current(.codex))
+
+        XCTAssertTrue(opened)
+        XCTAssertEqual(runtime.pauseCount, 1)
+        XCTAssertTrue(controller.records.isEmpty)
+        XCTAssertEqual(runtime.activated, [stamp])
+    }
+
     func testDeclinedBuildAndAutomaticLoginNeverApproveOrLaunch() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
@@ -577,28 +684,29 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertEqual(durable.receipt?.stamp, newStamp)
     }
 
-    func testRestartNewBuildCancelPreservesRunningProcessWithoutApproval() async throws {
+    func testRestartUpdatedBuildDoesNotPromptAndPreservesUnverifiableRunningProcess() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         try fixture.approveCodex(fingerprint: "old-build")
         let inspector = FakeInspector(codexFingerprint: fingerprint)
         let stamp = inspector.stamp(provider: .codex, pid: 720, seconds: 100)
         let profile = try fixture.addOwnedProfile(name: "Running", stamp: stamp, fingerprint: "old-build")
         let runtime = FakeRuntime(); runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+        runtime.liveIdentityAllowed = false
         let controller = try fixture.controller(runtime: runtime, inspector: inspector)
         var prompts = 0
         controller.confirmNewBuild = { _ in prompts += 1; return false }
 
         await controller.restart(profile.id)
 
-        XCTAssertEqual(prompts, 1)
-        XCTAssertEqual(inspector.inspectionCount, 1)
-        XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, "old-build")
+        XCTAssertEqual(prompts, 0)
+        XCTAssertEqual(inspector.inspectionCount, 2)
+        XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, fingerprint)
         XCTAssertTrue(runtime.terminationAttempts.isEmpty)
         XCTAssertTrue(runtime.openRequests.isEmpty)
         XCTAssertEqual(try fixture.store.listProfiles(provider: .codex).first?.receipt?.stamp, stamp)
     }
 
-    func testRestartNewBuildApprovesThenClosesVerifiedProcessAndLaunches() async throws {
+    func testRestartVerifiedUpdateWithoutNewApprovalClosesAndRelaunches() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         try fixture.approveCodex(fingerprint: "old-build")
         let inspector = FakeInspector(codexFingerprint: fingerprint)
@@ -616,15 +724,11 @@ final class PairbarControllerTests: XCTestCase {
         }
         let controller = try fixture.controller(runtime: runtime, inspector: inspector)
         var prompts = 0
-        controller.confirmNewBuild = { _ in
-            prompts += 1
-            XCTAssertTrue(runtime.terminationAttempts.isEmpty)
-            return true
-        }
+        controller.confirmNewBuild = { _ in prompts += 1; return true }
 
         await controller.restart(profile.id)
 
-        XCTAssertEqual(prompts, 1)
+        XCTAssertEqual(prompts, 0)
         XCTAssertGreaterThanOrEqual(inspector.inspectionCount, 4)
         XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, fingerprint)
         XCTAssertEqual(runtime.terminationAttempts, [old])
@@ -634,7 +738,7 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertEqual(durable.receipt?.stamp, next)
     }
 
-    func testRestartBuildChangeDuringApprovalDoesNotCloseOrApprove() async throws {
+    func testRestartBuildChangesDuringVerificationFailsWithoutClosing() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         try fixture.approveCodex(fingerprint: "old-build")
         let inspector = FakeInspector(codexFingerprint: fingerprint)
@@ -651,14 +755,14 @@ final class PairbarControllerTests: XCTestCase {
 
         await controller.restart(profile.id)
 
-        XCTAssertEqual(prompts, 1)
+        XCTAssertEqual(prompts, 0)
         XCTAssertEqual(inspector.inspectionCount, 2)
         XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, "old-build")
         XCTAssertTrue(runtime.terminationAttempts.isEmpty)
         XCTAssertTrue(runtime.openRequests.isEmpty)
     }
 
-    func testRestartOwnershipChangeDuringApprovalDoesNotCloseOrLaunch() async throws {
+    func testRestartOwnershipChangeDuringUpdateRevalidationDoesNotCloseOrLaunch() async throws {
         let fixture = try Fixture(); defer { fixture.remove() }
         try fixture.approveCodex(fingerprint: "old-build")
         let inspector = FakeInspector(codexFingerprint: fingerprint)
@@ -666,14 +770,22 @@ final class PairbarControllerTests: XCTestCase {
         let profile = try fixture.addOwnedProfile(name: "Running", stamp: stamp, fingerprint: "old-build")
         let runtime = FakeRuntime(); runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
         let controller = try fixture.controller(runtime: runtime, inspector: inspector)
-        controller.confirmNewBuild = { _ in
-            runtime.processObservations[stamp.pid] = .observed(inspector.stamp(provider: .codex, pid: stamp.pid, seconds: 101))
-            return true
+        var injected = false
+        runtime.runningHook = {
+            if !injected && (try? fixture.store.loadProvider(.codex).approvedFingerprint) == self.fingerprint {
+                injected = true
+                runtime.processObservations[stamp.pid] = .observed(
+                    inspector.stamp(provider: .codex, pid: stamp.pid, seconds: 101))
+            }
         }
+        var prompts = 0
+        controller.confirmNewBuild = { _ in prompts += 1; return true }
 
         await controller.restart(profile.id)
 
-        XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, "old-build")
+        XCTAssertTrue(injected)
+        XCTAssertEqual(prompts, 0)
+        XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, fingerprint)
         XCTAssertTrue(runtime.terminationAttempts.isEmpty)
         XCTAssertTrue(runtime.openRequests.isEmpty)
         XCTAssertEqual(try fixture.store.listProfiles(provider: .codex).first?.receipt?.stamp, stamp)
@@ -1623,6 +1735,7 @@ private final class FakeInspector: ProviderInspecting {
     var identityFailures = Set<ProviderID2>()
     var validIdentityPaths: Set<String>?
     var suspendNextInspection = false
+    var inspectionError: SwitcherError?
     private(set) var inspectionPauseCount = 0
     private(set) var inspectionCount = 0
     private var inspectionContinuation: CheckedContinuation<Void, Never>?
@@ -1647,6 +1760,7 @@ private final class FakeInspector: ProviderInspecting {
 
     func inspect(provider: ProviderID2, at url: URL) async throws -> ProviderInspection {
         inspectionCount += 1
+        if let inspectionError { throw inspectionError }
         if suspendNextInspection {
             suspendNextInspection = false
             inspectionPauseCount += 1

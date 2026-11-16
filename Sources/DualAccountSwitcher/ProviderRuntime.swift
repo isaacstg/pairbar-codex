@@ -126,12 +126,20 @@ final class NativeApplicationRuntime: ApplicationRuntime {
         return try await withCheckedThrowingContinuation { continuation in
             let gate = CompletionGate<Int32> { continuation.resume(with: $0) }
             DispatchQueue.main.asyncAfter(deadline: .now() + 20) {
-                gate.complete(.failure(SwitcherError.message("launch_timeout")))
+                gate.complete(.failure(SwitcherError.message("macOS did not finish opening the app. Its data was not modified. If it started late, close that app normally before retrying.")))
             }
             NSWorkspace.shared.openApplication(at: request.app, configuration: configuration) { app, error in
-                if error != nil { gate.complete(.failure(SwitcherError.message("launch_failed"))) }
-                else if let app { gate.complete(.success(app.processIdentifier)) }
-                else { gate.complete(.failure(SwitcherError.message("launch_missing_process"))) }
+                if let error {
+                    // Log only a bounded, non-sensitive system error class and number:
+                    // NSError descriptions can contain private filesystem paths.
+                    let ns = error as NSError
+                    let family = ns.domain == NSCocoaErrorDomain ? "Cocoa" :
+                        (ns.domain == NSOSStatusErrorDomain ? "OSStatus" : "system")
+                    gate.complete(.failure(SwitcherError.message(
+                        "macOS refused to open the official app (\(family) error \(ns.code)). No profile data was modified.")))
+                } else if let app { gate.complete(.success(app.processIdentifier)) }
+                else { gate.complete(.failure(SwitcherError.message(
+                    "macOS opened the app without returning a process identity. The profile is preserved; close the app normally and retry."))) }
             }
         }
     }

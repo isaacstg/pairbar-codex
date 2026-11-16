@@ -180,6 +180,118 @@ final class CoreTests: XCTestCase {
         XCTAssertThrowsError(try store.save(huge, name: "pending.json"))
     }
 
+    // Synthetic, unsigned ASARs exercise the package-layout reader only.
+    // The production inspection independently requires OpenAI's signature.
+    private func syntheticBootstrapArchive(named module: String, source: String,
+                                           linked: Bool = false,
+                                           bystanders: Int = 0,
+                                           malformedBystander: Bool = false) throws -> URL {
+        let root = try temporaryRoot()
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let archive = root.appendingPathComponent(UUID().uuidString + ".asar")
+        let components = module.split(separator: "/").map(String.init)
+        XCTAssertEqual(Array(components.prefix(2)), [".vite", "build"])
+
+        var payload = Data(source.utf8)
+        var target: [String: Any] = ["offset": "0", "size": payload.count]
+        if linked { target["link"] = "untrusted" }
+        var entries: [String: Any] = [components.last!: target]
+
+        // Synthetic modern package: many similarly named chunks (some of
+        // them not eligible) cannot prevent canonical entrypoint inspection.
+        for i in 0..<bystanders {
+            let irrelevant = Data("console.log('chunk \(i)');".utf8)
+            let offset = payload.count
+            payload.append(irrelevant)
+            entries["early-bootstrap-\(i)-chunk.js"] = [
+                "offset": String(offset), "size": irrelevant.count
+            ]
+        }
+        if malformedBystander {
+            entries["early-bootstrap-invalid-chunk.js"] = [
+                "offset": "-1", "size": 10_000_000
+            ]
+        }
+        let indexRoot: [String: Any] = [
+            "files": [
+                ".vite": [
+                    "files": [
+                        "build": ["files": entries]
+                    ]
+                ]
+            ]
+        ]
+        let index = try JSONSerialization.data(withJSONObject: indexRoot, options: [.sortedKeys])
+        let padding = (4 - index.count % 4) % 4
+        let headerLength = UInt32(8 + index.count + padding)
+        func littleEndian(_ n: UInt32) -> Data {
+            var value = n.littleEndian
+            return withUnsafeBytes(of: &value) { Data($0) }
+        }
+        var data = Data()
+        for number in [UInt32(4), headerLength, headerLength - 4, UInt32(index.count)] {
+            data.append(littleEndian(number))
+        }
+        data.append(index)
+        data.append(Data(repeating: 0, count: padding))
+        data.append(payload)
+        try data.write(to: archive)
+        return archive
+    }
+
+    func testModernEarlyBootstrapRecognizedWithoutLegacyFile() throws {
+        let source = "const p=process.env.CODEX_ELECTRON_USER_DATA_PATH; app.setPath('userData', p);"
+        let archive = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap.js", source: source)
+        XCTAssertEqual(try Compatibility.bootstrapIndicators(archive), source)
+    }
+
+    func testCanonicalBootstrapWinsOverHundredsOfChunksAndInvalidBystanders() throws {
+        let source = "app.setPath('userData', process.env.CODEX_ELECTRON_USER_DATA_PATH);"
+        let archive = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap.js",
+            source: source, bystanders: 256, malformedBystander: true)
+        XCTAssertEqual(try Compatibility.bootstrapIndicators(archive), source)
+    }
+
+    func testFallbackWithoutCanonicalRejectsHundredsOfChunks() throws {
+        let archive = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap-42-build.js",
+            source: "CODEX_ELECTRON_USER_DATA_PATH userData", bystanders: 256)
+        XCTAssertThrowsError(try Compatibility.bootstrapIndicators(archive))
+    }
+
+    func testLegacyHashedBootstrapStillRecognized() throws {
+        let source = "const p=process.env.CODEX_ELECTRON_USER_DATA_PATH; app.setPath('userData', p);"
+        let archive = try syntheticBootstrapArchive(named: ".vite/build/bootstrap-abc123.js", source: source)
+        XCTAssertEqual(try Compatibility.bootstrapIndicators(archive), source)
+    }
+
+    func testModernHashedEarlyBootstrapRecognizedWhenCanonicalAbsent() throws {
+        let source = "const p=process.env.CODEX_ELECTRON_USER_DATA_PATH; app.setPath('userData', p);"
+        let archive = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap-226-2f6.js", source: source)
+        XCTAssertEqual(try Compatibility.bootstrapIndicators(archive), source)
+    }
+
+    func testMissingOverrideAndLinkedBootstrapAreRejected() throws {
+        let missing = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap.js",
+            source: "app.setPath('userData', '/shared');")
+        XCTAssertThrowsError(try Compatibility.bootstrapIndicators(missing))
+        let linked = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap.js",
+            source: "CODEX_ELECTRON_USER_DATA_PATH userData", linked: true)
+        XCTAssertThrowsError(try Compatibility.bootstrapIndicators(linked))
+    }
+
+    func testMalformedBootstrapIndexCannotBeAccepted() throws {
+        let archive = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap.js",
+            source: "CODEX_ELECTRON_USER_DATA_PATH userData")
+        var bytes = try Data(contentsOf: archive)
+        // The claimed JSON index must never read past the archive or payload.
+        bytes[12] = 0xff
+        bytes[13] = 0xff
+        bytes[14] = 0xff
+        bytes[15] = 0x7f
+        try bytes.write(to: archive)
+        XCTAssertThrowsError(try Compatibility.bootstrapIndicators(archive))
+    }
+
     func testUnsignedAppRejectedByIdentityAndIsolationChecks() throws {
         let root = try temporaryRoot().deletingLastPathComponent()
         let app = root.appendingPathComponent("Fake.app/Contents")
