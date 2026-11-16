@@ -50,10 +50,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 controller.confirmNewBuild = { [weak self, weak model] report in
                     guard let self, let model else { return false }
                     let alert = NSAlert()
-                    alert.messageText = model.text("Approve this ChatGPT/Codex version?", "¿Aprobar esta versión de ChatGPT/Codex?")
+                    alert.messageText = model.text("Enable additional ChatGPT profiles?", "¿Habilitar perfiles adicionales de ChatGPT?")
                     alert.informativeText = model.text(
-                        "Pairbar verified the official app and its static compatibility. Version \(report.identity.version) needs your approval before opening an additional profile. Check the account shown in the app after it opens.",
-                        "Pairbar verificó la app oficial y su compatibilidad estática. La versión \(report.identity.version) requiere tu aprobación antes de abrir otro perfil. Comprueba la cuenta mostrada al abrirse.")
+                        "Pairbar verified the official app and its profile overrides. Approve once to enable additional profiles; future verified updates will not ask again. Check the account shown after opening.",
+                        "Pairbar ha verificado la app oficial y el aislamiento de sus perfiles. Aprueba una vez para habilitar perfiles adicionales; las futuras actualizaciones verificadas no volverán a preguntarte. Comprueba la cuenta mostrada al abrir.")
                     alert.addButton(withTitle: model.text("Approve and open", "Aprobar y abrir"))
                     alert.addButton(withTitle: model.text("Cancel", "Cancelar"))
                     self.showPopover()

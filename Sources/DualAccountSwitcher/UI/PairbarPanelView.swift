@@ -28,6 +28,12 @@ struct PairbarPanelView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     if let message = model.errorMessage { errorBanner(message) }
+                    if let message = model.statusMessage {
+                        Label(message, systemImage: "checkmark.circle")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityElement(children: .combine)
+                    }
                     if let message = model.progressMessage {
                         HStack(spacing: 8) {
                             ProgressView().controlSize(.small)
@@ -303,6 +309,19 @@ struct PairbarPanelView: View {
             if model.canOfferRestart(row) {
                 panelAction(t("Restart", "Reiniciar"), "arrow.clockwise", enabled: !model.previewOnly) {
                     model.closeActions(); setConfirmation(.restart(row))
+                }
+            }
+            if !row.isCurrent && row.providerID == "codex" {
+                Divider().padding(.vertical, 3)
+                if let provider = model.providers.first(where: { $0.id == row.providerID }), provider.canRecover {
+                    panelAction(t("Repair…", "Reparar…"), "wrench.and.screwdriver", enabled: !model.previewOnly) {
+                        model.closeActions(); setConfirmation(.recover(provider))
+                    }
+                } else {
+                    panelAction(t("Diagnose…", "Diagnosticar…"), "stethoscope", enabled: !model.previewOnly) {
+                        model.closeActions(); model.page = .settings; model.advancedExpanded = true
+                        model.send(.check(row.providerID))
+                    }
                 }
             }
             if model.canOfferDelete(row) {

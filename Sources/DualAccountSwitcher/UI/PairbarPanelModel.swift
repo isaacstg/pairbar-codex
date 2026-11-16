@@ -89,6 +89,7 @@ final class PairbarPanelModel: ObservableObject {
     @Published var restoreName = ""
     @Published var providers: [PairbarProviderRow] = []
     @Published var errorMessage: String?
+    @Published var statusMessage: String?
     @Published var progressMessage: String?
     @Published var language: PairbarLanguage = .system
     @Published var memoryPressure: PairbarMemoryPressure = .normal
