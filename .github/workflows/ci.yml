@@ -21,6 +21,7 @@ jobs:
         run: |
           bash -n scripts/build.sh
           bash -n scripts/try-work-fix.sh
+          bash -n scripts/test-local-install.sh
           # Scan every literal macOS tool path used by the installer, including
           # modes not reached by --cleanup-preview (build/install/rollback).
           python3 - <<'PY'
@@ -57,6 +58,8 @@ jobs:
           test "$(sed -n 's/^sha256=//p' dist/BUILD_INFO.txt)" = "$(shasum -a 256 dist/Pairbar.zip | awk '{print $1}')"
           grep -Fx 'signature=ad-hoc development signature; not notarized' dist/BUILD_INFO.txt
           grep -Fx 'notarized=false' dist/BUILD_INFO.txt
+      - name: Exercise local installation and rollback in isolated HOME
+        run: bash scripts/test-local-install.sh
       - name: Upload development archive
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1, Node 24
         with:
