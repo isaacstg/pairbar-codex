@@ -22,6 +22,9 @@ jobs:
           bash -n scripts/build.sh
           bash -n scripts/try-work-fix.sh
           bash -n scripts/test-local-install.sh
+          bash -n scripts/pairbar.sh
+          python3 -m py_compile scripts/mac-cleanup.py scripts/test-mac-cleanup.py
+          python3 scripts/test-mac-cleanup.py
           # Scan every literal macOS tool path used by the installer, including
           # modes not reached by --cleanup-preview (build/install/rollback).
           python3 - <<'PY'
