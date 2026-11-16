@@ -58,6 +58,20 @@ class CleanupTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 cleanup.explicit_app(home, nested)
 
+    def test_renamed_apps_show_in_read_only_scan_but_cannot_be_trash_targets(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            home = Path(temporary)
+            make_app(home / "Applications/Pairbar.app")
+            renamed = home / "Applications/ChatGPT Personal Fixed.app"
+            make_app(renamed, "com.example.modified-clone")
+            other = home / "Applications/Installed Original.app"
+            make_app(other, "com.example.legacy-copy")
+            seen = {path: identity for path, identity, _ in cleanup.find_app_bundles(home)}
+            self.assertEqual(seen[renamed], "com.example.modified-clone")
+            self.assertEqual(seen[other], "com.example.legacy-copy")
+            with self.assertRaises(ValueError):
+                cleanup.explicit_app(home, renamed)
+
     def test_trash_is_reversible_and_preserves_file_contents(self):
         with tempfile.TemporaryDirectory() as temporary:
             home = Path(temporary)
