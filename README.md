@@ -95,41 +95,63 @@ rejected that official signed build even though the package still contains the
 separate Electron user-data and CODEX_HOME overrides. Build 28 supports both
 layouts and does not reset existing `Profiles/b` Work storage.
 
-For an existing installed user, **try the candidate before replacing the app**:
+**Recommended on your own Mac: install from source, not downloaded binaries.**
+The downloadable test ZIP is ad-hoc signed and macOS may refuse execution
+(`Killed: 9`) when the archive carries Gatekeeper quarantine. That error is
+*not* a ChatGPT compatibility diagnosis. Never disable Gatekeeper globally.
+
+Once, clone the hotfix branch into a stable development location:
 
 ```bash
+mkdir -p "$HOME/Developer"
 git clone --branch chatgpt/pairbar-resilient-profiles-20261116 --single-branch \
-  https://github.com/isaacstg/pairbar-codex.git "$HOME/Downloads/pairbar-work-fix"
-cd "$HOME/Downloads/pairbar-work-fix"
-bash scripts/try-work-fix.sh --build
+  https://github.com/isaacstg/pairbar-codex.git "$HOME/Developer/pairbar-codex"
+cd "$HOME/Developer/pairbar-codex"
 ```
 
-Quit the currently running Pairbar from its own menu (leave your profiles in place).
-Then open the locally built trial app:
+Quit Pairbar **normally** and close the directly launched Work instance
+before replacing the app. Then run this single command:
 
 ```bash
-bash scripts/try-work-fix.sh --launch
+bash scripts/try-work-fix.sh --sync-install
 ```
 
-This creates a private **metadata-only** backup and launches Pairbar 2.0.1 (28)
-from a separate location. **No installed app is replaced.** Verify the actual
-Work account in ChatGPT and then verify Personal separately. If Work still fails,
-copy only the redacted error message and do **not** reset, remove or rename Work.
+It performs a fast-forward-only GitHub pull, local source-policy audit and
+Swift tests, builds a native app **on this Mac**, checks its code signature and
+uses its own `--check-app` against the actually installed ChatGPT. It **aborts
+without installing anything** if that execution or compatibility check fails.
+If the checks pass, it backs up Pairbar's metadata and previous app, installs
+2.0.1 (28), and keeps the old app alongside the new one for rollback. No
+ChatGPT profile/session directory is moved, inspected, or deleted. A normal
+administrator password may be required to replace `/Applications/Pairbar.app`.
 
-After the trial proves Personal/Work separation, close Pairbar normally and install
-the tested candidate, retaining both an application backup and a rollback copy:
+Run exactly the same command after later GitHub commits on this branch.
+When the hotfix has passed live account-isolation checks and is merged, use
+`main` as the source branch for subsequent installations.
+
+If the new Pairbar still cannot open Work, quit Pairbar and restore the
+previous app (Work's data remains unchanged):
 
 ```bash
-bash scripts/try-work-fix.sh --install-after-work-test
+bash scripts/try-work-fix.sh --rollback
 ```
 
-The installer may ask for one macOS administrator password when replacing the
-existing app in /Applications. It does not delete or move any profile/session
-storage. It leaves the previous app bundle named
-`Pairbar.app.pairbar-previous-<uuid>` beside the installation for rollback.
-This is a locally built ad-hoc signed test candidate, **not** a notarized public
-release. For other macOS versions or ChatGPT versions, run the tests and verify
-account isolation again.
+To inspect old generated downloads without deleting anything:
+
+```bash
+bash scripts/try-work-fix.sh --cleanup-preview
+```
+
+Only after reviewing the list, remove those *known downloaded diagnostic/installer
+artifacts* via `bash scripts/try-work-fix.sh --cleanup-downloads`.
+This never removes the source checkout, the existing Work/Personal storage,
+candidate builds, app backups, or rollback copies. The normal source build's
+`work/` and `dist/` are ignored temporary output; retain them while using
+the build for debugging, then delete manually if you want to reclaim space.
+
+For a no-install trial, run `--build`, quit Pairbar, then `--launch`.
+The locally built app is a development artifact; it is not a notarized public
+release and distinct Work/Personal identities must still be checked live.
 
 ## Build and try it
 
