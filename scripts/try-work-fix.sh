@@ -22,7 +22,7 @@ if [[ "$mode" != "--build" && "$mode" != "--launch" && "$mode" != "--install-aft
     exit 2
 fi
 
-/usr/bin/mkdir -p "$candidate_root" "$backup_root" "$repo/work"
+/bin/mkdir -p "$candidate_root" "$backup_root" "$repo/work"
 /bin/chmod 700 "$candidate_root" "$backup_root"
 
 read_candidate() {
@@ -95,6 +95,13 @@ if [[ "$mode" == "--sync-install" ]]; then
     echo "Official ChatGPT compatibility PASS."
     # The owner quits Pairbar normally; no forced quit of any process.
     require_pairbar_closed
+    # Preserve a private metadata snapshot before replacing the app, not just
+    # when starting a standalone trial. Never copy profile/session contents.
+    if [[ -d "$metadata_root/Metadata" && ! -L "$metadata_root/Metadata" ]]; then
+        metadata_snapshot="$(/usr/bin/mktemp -d "$backup_root/metadata.XXXXXX")"
+        /usr/bin/ditto "$metadata_root/Metadata" "$metadata_snapshot/Metadata"
+        echo "Pairbar metadata backup: $metadata_snapshot"
+    fi
     /bin/bash scripts/try-work-fix.sh --install-after-work-test
     echo "Pairbar installed from source. Open it normally and verify Work and Personal."
     exit 0
