@@ -21,8 +21,20 @@ jobs:
         run: |
           bash -n scripts/build.sh
           bash -n scripts/try-work-fix.sh
-          # Execute a harmless CLI mode, not just a syntax check. This catches
-          # absent macOS tool paths such as /usr/bin/mkdir before distribution.
+          # Scan every literal macOS tool path used by the installer, including
+          # modes not reached by --cleanup-preview (build/install/rollback).
+          python3 - <<'PY'
+          import os, pathlib, re, sys
+          script = pathlib.Path("scripts/try-work-fix.sh").read_text()
+          paths = sorted(set(re.findall(
+              r"/(?:usr/(?:bin|libexec)|bin)/[A-Za-z][A-Za-z0-9._-]*", script
+          )))
+          missing = [p for p in paths if not os.path.isfile(p) or not os.access(p, os.X_OK)]
+          if missing:
+              print("Invalid macOS executable paths: " + ", ".join(missing), file=sys.stderr)
+              sys.exit(1)
+          print(f"Validated {len(paths)} macOS executable paths")
+          PY
           bash scripts/try-work-fix.sh --cleanup-preview
           plutil -lint Resources/Info.plist
       - name: Unit tests
