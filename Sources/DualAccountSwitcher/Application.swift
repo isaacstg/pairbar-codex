@@ -52,8 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     let alert = NSAlert()
                     alert.messageText = model.text("Enable additional ChatGPT profiles?", "¿Habilitar perfiles adicionales de ChatGPT?")
                     alert.informativeText = model.text(
-                        "Pairbar verified the official app and its profile overrides. Approve once to enable additional profiles; future verified updates will not ask again. Check the account shown after opening.",
-                        "Pairbar ha verificado la app oficial y el aislamiento de sus perfiles. Aprueba una vez para habilitar perfiles adicionales; las futuras actualizaciones verificadas no volverán a preguntarte. Comprueba la cuenta mostrada al abrir.")
+                        "Pairbar verified the official signature and the presence of profile overrides; this cannot prove that two signed-in accounts stay separate. Enable additional profiles once. Compatible updates are rechecked automatically. Verify the account shown after opening.",
+                        "Pairbar ha verificado la firma oficial y la presencia de mecanismos para separar perfiles, pero esto no demuestra que dos cuentas iniciadas permanezcan aisladas. Autoriza una vez los perfiles adicionales. Las actualizaciones compatibles se revisan automáticamente. Comprueba la cuenta al abrir.")
                     alert.addButton(withTitle: model.text("Approve and open", "Aprobar y abrir"))
                     alert.addButton(withTitle: model.text("Cancel", "Cancelar"))
                     self.showPopover()
