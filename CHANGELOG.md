@@ -2,6 +2,8 @@
 
 ## 2.0.1 (28) — Work compatibility hotfix candidate
 
+- Added a GitHub-first Mac workflow (`scripts/try-work-fix.sh --sync-install`): fast-forward pull, local native compilation, code-signature and live installed-app compatibility preflight, metadata/application backups, reversible replacement and selective download-cleanup preview. The downloaded ad-hoc ZIP is no longer the recommended installation path.
+
 - Recognize the official ChatGPT 26.1111.21308 Electron `.vite/build/early-bootstrap.js` layout while retaining support for older hashed bootstrap names; reject malformed, linked and ambiguous archive entries.
 - Make Work and fresh profiles actionable again without resetting their existing Electron or Codex directories; signed app identity and per-profile ownership still must pass.
 - Ask for the profile feature opt-in once, not after every compatible ChatGPT update; revalidate upstream builds automatically and fail closed on actual incompatibility.
