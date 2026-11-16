@@ -7,7 +7,7 @@ command="${1:-help}"
 shift || true
 
 case "$command" in
-    update)
+    update|sync)
         pending_changes="$(/usr/bin/git status --porcelain --untracked-files=normal)"
         if [[ -n "$pending_changes" ]]; then
             echo "Local source files or untracked files require review (no files changed by updater):" >&2
@@ -51,6 +51,11 @@ case "$command" in
         if ! /usr/bin/git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' >/dev/null 2>&1; then
             /usr/bin/git branch --set-upstream-to=origin/main main
         fi
+        if [[ "$command" == "sync" ]]; then
+            /usr/bin/git pull --ff-only origin main
+            echo "Pairbar source scripts updated from main; installed apps and account sessions untouched."
+            exit 0
+        fi
         # Existing fail-closed native installation flow.
         /bin/bash "$repo/scripts/try-work-fix.sh" --sync-install
         ;;
@@ -83,6 +88,7 @@ Pairbar commands:
   bash scripts/pairbar.sh tidy        Trash only recognized old downloads/builds/backups
   bash scripts/pairbar.sh tidy-app /absolute/path/old-copy.app
                                       Trash one reviewed app copy (not the installed apps)
+  bash scripts/pairbar.sh sync        Pull main without compiling or reinstalling
   bash scripts/pairbar.sh update      Pull main, test, build and install from GitHub
   bash scripts/pairbar.sh rollback    Restore the last previous Pairbar app
 HELP
