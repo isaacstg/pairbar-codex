@@ -203,6 +203,50 @@ final class PairbarControllerTests: XCTestCase {
         XCTAssertTrue(controller.diagnosticText.contains("official-app-check-or-launch-failed"))
     }
 
+    func testManagedLaunchWaitsForDelayedOfficialProcessRegistration() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let profile = try fixture.addProfile(provider: .codex, name: "Delayed")
+        try fixture.approveCodex(fingerprint: fingerprint)
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        let stamp = inspector.stamp(provider: .codex, pid: 818, seconds: 101)
+        let runtime = FakeRuntime()
+        runtime.openHandler = { _ in stamp.pid }
+        runtime.pauseHandler = {
+            if runtime.pauseCount == 1 {
+                runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+            }
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+
+        let opened = await controller.open(.managed(profile.id))
+
+        XCTAssertTrue(opened)
+        XCTAssertEqual(runtime.pauseCount, 1)
+        XCTAssertEqual(try fixture.store.listProfiles(provider: .codex).first?.receipt?.stamp, stamp)
+        XCTAssertNil(try fixture.store.listProfiles(provider: .codex).first?.pending)
+    }
+
+    func testCurrentLaunchWaitsForDelayedOfficialProcessRegistration() async throws {
+        let fixture = try Fixture(); defer { fixture.remove() }
+        let inspector = FakeInspector(codexFingerprint: fingerprint)
+        let stamp = inspector.stamp(provider: .codex, pid: 819, seconds: 101)
+        let runtime = FakeRuntime()
+        runtime.openHandler = { _ in stamp.pid }
+        runtime.pauseHandler = {
+            if runtime.pauseCount == 1 {
+                runtime.install(stamp, provider: .codex, app: inspector.identity(for: .codex).app)
+            }
+        }
+        let controller = try fixture.controller(runtime: runtime, inspector: inspector)
+
+        let opened = await controller.open(.current(.codex))
+
+        XCTAssertTrue(opened)
+        XCTAssertEqual(runtime.pauseCount, 1)
+        XCTAssertTrue(controller.records.isEmpty)
+        XCTAssertEqual(runtime.activated, [stamp])
+    }
+
     func testDeclinedBuildAndAutomaticLoginNeverApproveOrLaunch() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }

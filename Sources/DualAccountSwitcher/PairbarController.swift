@@ -385,6 +385,13 @@ final class PairbarController {
                                                     currentEnvironment: currentCodexEnvironment)
                     : ProviderLaunchRequest.currentClaude(app: identity.app, hasManagedInstances: hasManagedInstances)
                 let returned = try await runtime.open(request)
+                // LaunchServices may finish before the process is visible to NSWorkspace.
+                // Never infer Current from the returned PID alone; wait for resolution.
+                for _ in 0..<20 {
+                    refresh()
+                    if case .running(let resolved) = states[provider]?.current, resolved == returned { break }
+                    await runtime.pause()
+                }
                 refresh()
                 guard case .running(let resolved) = states[provider]?.current, resolved == returned,
                       !records.contains(where: { $0.receipt?.stamp.pid == returned }),
@@ -420,13 +427,24 @@ final class PairbarController {
                 record.receipt = nil; record.pending = intent
                 try replaceRecord(record); launching.insert(id); refresh(); defer { launching.remove(id) }
                 let pid = try await runtime.open(.codex(app: report.identity.app, electron: paths.electron, codexHome: paths.codexHome))
-                guard case .observed(let stamp) = runtime.observe(pid: pid),
-                      LaunchReceipt.canAdopt(stamp, launchedAfter: intent.startedAt.timeIntervalSince1970,
-                          executable: report.identity.executable.path, uid: runtime.uid, existingPIDs: existing),
-                      runtime.running(provider: provider).contains(where: { $0.pid == pid &&
-                          $0.appURL?.resolvingSymlinksInPath() == report.identity.app }),
-                      runtime.verifyLiveIdentity(stamp, provider: provider, identity: report.identity),
-                      !records.contains(where: { $0.id != id && $0.receipt?.stamp.pid == pid }) else { fail("ownership"); return false }
+                // The provider can start after NSWorkspace's completion callback.
+                // Only adopt a fresh PID when *every* original identity/ownership
+                // condition is satisfied. Timeouts keep the pending intent for recovery.
+                var verified: ProcessStamp?
+                for _ in 0..<20 {
+                    if case .observed(let stamp) = runtime.observe(pid: pid),
+                       LaunchReceipt.canAdopt(stamp, launchedAfter: intent.startedAt.timeIntervalSince1970,
+                           executable: report.identity.executable.path, uid: runtime.uid, existingPIDs: existing),
+                       runtime.running(provider: provider).contains(where: { $0.pid == pid &&
+                           $0.appURL?.resolvingSymlinksInPath() == report.identity.app }),
+                       runtime.verifyLiveIdentity(stamp, provider: provider, identity: report.identity),
+                       !records.contains(where: { $0.id != id && $0.receipt?.stamp.pid == pid }) {
+                        verified = stamp
+                        break
+                    }
+                    await runtime.pause()
+                }
+                guard let stamp = verified else { fail("ownership"); return false }
                 record.receipt = LaunchReceipt2(provider: provider, profileID: id, storageGeneration: record.storageGeneration,
                     launchID: intent.launchID, stamp: stamp, paths: paths, fingerprint: fingerprint)
                 try replaceRecord(record)
