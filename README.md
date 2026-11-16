@@ -65,6 +65,28 @@ This is profile separation within one macOS user, not an operating-system securi
 
 Pairbar is in active development; no public Developer ID-signed and notarized release is available yet. Managed Claude awaits real signed-in acceptance, and signed-in A/B account isolation remains pending. See [implementation status](docs/IMPLEMENTATION_STATUS.md) and the [public release checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) for evidence and remaining release gates.
 
+## Profile opening and troubleshooting
+
+Choose a profile to open it. First-time managed-profile use requires one explicit approval.
+After that, signed official ChatGPT updates that pass the same compatibility and identity
+checks are reverified automatically without asking you to approve every version.
+If the official app changes its profile-override behavior, Pairbar refuses an unsafe
+managed launch; no tool can guarantee that unreviewed upstream versions still isolate accounts.
+
+If **Work** or another profile cannot open, use its **⋯ → Diagnose…** action. This
+opens **Settings → Advanced** and runs **Check again**, displaying either a successful
+check or the specific compatibility reason. When the controller can safely recover
+interrupted state, **⋯ → Repair…** appears instead. Repair is never a general solution
+to a missing app, an incompatible Electron build, or an OS launch error.
+Do not delete or reset profile directories as a troubleshooting shortcut; account
+data is retained in place. Diagnostics copied from Settings intentionally omit
+profile names, personal paths and account/session contents.
+
+Opening may wait briefly for macOS to register a newly launched process; adoption
+still requires a matching official-app identity and an unambiguous fresh process.
+The full signed-in Personal/Work separation and actual installed-build compatibility
+must be verified on a Mac before declaring a fix successful.
+
 ## Build and try it
 
 You need macOS 13 or later, Xcode Command Line Tools with Swift 5.9 or later, and the official Electron-based `ChatGPT.app` with bundle identifier `com.openai.codex` for managed Codex profiles. The optional Claude Current integration expects the official `Claude.app` with bundle identifier `com.anthropic.claudefordesktop` and Team ID `Q6L2SF6YDW`.
