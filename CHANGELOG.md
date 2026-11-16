@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.1 (28) — Work compatibility hotfix candidate
+
+- Recognize the official ChatGPT 26.1111.21308 Electron `.vite/build/early-bootstrap.js` layout while retaining support for older hashed bootstrap names; reject malformed, linked and ambiguous archive entries.
+- Make Work and fresh profiles actionable again without resetting their existing Electron or Codex directories; signed app identity and per-profile ownership still must pass.
+- Ask for the profile feature opt-in once, not after every compatible ChatGPT update; revalidate upstream builds automatically and fail closed on actual incompatibility.
+- Display the specific failed compatibility check, offer context-sensitive Diagnose/Repair, and tolerate delayed macOS process registration without adopting unknown processes.
+- Add synthetic ASAR regression fixtures and local trial workflow that backs up metadata and launches a candidate without replacing the installed app.
+
+
 ## 2.0.0 (27) — Current development candidate
 
 - Capture Codex Current paths once at startup and explicitly pass both sensitive environment variables and `--user-data-dir` on every new Current launch, including alongside running managed profiles. The Electron variable and argument share exactly the same resolved path.
