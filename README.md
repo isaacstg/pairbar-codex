@@ -87,6 +87,50 @@ still requires a matching official-app identity and an unambiguous fresh process
 The full signed-in Personal/Work separation and actual installed-build compatibility
 must be verified on a Mac before declaring a fix successful.
 
+## Pairbar 2.0.1 (28): recover an existing Work profile on your Mac
+
+ChatGPT 26.1111.21308 changed the packaged Electron entrypoint from
+`.vite/build/bootstrap-*.js` to `.vite/build/early-bootstrap.js`. Pairbar 2.0.0 (27)
+rejected that official signed build even though the package still contains the
+separate Electron user-data and CODEX_HOME overrides. Build 28 supports both
+layouts and does not reset existing `Profiles/b` Work storage.
+
+For an existing installed user, **try the candidate before replacing the app**:
+
+```bash
+git clone --branch chatgpt/pairbar-resilient-profiles-20261116 --single-branch \
+  https://github.com/isaacstg/pairbar-codex.git "$HOME/Downloads/pairbar-work-fix"
+cd "$HOME/Downloads/pairbar-work-fix"
+bash scripts/try-work-fix.sh --build
+```
+
+Quit the currently running Pairbar from its own menu (leave your profiles in place).
+Then open the locally built trial app:
+
+```bash
+bash scripts/try-work-fix.sh --launch
+```
+
+This creates a private **metadata-only** backup and launches Pairbar 2.0.1 (28)
+from a separate location. **No installed app is replaced.** Verify the actual
+Work account in ChatGPT and then verify Personal separately. If Work still fails,
+copy only the redacted error message and do **not** reset, remove or rename Work.
+
+After the trial proves Personal/Work separation, close Pairbar normally and install
+the tested candidate, retaining both an application backup and a rollback copy:
+
+```bash
+bash scripts/try-work-fix.sh --install-after-work-test
+```
+
+The installer may ask for one macOS administrator password when replacing the
+existing app in /Applications. It does not delete or move any profile/session
+storage. It leaves the previous app bundle named
+`Pairbar.app.pairbar-previous-<uuid>` beside the installation for rollback.
+This is a locally built ad-hoc signed test candidate, **not** a notarized public
+release. For other macOS versions or ChatGPT versions, run the tests and verify
+account isolation again.
+
 ## Build and try it
 
 You need macOS 13 or later, Xcode Command Line Tools with Swift 5.9 or later, and the official Electron-based `ChatGPT.app` with bundle identifier `com.openai.codex` for managed Codex profiles. The optional Claude Current integration expects the official `Claude.app` with bundle identifier `com.anthropic.claudefordesktop` and Team ID `Q6L2SF6YDW`.
