@@ -1,0 +1,16 @@
+.build/
+.swiftpm/
+dist/
+work/
+.DS_Store
+*.xcuserstate
+# Never commit credentials, local account stores, or signing material.
+.env
+.env.*
+auth.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.mobileprovision
+Profiles/

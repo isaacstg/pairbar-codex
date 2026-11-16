@@ -1,0 +1,9 @@
+# PR #10 visual and interaction validation
+
+Base: `origin/main` `4baf8a990ac5597ca99affc602a1ed15518aa90d`. This PR changes the panel, its presentation model, preview appearance options, and UI tests. Provider runtime, ownership, receipts, pending state, recovery, storage, shortcuts registration, discovery, and login lifecycle are unchanged.
+
+The inert `--preview-ui` model was inspected with Personal (Current) and Work (managed) in English and Spanish and with explicit Light and Dark appearance. Profiles, Work actions expanded, Settings/Advanced, and Add profile were viewed in the native popover. The 400 pt panel had readable text, no observed clipping or overflow, and 34–36 pt header/action targets. The main account region is 56 pt tall. Work exposes Delete profile; Current does not. In preview, account actions do not reach the controller. Claude Current is hidden from the normal list while stopped; its provider and Current Open/Edit controls remain in Settings → Advanced. Advanced content scrolls to the diagnostics link. Command-F focused the search field. The provider filter and Select control were absent with two visible Codex profiles.
+
+The row action drawer remained inside the same popover. Opening Personal actions after Work actions closed Work's drawer. Escape closed the popover after a visible close control was restored. The native accessibility tree showed no nested row `Menu` or secondary tracking window.
+
+An automated click into Finder did not produce a conclusive popover dismissal observation in the computer-use harness, before or after the inline actions were opened. The transient behavior and an app-resign-active close fallback are present in code; a direct human click-outside and status-item toggle pass on the built app remains necessary before merge. No real account was opened, closed, restarted, or deleted for this review.
