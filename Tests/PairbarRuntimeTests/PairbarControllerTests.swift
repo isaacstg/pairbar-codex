@@ -179,7 +179,8 @@ final class PairbarControllerTests: XCTestCase {
         var prompts = 0
         controller.confirmNewBuild = { _ in prompts += 1; return true }
 
-        XCTAssertFalse(await controller.open(.managed(profile.id)))
+        let opened = await controller.open(.managed(profile.id))
+        XCTAssertFalse(opened)
         XCTAssertEqual(prompts, 0)
         XCTAssertEqual(try fixture.store.loadProvider(.codex).approvedFingerprint, "old-build")
         XCTAssertTrue(runtime.openRequests.isEmpty)
