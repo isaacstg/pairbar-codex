@@ -87,71 +87,62 @@ still requires a matching official-app identity and an unambiguous fresh process
 The full signed-in Personal/Work separation and actual installed-build compatibility
 must be verified on a Mac before declaring a fix successful.
 
-## Pairbar 2.0.1 (28): recover an existing Work profile on your Mac
+## Pairbar on macOS: safe updates and cleanup
 
-ChatGPT 26.1111.21308 changed the packaged Electron entrypoint from
-`.vite/build/bootstrap-*.js` to `.vite/build/early-bootstrap.js`. Pairbar 2.0.0 (27)
-rejected that official signed build even though the package still contains the
-separate Electron user-data and CODEX_HOME overrides. Build 28 supports both
-layouts and does not reset existing `Profiles/b` Work storage.
+**Pairbar 2.0.1 (28) has been verified with the owner's distinct Personal and
+Work accounts and merged to `main`.** ChatGPT 26.1111.21308 changed its
+Electron bootstrap to `.vite/build/early-bootstrap.js`; Pairbar now recognizes
+the new and previous layouts. Later official ChatGPT builds are verified
+automatically without another approval after initial consent. A genuinely
+unsupported upstream change still fails closed instead of mixing account data.
 
-**Recommended on your own Mac: install from source, not downloaded binaries.**
-The downloadable test ZIP is ad-hoc signed and macOS may refuse execution
-(`Killed: 9`) when the archive carries Gatekeeper quarantine. That error is
-*not* a ChatGPT compatibility diagnosis. Never disable Gatekeeper globally.
+Build directly on the Mac from GitHub; this avoids using a downloaded ad-hoc
+signed test ZIP that Gatekeeper may quarantine. No need to disable Gatekeeper.
 
-Once, clone the hotfix branch into a stable development location:
-
-```bash
-mkdir -p "$HOME/Developer"
-git clone --branch chatgpt/pairbar-resilient-profiles-20261116 --single-branch \
-  https://github.com/isaacstg/pairbar-codex.git "$HOME/Developer/pairbar-codex"
-cd "$HOME/Developer/pairbar-codex"
-```
-
-Quit Pairbar **normally** and close the directly launched Work instance
-before replacing the app. Then run this single command:
+Once, if the repository was previously cloned with the **single-branch hotfix**:
 
 ```bash
-bash scripts/try-work-fix.sh --sync-install
+cd "$HOME/Developer/pairbar-work-fix"
+git fetch origin main:refs/remotes/origin/main
+git switch --create main --track origin/main
 ```
 
-It performs a fast-forward-only GitHub pull, local source-policy audit and
-Swift tests, builds a native app **on this Mac**, checks its code signature and
-uses its own `--check-app` against the actually installed ChatGPT. It **aborts
-without installing anything** if that execution or compatibility check fails.
-If the checks pass, it backs up Pairbar's metadata and previous app, installs
-2.0.1 (28), and keeps the old app alongside the new one for rollback. No
-ChatGPT profile/session directory is moved, inspected, or deleted. A normal
-administrator password may be required to replace `/Applications/Pairbar.app`.
-
-Run exactly the same command after later GitHub commits on this branch.
-When the hotfix has passed live account-isolation checks and is merged, use
-`main` as the source branch for subsequent installations.
-
-If the new Pairbar still cannot open Work, quit Pairbar and restore the
-previous app (Work's data remains unchanged):
+For a new installation, clone `main` normally. Subsequent commands, from
+your checkout, use one management entrypoint:
 
 ```bash
-bash scripts/try-work-fix.sh --rollback
+bash scripts/pairbar.sh scan       # read-only duplicate-app and worktree inventory
+bash scripts/pairbar.sh tidy       # move known stale downloads/builds to macOS Trash
+bash scripts/pairbar.sh update     # pull main, test, build, check, back up, install
+bash scripts/pairbar.sh rollback   # only if an installed update breaks something
 ```
 
-To inspect old generated downloads without deleting anything:
+The cleanup inventory reads **application bundle metadata and Git worktree
+metadata only**, never contents of Personal/Work profiles. It scans
+`/Applications`, `~/Applications`, `~/Desktop`, `~/Downloads`,
+and `~/Developer` for ChatGPT/Pairbar bundles; it flags copies such as
+`Personal Fixed`, `Installed Original` or `Previous` for manual review
+rather than deleting them automatically. Use:
 
 ```bash
-bash scripts/try-work-fix.sh --cleanup-preview
+bash scripts/pairbar.sh tidy-app "/absolute/path/to/a/reviewed/duplicate.app"
 ```
 
-Only after reviewing the list, remove those *known downloaded diagnostic/installer
-artifacts* via `bash scripts/try-work-fix.sh --cleanup-downloads`.
-This never removes the source checkout, the existing Work/Personal storage,
-candidate builds, app backups, or rollback copies. The normal source build's
-`work/` and `dist/` are ignored temporary output; retain them while using
-the build for debugging, then delete manually if you want to reclaim space.
+only once that specific app has been reviewed and both ChatGPT and Pairbar
+are normally closed. The tool protects the normal installed apps, rejects a
+duplicate that may be the only usable copy, and refuses a rollback currently
+referenced by the rollback manifest. `tidy` only recognizes exact old test
+downloads, older build candidates and redundant previous-app backups, retaining
+the newest recovery copies. It never deletes source worktrees, current
+profiles, live app installations, metadata or account sessions. All moved items
+remain in **macOS Trash** until you decide to empty it.
 
-For a no-install trial, run `--build`, quit Pairbar, then `--launch`.
-The locally built app is a development artifact; it is not a notarized public
-release and distinct Work/Personal identities must still be checked live.
+The `update` command checks the official OpenAI signature and the packaged
+profile-override mechanism, builds from local verified source, and preserves
+the existing app and metadata before replacing it. It does not ask for an
+approval after each compatible ChatGPT release; an administrator password may
+still be required for writes to `/Applications`. The resulting local build is
+ad-hoc signed and not a notarized public release.
 
 ## Build and try it
 
