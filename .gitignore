@@ -14,3 +14,7 @@ auth.json
 *.pfx
 *.mobileprovision
 Profiles/
+
+# Python diagnostic/test caches are generated artifacts, not source edits.
+__pycache__/
+*.py[cod]
