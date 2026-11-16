@@ -174,7 +174,7 @@ if [[ "$mode" == "--build" ]]; then
     /usr/bin/ditto -x -k "$repo/dist/Pairbar.zip" "$build_dir"
     candidate="$build_dir/Pairbar.app"
     /usr/bin/codesign --verify --strict --all-architectures "$candidate"
-    /bin/printf '%s\n' "$candidate" > "$pointer"
+    printf '%s\n' "$candidate" > "$pointer"
     echo "Candidate built: $candidate"
     echo "Run: bash scripts/try-work-fix.sh --launch"
     exit 0
@@ -247,7 +247,7 @@ fi
 echo "Installed trial Pairbar: $destination"
 echo "Rollback copy preserved at: $previous"
 if [[ -d "$previous" ]]; then
-    /bin/printf '%s\n%s\n' "$destination" "$previous" > "$backup_root/last-installed-pairbar.txt"
+    printf '%s\n%s\n' "$destination" "$previous" > "$backup_root/last-installed-pairbar.txt"
     echo "Rollback: bash scripts/try-work-fix.sh --rollback"
 fi
 echo "No provider session or profile storage was deleted or moved."
