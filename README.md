@@ -103,7 +103,8 @@ Once, if the repository was previously cloned with the **single-branch hotfix**:
 
 ```bash
 cd "$HOME/Developer/pairbar-work-fix"
-git fetch origin main:refs/remotes/origin/main
+git remote set-branches --add origin main
+git fetch origin main
 git switch --create main --track origin/main
 ```
 
@@ -111,8 +112,10 @@ For a new installation, clone `main` normally. Subsequent commands, from
 your checkout, use one management entrypoint:
 
 ```bash
+bash scripts/pairbar.sh status     # read-only Git changes/upstream diagnosis
 bash scripts/pairbar.sh scan       # read-only duplicate-app and worktree inventory
 bash scripts/pairbar.sh tidy       # move known stale downloads/builds to macOS Trash
+bash scripts/pairbar.sh sync       # pull current main scripts without reinstalling Pairbar
 bash scripts/pairbar.sh update     # pull main, test, build, check, back up, install
 bash scripts/pairbar.sh rollback   # only if an installed update breaks something
 ```
@@ -120,9 +123,10 @@ bash scripts/pairbar.sh rollback   # only if an installed update breaks somethin
 The cleanup inventory reads **application bundle metadata and Git worktree
 metadata only**, never contents of Personal/Work profiles. It scans
 `/Applications`, `~/Applications`, `~/Desktop`, `~/Downloads`,
-and `~/Developer` for ChatGPT/Pairbar bundles; it flags copies such as
-`Personal Fixed`, `Installed Original` or `Previous` for manual review
-rather than deleting them automatically. Use:
+and `~/Developer` for ChatGPT/Pairbar bundles. It also flags
+plausibly renamed applications such as `Personal Fixed` or
+`Installed Original`, even with a changed bundle ID, for **read-only**
+review. Unknown bundle IDs are never eligible for automatic removal. Use:
 
 ```bash
 bash scripts/pairbar.sh tidy-app "/absolute/path/to/a/reviewed/duplicate.app"
@@ -136,6 +140,14 @@ downloads, older build candidates and redundant previous-app backups, retaining
 the newest recovery copies. It never deletes source worktrees, current
 profiles, live app installations, metadata or account sessions. All moved items
 remain in **macOS Trash** until you decide to empty it.
+
+If the installer reports local changes, run `bash scripts/pairbar.sh status`
+and review the filenames before acting. Python `__pycache__` and `.pyc`
+are now ignored. Do not discard unrelated local changes. A clone originally
+created with `--single-branch` can fail to track `origin/main` even
+after fetching it; the maintenance command now corrects that fetch
+configuration automatically. Use `sync` when you only want the newest
+maintenance scripts, without another unnecessary app installation.
 
 The `update` command checks the official OpenAI signature and the packaged
 profile-override mechanism, builds from local verified source, and preserves
