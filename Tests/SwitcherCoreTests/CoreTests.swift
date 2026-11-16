@@ -183,17 +183,45 @@ final class CoreTests: XCTestCase {
     // Synthetic, unsigned ASARs exercise the package-layout reader only.
     // The production inspection independently requires OpenAI's signature.
     private func syntheticBootstrapArchive(named module: String, source: String,
-                                           linked: Bool = false) throws -> URL {
+                                           linked: Bool = false,
+                                           bystanders: Int = 0,
+                                           malformedBystander: Bool = false) throws -> URL {
         let root = try temporaryRoot()
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let archive = root.appendingPathComponent(UUID().uuidString + ".asar")
-        let payload = Data(source.utf8)
-        var leaf: [String: Any] = ["offset": "0", "size": payload.count]
-        if linked { leaf["link"] = "untrusted" }
-        for segment in module.split(separator: "/").reversed() {
-            leaf = ["files": [String(segment): leaf]]
+        let components = module.split(separator: "/").map(String.init)
+        XCTAssertEqual(Array(components.prefix(2)), [".vite", "build"])
+
+        var payload = Data(source.utf8)
+        var target: [String: Any] = ["offset": "0", "size": payload.count]
+        if linked { target["link"] = "untrusted" }
+        var entries: [String: Any] = [components.last!: target]
+
+        // Synthetic modern package: many similarly named chunks (some of
+        // them not eligible) cannot prevent canonical entrypoint inspection.
+        for i in 0..<bystanders {
+            let irrelevant = Data("console.log('chunk \(i)');".utf8)
+            let offset = payload.count
+            payload.append(irrelevant)
+            entries["early-bootstrap-\(i)-chunk.js"] = [
+                "offset": String(offset), "size": irrelevant.count
+            ]
         }
-        let index = try JSONSerialization.data(withJSONObject: leaf, options: [.sortedKeys])
+        if malformedBystander {
+            entries["early-bootstrap-invalid-chunk.js"] = [
+                "offset": "-1", "size": 10_000_000
+            ]
+        }
+        let indexRoot: [String: Any] = [
+            "files": [
+                ".vite": [
+                    "files": [
+                        "build": ["files": entries]
+                    ]
+                ]
+            ]
+        ]
+        let index = try JSONSerialization.data(withJSONObject: indexRoot, options: [.sortedKeys])
         let padding = (4 - index.count % 4) % 4
         let headerLength = UInt32(8 + index.count + padding)
         func littleEndian(_ n: UInt32) -> Data {
@@ -215,6 +243,19 @@ final class CoreTests: XCTestCase {
         let source = "const p=process.env.CODEX_ELECTRON_USER_DATA_PATH; app.setPath('userData', p);"
         let archive = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap.js", source: source)
         XCTAssertEqual(try Compatibility.bootstrapIndicators(archive), source)
+    }
+
+    func testCanonicalBootstrapWinsOverHundredsOfChunksAndInvalidBystanders() throws {
+        let source = "app.setPath('userData', process.env.CODEX_ELECTRON_USER_DATA_PATH);"
+        let archive = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap.js",
+            source: source, bystanders: 256, malformedBystander: true)
+        XCTAssertEqual(try Compatibility.bootstrapIndicators(archive), source)
+    }
+
+    func testFallbackWithoutCanonicalRejectsHundredsOfChunks() throws {
+        let archive = try syntheticBootstrapArchive(named: ".vite/build/early-bootstrap-42-build.js",
+            source: "CODEX_ELECTRON_USER_DATA_PATH userData", bystanders: 256)
+        XCTAssertThrowsError(try Compatibility.bootstrapIndicators(archive))
     }
 
     func testLegacyHashedBootstrapStillRecognized() throws {
