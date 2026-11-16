@@ -53,6 +53,10 @@ class CleanupTests(unittest.TestCase):
             make_app(installed)
             with self.assertRaises(ValueError):
                 cleanup.explicit_app(home, installed)
+            nested = installed / "Contents" / "Resources" / "Another.app"
+            make_app(nested)
+            with self.assertRaises(ValueError):
+                cleanup.explicit_app(home, nested)
 
     def test_trash_is_reversible_and_preserves_file_contents(self):
         with tempfile.TemporaryDirectory() as temporary:
