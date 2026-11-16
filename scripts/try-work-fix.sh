@@ -53,6 +53,27 @@ require_pairbar_closed() {
     fi
 }
 
+# Bash 3.2 on macOS treats an empty array expansion as unbound under set -u.
+# Avoid the empty 'sudo prefix' array entirely: invoke the desired command
+# directly when the destination is writable, and use sudo only when needed.
+verify_destination_permissions() {
+    local app_path="$1"
+    local parent_path
+    parent_path="$(dirname "$app_path")"
+    if [[ ! -w "$parent_path" ]]; then
+        /usr/bin/sudo -v
+    fi
+}
+run_destination_command() {
+    local parent_path
+    parent_path="$(dirname "$destination")"
+    if [[ -w "$parent_path" ]]; then
+        "$@"
+    else
+        /usr/bin/sudo "$@"
+    fi
+}
+
 # Local Git source of truth: a fresh Mac-built binary avoids Gatekeeper quarantine
 # inherited from downloaded, ad-hoc-signed ZIP artifacts.
 if [[ "$mode" == "--sync-install" ]]; then
@@ -148,11 +169,11 @@ if [[ "$mode" == "--rollback" ]]; then
           "$current_id" != "io.isaacstg.codex-dual-account-switcher" ]]; then
         echo "App identity check failed. No rollback performed." >&2; exit 2
     fi
-    if [[ -w "$(dirname "$destination")" ]]; then elevate=(); else /usr/bin/sudo -v; elevate=(/usr/bin/sudo); fi
+    verify_destination_permissions "$destination"
     displaced="$destination.pairbar-rollback-new-$(/usr/bin/uuidgen)"
-    "${elevate[@]}" /bin/mv "$destination" "$displaced"
-    if ! "${elevate[@]}" /bin/mv "$previous" "$destination"; then
-        "${elevate[@]}" /bin/mv "$displaced" "$destination"
+    run_destination_command /bin/mv "$destination" "$displaced"
+    if ! run_destination_command /bin/mv "$previous" "$destination"; then
+        run_destination_command /bin/mv "$displaced" "$destination"
         echo "Rollback failed; the newer app was put back." >&2; exit 1
     fi
     echo "Previous Pairbar restored at: $destination"
@@ -230,18 +251,13 @@ if [[ -e "$staged" || -e "$previous" ]]; then
     echo "Installation staging path is not free." >&2
     exit 2
 fi
-if [[ -w "$(dirname "$destination")" ]]; then
-    elevate=()
-else
-    /usr/bin/sudo -v
-    elevate=(/usr/bin/sudo)
-fi
-"${elevate[@]}" /usr/bin/ditto "$candidate" "$staged"
-"${elevate[@]}" /usr/bin/codesign --verify --strict --all-architectures "$staged"
-"${elevate[@]}" /bin/mv "$destination" "$previous"
-if ! "${elevate[@]}" /bin/mv "$staged" "$destination"; then
+verify_destination_permissions "$destination"
+run_destination_command /usr/bin/ditto "$candidate" "$staged"
+run_destination_command /usr/bin/codesign --verify --strict --all-architectures "$staged"
+run_destination_command /bin/mv "$destination" "$previous"
+if ! run_destination_command /bin/mv "$staged" "$destination"; then
     echo "Could not complete installation, restoring the previous application..." >&2
-    "${elevate[@]}" /bin/mv "$previous" "$destination"
+    run_destination_command /bin/mv "$previous" "$destination"
     exit 1
 fi
 echo "Installed trial Pairbar: $destination"
