@@ -21,6 +21,9 @@ jobs:
         run: |
           bash -n scripts/build.sh
           bash -n scripts/try-work-fix.sh
+          # Execute a harmless CLI mode, not just a syntax check. This catches
+          # absent macOS tool paths such as /usr/bin/mkdir before distribution.
+          bash scripts/try-work-fix.sh --cleanup-preview
           plutil -lint Resources/Info.plist
       - name: Unit tests
         run: swift test
