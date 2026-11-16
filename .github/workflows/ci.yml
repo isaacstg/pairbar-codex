@@ -23,8 +23,14 @@ jobs:
           bash -n scripts/try-work-fix.sh
           bash -n scripts/test-local-install.sh
           bash -n scripts/pairbar.sh
-          python3 -m py_compile scripts/mac-cleanup.py scripts/test-mac-cleanup.py
-          python3 scripts/test-mac-cleanup.py
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          for name in ('scripts/mac-cleanup.py', 'scripts/test-mac-cleanup.py'):
+              ast.parse(Path(name).read_text(), filename=name)
+          print('Cleanup Python syntax PASS without writing pycache')
+          PY
+          PYTHONDONTWRITEBYTECODE=1 python3 scripts/test-mac-cleanup.py
           # Scan every literal macOS tool path used by the installer, including
           # modes not reached by --cleanup-preview (build/install/rollback).
           python3 - <<'PY'
