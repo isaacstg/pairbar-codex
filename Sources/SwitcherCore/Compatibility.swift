@@ -105,12 +105,15 @@ public enum Compatibility {
             (0..<4).reduce(UInt64(0)) { $0 | (UInt64(header[offset + $1]) << ($1 * 8)) }
         }
 
-        let jsonSize = u32(12), headerSize = u32(4), archiveSize = try handle.seekToEnd()
-        // The first 16 bytes are the ASAR pickle header. Keep all offsets bounded
-        // by the actual file size before reading any entry described by the index.
-        guard jsonSize > 0, jsonSize <= 8_388_608,
-              headerSize >= 8, headerSize <= archiveSize - min(archiveSize, 8),
-              headerSize <= UInt64.max - 8,
+        let jsonSize = u32(12), headerSize = u32(4), headerPayload = u32(8)
+        let archiveSize = try handle.seekToEnd()
+        // Validate the ASAR pickle layout and bound every read by the actual
+        // file length; never trust an index offset or size from a changed app.
+        guard u32(0) == 4, headerSize >= 8, headerSize % 4 == 0,
+              headerSize <= UInt64.max - 8, headerSize + 8 <= archiveSize,
+              headerPayload + 4 == headerSize,
+              jsonSize > 0, jsonSize <= 8_388_608,
+              jsonSize + 4 <= headerPayload, headerPayload - (jsonSize + 4) < 4,
               let rootData = try readArchive(handle, at: 16, length: Int(jsonSize), archiveSize: archiveSize),
               let root = try JSONSerialization.jsonObject(with: rootData) as? [String: Any],
               let files = root["files"] as? [String: Any] else {
@@ -137,7 +140,8 @@ public enum Compatibility {
                     next == ".vite/build/bootstrap.js" ||
                     next.hasPrefix(".vite/build/early-bootstrap-") ||
                     next.hasPrefix(".vite/build/bootstrap-") {
-                    guard child["link"] == nil, child["unpacked"] == nil,
+                    guard child["link"] == nil,
+                          (child["unpacked"] == nil || (child["unpacked"] as? Bool) == false),
                           let offsetString = child["offset"] as? String,
                           !offsetString.isEmpty, offsetString.allSatisfy({ $0 >= "0" && $0 <= "9" }),
                           let offset = UInt64(offsetString),
