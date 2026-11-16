@@ -41,6 +41,29 @@ def app_info(path: Path) -> tuple[str, str] | None:
     return ident, str(data.get("CFBundleShortVersionString", "?"))
 
 
+def suspicious_copy_info(path: Path) -> tuple[str, str] | None:
+    """Surface plausible renamed copies even when their bundle ID changed.
+
+    Name-only matches are read-only review leads, never approved for tidy-app.
+    """
+    name = path.name.lower()
+    words = ("chatgpt", "codex", "pairbar", "personal fixed",
+             "installed original", "work fixed")
+    if not any(word in name for word in words):
+        return None
+    plist = path / "Contents" / "Info.plist"
+    if path.is_symlink() or not plist.is_file() or plist.is_symlink():
+        return "unknown (name match only)", "?"
+    try:
+        with plist.open("rb") as stream:
+            info = plistlib.load(stream)
+        return str(info.get("CFBundleIdentifier", "unknown")), str(
+            info.get("CFBundleShortVersionString", "?")
+        )
+    except (OSError, ValueError, TypeError, plistlib.InvalidFileException):
+        return "unreadable (name match only)", "?"
+
+
 def safe_downloads(home: Path) -> list[tuple[str, Path]]:
     downloads = home / "Downloads"
     if downloads.is_symlink():
@@ -149,7 +172,7 @@ def find_app_bundles(home: Path, maxdepth: int = 7) -> list[tuple[Path, str, str
                     continue
                 if name.endswith(".app") or ".app.pairbar-previous-" in name:
                     dirs.remove(name)
-                    info = app_info(child)
+                    info = app_info(child) or suspicious_copy_info(child)
                     if info and str(child) not in seen:
                         seen.add(str(child))
                         found.append((child, info[0], info[1]))
@@ -175,7 +198,12 @@ def preview(home: Path, repo: Path) -> None:
     if not apps:
         print("  None found in scanned app/development folders")
     for path, identity, version in apps:
-        status = "KEEP: installed app" if protected_app(path, home) else "REVIEW: never auto-removed"
+        if protected_app(path, home):
+            status = "KEEP: installed app"
+        elif identity not in KNOWN_IDS:
+            status = "REVIEW: renamed/unknown app; never auto-removed"
+        else:
+            status = "REVIEW: never auto-removed"
         print(f"  [{status}] {path}\n      bundle={identity} version={version}")
     print("\nKnown disposable files (can move to Trash after review):")
     items = safe_artifacts(home)
