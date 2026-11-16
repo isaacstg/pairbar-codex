@@ -32,7 +32,7 @@ This is the single authoritative checklist for public binary release. The A+ UI 
 ### Live acceptance gate
 
 - [ ] **MUST: account isolation.** In a disposable macOS user or test Mac, sign Current into disposable account A and managed Work profile into different disposable account B. A human confirms distinct identities in both Chat and Code/Codex. Repeat the identity check after Switch, graceful Close, reopen, managed Restart, and Pairbar restart. Current remains A and Work remains B throughout. Record aliases only; never collect session data.
-- [ ] **MUST: build update.** Change the installed ChatGPT build in the disposable environment. Verify Pairbar detects it, offers contextual `Approve and open`, leaves an old running build fail-closed where ownership cannot be proved, and never crosses account identity.
+- [ ] **MUST: build update.** Change the installed ChatGPT build in the disposable environment. Verify Pairbar detects it, adopts a signed compatible build without repeating first-time approval, leaves an old running build fail-closed where ownership cannot be proved, and never crosses account identity. Also test an incompatible update that fails without launching.
 - [ ] **SHOULD: shortcuts.** Live focus `⌥⌘1` → Current and `⌥⌘2` → Work, with distinct identities maintained.
 - [ ] **SHOULD: concurrency.** If two simultaneous managed profiles will be advertised, verify both live with distinct disposable accounts.
 - [ ] **SHOULD: recovery.** Exercise stale pending/recovery live with disposable profiles and provider-wide quiescence.

@@ -234,7 +234,7 @@ struct SwitcherMain {
         let arguments = CommandLine.arguments
         if arguments.count == 3 && arguments[1] == "--check-app" {
             do { print(try Compatibility.inspect(URL(fileURLWithPath: arguments[2])).summary) }
-            catch { fputs("Pairbar could not verify the selected ChatGPT app.\n", stderr); exit(1) }
+            catch { fputs("Pairbar could not verify the selected ChatGPT app: \(error.localizedDescription)\n", stderr); exit(1) }
             return
         }
         if arguments.count == 3 && arguments[1] == "--check-claude" {
