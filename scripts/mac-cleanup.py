@@ -159,10 +159,12 @@ def find_app_bundles(home: Path, maxdepth: int = 7) -> list[tuple[Path, str, str
 
 
 def protected_app(path: Path, home: Path) -> bool:
-    return path in {
+    protected = {
         Path("/Applications/ChatGPT.app"), Path("/Applications/Pairbar.app"),
         home / "Applications/ChatGPT.app", home / "Applications/Pairbar.app",
     }
+    # Never move a nested bundle from inside a real installed application.
+    return any(path == root or root in path.parents for root in protected)
 
 
 def preview(home: Path, repo: Path) -> None:
@@ -242,9 +244,9 @@ def explicit_app(home: Path, candidate: Path) -> tuple[str, Path]:
     # Refuse while either app is running, including if a clone might be used.
     try:
         statuses = [
-            subprocess.run(["/usr/bin/pgrep", "-x", name],
+            subprocess.run(["/usr/bin/pgrep", *arguments],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
-            for name in ("ChatGPT", "DualAccountSwitcher")
+            for arguments in (("-x", "ChatGPT"), ("-f", "[D]ualAccountSwitcher"))
         ]
     except OSError as exc:
         raise ValueError("Cannot verify running app processes") from exc
@@ -271,7 +273,7 @@ def main() -> int:
     if args.trash_safe:
         items = safe_downloads(home)
         try:
-            running = subprocess.run(["/usr/bin/pgrep", "-x", "DualAccountSwitcher"],
+            running = subprocess.run(["/usr/bin/pgrep", "-f", "[D]ualAccountSwitcher"],
                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
         except OSError:
             running = True
